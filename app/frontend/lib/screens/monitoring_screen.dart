@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/system_metrics.dart';
@@ -6,6 +7,7 @@ import '../services/monitoring_service.dart';
 import '../theme/tokens.dart';
 import '../widgets/ax_widgets.dart';
 import '../widgets/sparkline.dart';
+import 'overview_screen.dart' show kStaleAfter, kStillNothingMessage;
 
 enum _MonTab { cpu, memory, disk, network, processes }
 
@@ -18,8 +20,9 @@ class MonitoringScreen extends StatefulWidget {
 
 class _MonitoringScreenState extends State<MonitoringScreen> {
   _MonTab _tab = _MonTab.cpu;
-  String _range = '1h';
   String _procQuery = '';
+  final DateTime _openedAt = DateTime.now();
+  Timer? _ticker;
 
   @override
   void initState() {
@@ -28,12 +31,23 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
       final backend = context.read<ArchangeldConnection>();
       context.read<MonitoringService>().start(backend);
     });
+    // Re-render so the "still nothing" message can appear after 10 s.
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && context.read<MonitoringService>().metrics == null) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final mon = context.watch<MonitoringService>();
     final metrics = mon.metrics;
+    final stale = metrics == null && DateTime.now().difference(_openedAt) > kStaleAfter;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
@@ -67,9 +81,16 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           Text(
             mon.isConnected
                 ? 'archangeld · streaming live over WireGuard'
-                : (mon.status == MonitoringStatus.connecting ? 'connecting to archangeld...' : 'node_exporter · offline / mock data'),
+                : (mon.status == MonitoringStatus.connecting ? 'Connecting to your server…' : "Can't reach your server"),
             style: AxTextStyles.mutedMono,
           ),
+          if (metrics == null) ...[
+            const SizedBox(height: 6),
+            Text(
+              stale ? kStillNothingMessage : 'Waiting for telemetry…',
+              style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: stale ? AxColors.warn : AxColors.fg3, height: 1.4),
+            ),
+          ],
           const SizedBox(height: 15),
           Wrap(
             spacing: 12,
@@ -88,13 +109,6 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 },
                 onSelect: (t) => setState(() => _tab = t),
               ),
-              if (_tab != _MonTab.processes)
-                AxSegmented<String>(
-                  values: const ['1h', '24h', '7d'],
-                  selected: _range,
-                  label: (r) => r,
-                  onSelect: (r) => setState(() => _range = r),
-                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -179,7 +193,7 @@ class _ChartCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [for (final l in ['-1h', '-45m', '-30m', '-15m', 'now']) Text(l, style: AxTextStyles.mono.copyWith(fontSize: 9.5, color: AxColors.fg3))],
+                children: [Text('Live (since you opened this screen)', style: AxTextStyles.mono.copyWith(fontSize: 9.5, color: AxColors.fg3))],
               ),
             ],
           ),
@@ -551,7 +565,7 @@ class _ProcessTableState extends State<_ProcessTable> {
                     const SizedBox(height: 10),
                     Text(
                       widget.liveProcs.isEmpty
-                          ? 'Waiting for processes telemetry from host...'
+                          ? 'Waiting for process list…'
                           : 'No processes match "${widget.query}"',
                       style: AxTextStyles.mono.copyWith(fontSize: 12, color: AxColors.fg3),
                     ),

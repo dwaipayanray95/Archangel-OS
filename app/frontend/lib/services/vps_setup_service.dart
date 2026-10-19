@@ -93,6 +93,23 @@ class VpsSetupService {
     'uninstall.sh',
   ];
 
+  static const _sudoersGrant = 'archangel ALL=(ALL) NOPASSWD: ALL';
+
+  /// Writes the Admin mode grant. Used by first-time setup, where Admin
+  /// mode is on by default.
+  static const _sudoersGrantScript = '''
+echo "$_sudoersGrant" | sudo tee /etc/sudoers.d/archangel > /dev/null
+sudo chmod 440 /etc/sudoers.d/archangel''';
+
+  /// Re-applies the grant ONLY if it's already there, so syncing/updating an
+  /// existing server never silently turns Admin mode back on after the user
+  /// switched it off. `sudo test` because /etc/sudoers.d isn't searchable by
+  /// non-root users (mode 0750), so a plain `[ -f ]` would always say no.
+  static const _sudoersRefreshScript = '''
+if sudo test -f /etc/sudoers.d/archangel; then
+$_sudoersGrantScript
+fi''';
+
   PairingBundle? _result;
 
   /// The pairing bundle for this device, available once [run]'s stream
@@ -131,7 +148,7 @@ class VpsSetupService {
     }
 
     yield const SetupProgress('binary', 'Downloading the latest archangeld release...');
-    await _installBinary(arch, config);
+    yield* _installBinary(arch, config);
     yield const SetupProgress('binary', 'archangeld installed.', stageComplete: true);
 
     yield const SetupProgress('config', 'Writing server configuration...');
@@ -194,29 +211,100 @@ class VpsSetupService {
     }
   }
 
-  Future<void> _installBinary(String arch, VpsSetupConfig config) async {
-    final url = 'https://github.com/${config.githubRepoSlug}/releases/latest/download/archangeld-$arch';
-    final script = '''
+  Stream<SetupProgress> _installBinary(String arch, VpsSetupConfig config) async* {
+    final baseUrl = 'https://github.com/${config.githubRepoSlug}/releases/latest/download';
+    final url = '$baseUrl/archangeld-$arch';
+    final prepScript = '''
 set -e
 sudo id -u archangel >/dev/null 2>&1 || sudo useradd --system --create-home --home-dir /home/archangel --shell /bin/bash archangel
 sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
 sudo chown archangel:archangel /home/archangel
 sudo chown root:archangel /etc/archangel
 sudo chmod 750 /etc/archangel
-echo "archangel ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/archangel > /dev/null
-sudo chmod 440 /etc/sudoers.d/archangel
-sudo curl -fsSL "$url" -o /tmp/archangeld
+$_sudoersGrantScript
+''';
+    final prepResult = await _exec(prepScript);
+    if (!prepResult.ok) {
+      throw VpsSetupException('binary', 'Failed to prepare the archangel user and directories - exit ${prepResult.exitCode}: ${prepResult.stderr}');
+    }
+
+    final downloadResult = await _exec('sudo curl -fsSL "$url" -o /tmp/archangeld');
+    if (!downloadResult.ok) {
+      throw VpsSetupException(
+        'binary',
+        'Failed to install archangeld (checked $url) - exit ${downloadResult.exitCode}: ${downloadResult.stderr}',
+      );
+    }
+
+    final verified = await _verifyChecksum(
+      sumsUrl: '$baseUrl/SHA256SUMS',
+      arch: arch,
+      filePath: '/tmp/archangeld',
+      stage: 'binary',
+    );
+    yield verified ? _checksumOk : _checksumSkipped;
+
+    final installResult = await _exec('''
+set -e
 sudo mv /tmp/archangeld /opt/archangel/archangeld
 sudo chmod 755 /opt/archangel/archangeld
 sudo chown root:root /opt/archangel/archangeld
-''';
-    final result = await _exec(script);
-    if (!result.ok) {
+''');
+    if (!installResult.ok) {
+      throw VpsSetupException('binary', 'Failed to install archangeld - exit ${installResult.exitCode}: ${installResult.stderr}');
+    }
+  }
+
+  static const _checksumOk = SetupProgress('verify', 'Checksum verified.', stageComplete: true);
+  static const _checksumSkipped = SetupProgress('verify', 'Release has no checksums - skipped verification', stageComplete: true);
+
+  /// Downloads the release's SHA256SUMS from [sumsUrl] and checks the
+  /// already-downloaded [filePath] against the `archangeld-<arch>` line.
+  ///
+  /// Returns true if verified, false if the release simply has no
+  /// SHA256SUMS (HTTP 404 - releases from before checksums existed).
+  /// Throws [VpsSetupException] (and deletes [filePath]) on a mismatch,
+  /// a missing entry, or any other failure fetching the sums - an
+  /// unreachable/erroring checksum file is not the same as an old release,
+  /// so it must not silently downgrade to "unverified".
+  Future<bool> _verifyChecksum({
+    required String sumsUrl,
+    required String arch,
+    required String filePath,
+    required String stage,
+  }) async {
+    final sumsPath = '$filePath.SHA256SUMS';
+    final fetch = await _exec('sudo rm -f "$sumsPath"; sudo curl -sSL -o "$sumsPath" -w \'%{http_code}\' "$sumsUrl"');
+    final httpCode = fetch.stdout.trim();
+    if (fetch.ok && httpCode == '404') {
+      await _exec('sudo rm -f "$sumsPath"');
+      return false;
+    }
+    if (!fetch.ok || httpCode != '200') {
+      await _exec('sudo rm -f "$sumsPath" "$filePath"');
       throw VpsSetupException(
-        'binary',
-        'Failed to install archangeld (checked $url) - exit ${result.exitCode}: ${result.stderr}',
+        stage,
+        'Could not download the release checksums ($sumsUrl) - HTTP ${httpCode.isEmpty ? 'unknown' : httpCode}'
+        '${fetch.stderr.isNotEmpty ? ': ${fetch.stderr}' : ''}',
       );
     }
+
+    final name = 'archangeld-$arch';
+    final verifyScript = '''
+LINE=\$(grep " $name\\\$" "$sumsPath") || { echo "SHA256SUMS has no entry for $name" >&2; exit 1; }
+echo "\$LINE" | sed 's|$name\$|$filePath|' | sudo sha256sum -c -
+''';
+    final verify = await _exec(verifyScript);
+    await _exec('sudo rm -f "$sumsPath"');
+    if (!verify.ok) {
+      await _exec('sudo rm -f "$filePath"');
+      throw VpsSetupException(
+        stage,
+        'Checksum verification failed - the downloaded $name does not match the published SHA256SUMS, so it was discarded. '
+        '${verify.stderr.isNotEmpty ? verify.stderr : verify.stdout}',
+      );
+    }
+    return true;
   }
 
   /// Returns the server's detected public IP (queried either way, since
@@ -344,16 +432,31 @@ bash $_remoteScriptDir/ensure_boot_fw_fixup.sh ${config.appPort} tcp
     yield const SetupProgress('backup', 'Backup created.', stageComplete: true);
 
     yield SetupProgress('download', 'Downloading archangeld v$targetVersion...');
-    final url = 'https://github.com/$githubRepoSlug/releases/download/$releaseTag/archangeld-$arch';
-    // Downloaded to a temp path and version-checked BEFORE it's moved
-    // into /opt/archangel/archangeld, so a bad/corrupt download never
-    // overwrites the last-known-good binary in the first place - the
-    // backup above is the second line of defense (a restart-time
-    // failure the version check itself can't catch, e.g. the binary
-    // runs fine standalone but crashes under real config/load).
+    final baseUrl = 'https://github.com/$githubRepoSlug/releases/download/$releaseTag';
+    final url = '$baseUrl/archangeld-$arch';
+    // Downloaded to a temp path, checksum-verified and version-checked
+    // BEFORE it's moved into /opt/archangel/archangeld, so a bad/corrupt
+    // download never overwrites the last-known-good binary in the first
+    // place - the backup above is the second line of defense (a
+    // restart-time failure the version check itself can't catch, e.g. the
+    // binary runs fine standalone but crashes under real config/load).
+    final fetchResult = await _exec('sudo curl -fsSL "$url" -o /tmp/archangeld-new');
+    if (!fetchResult.ok) {
+      throw VpsSetupException(
+        'download',
+        'Failed to download/verify archangeld v$targetVersion (checked $url) - exit ${fetchResult.exitCode}: ${fetchResult.stderr}',
+      );
+    }
+    final verified = await _verifyChecksum(
+      sumsUrl: '$baseUrl/SHA256SUMS',
+      arch: arch,
+      filePath: '/tmp/archangeld-new',
+      stage: 'download',
+    );
+    yield verified ? _checksumOk : _checksumSkipped;
+
     final downloadScript = '''
 set -e
-sudo curl -fsSL "$url" -o /tmp/archangeld-new
 sudo chmod 755 /tmp/archangeld-new
 sudo chown root:root /tmp/archangeld-new
 NEW_VERSION=\$(/tmp/archangeld-new version 2>/dev/null | awk '{print \$2}' | sed 's/^v//')
@@ -381,8 +484,7 @@ sudo id -u archangel >/dev/null 2>&1 || sudo useradd --system --create-home --ho
 sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
 sudo chown -R archangel:archangel /home/archangel
 sudo usermod -d /home/archangel -s /bin/bash archangel || true
-echo "archangel ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/archangel > /dev/null
-sudo chmod 440 /etc/sudoers.d/archangel
+$_sudoersRefreshScript
 sudo cp -f $_remoteScriptDir/archangel.service /etc/systemd/system/archangel.service
 
 # If config.yaml has empty files_root, update it to /home/archangel
@@ -475,8 +577,7 @@ sudo id -u archangel >/dev/null 2>&1 || sudo useradd --system --create-home --ho
 sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
 sudo chown -R archangel:archangel /home/archangel
 sudo usermod -d /home/archangel -s /bin/bash archangel || true
-echo "archangel ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/archangel > /dev/null
-sudo chmod 440 /etc/sudoers.d/archangel
+$_sudoersRefreshScript
 sudo cp -f $_remoteScriptDir/archangel.service /etc/systemd/system/archangel.service
 
 # If config.yaml has empty files_root, update it to /home/archangel
@@ -494,6 +595,29 @@ sudo systemctl restart archangel
       throw VpsSetupException('sync', 'Failed to update service and permissions: ${syncResult.stderr}');
     }
     yield const SetupProgress('sync', 'Service unit and permissions updated.', stageComplete: true);
+  }
+
+  /// Turns Admin mode (the archangel user's passwordless sudo) back on.
+  /// Admin mode can be switched off from the app, but never on - granting
+  /// root needs SSH access, which is what makes this a stream over an
+  /// [SshTransport] rather than an API call. The grant is validated with
+  /// `visudo` and removed again if it doesn't parse, so a bad write can
+  /// never leave sudo broken.
+  Stream<SetupProgress> enableAdminMode() async* {
+    yield const SetupProgress('admin', 'Granting the archangel user sudo access...');
+    final result = await _exec('''
+set -e
+$_sudoersGrantScript
+if ! sudo visudo -cf /etc/sudoers.d/archangel; then
+  sudo rm -f /etc/sudoers.d/archangel
+  echo "sudoers validation failed - grant removed" >&2
+  exit 1
+fi
+''');
+    if (!result.ok) {
+      throw VpsSetupException('admin', 'Failed to enable Admin mode: ${result.stderr.isNotEmpty ? result.stderr : result.stdout}');
+    }
+    yield const SetupProgress('admin', 'Admin mode is on.', stageComplete: true);
   }
 
   Future<void> _rollbackBinary() async {

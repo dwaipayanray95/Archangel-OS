@@ -8,7 +8,7 @@ import '../services/update_check_service.dart';
 import '../services/vps_setup_service.dart';
 import '../theme/tokens.dart';
 import 'host_key_dialog.dart';
-import 'pin_prompt_dialog.dart';
+import 'passphrase_prompt_dialog.dart';
 
 /// Shown when the user taps "Update now" on the Backend row in Settings.
 /// Updates an already-set-up server's archangeld to the version named by
@@ -76,7 +76,7 @@ class _BackendUpdateDialogState extends State<BackendUpdateDialog> {
         _credsLoadedFromSaved = true;
         _loadingSavedKey = false;
       });
-      // Streamline: user entered PIN and has saved credentials ready, immediately connect & update!
+      // Streamline: user entered passphrase and has saved credentials ready, immediately connect & update!
       await _connect();
     } else {
       setState(() {
@@ -130,17 +130,22 @@ class _BackendUpdateDialogState extends State<BackendUpdateDialog> {
         onUnknownHostKey: _confirmHostKey,
       );
 
-      // Only prompt to set/confirm PIN if this is a newly entered key, not if we loaded it from saved credentials
+      if (!mounted) {
+        transport.close();
+        return;
+      }
+
+      // Only prompt to set/confirm passphrase if this is a newly entered key, not if we loaded it from saved credentials
       if (_rememberKey) {
         if (!_credsLoadedFromSaved) {
-          final pin = await promptForPin(
+          final savePassphrase = await promptForPassphrase(
             context,
-            title: 'Set a PIN',
-            message: 'Choose a PIN to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the PIN.',
+            title: 'Set a passphrase',
+            message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
             confirm: true,
           );
-          if (pin != null) {
-            await saveSshCredentials(pin, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
+          if (savePassphrase != null) {
+            await saveSshCredentials(savePassphrase, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
           }
         }
       } else {

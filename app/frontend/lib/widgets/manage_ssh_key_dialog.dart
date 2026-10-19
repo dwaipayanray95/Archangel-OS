@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/ssh_credentials.dart';
 import '../theme/tokens.dart';
-import 'pin_prompt_dialog.dart';
+import 'passphrase_prompt_dialog.dart';
 
 /// Lets the user view/replace/forget the SSH key "Remember this key"
 /// saved (from the setup wizard or BackendUpdateDialog), without having
@@ -71,20 +71,20 @@ class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
       return;
     }
 
-    final pin = await promptForPin(
+    final passphrase = await promptForPassphrase(
       context,
-      title: 'Set a PIN',
-      message: 'Choose a PIN to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the PIN.',
+      title: 'Set a passphrase',
+      message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
       confirm: true,
     );
-    if (!mounted || pin == null) return;
+    if (!mounted || passphrase == null) return;
 
     setState(() {
       _saving = true;
       _error = null;
     });
 
-    await saveSshCredentials(pin, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
+    await saveSshCredentials(passphrase, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
     if (!mounted) return;
     Navigator.of(context).pop();
   }

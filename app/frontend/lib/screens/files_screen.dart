@@ -17,6 +17,17 @@ class FilesScreen extends StatefulWidget {
 class _FilesScreenState extends State<FilesScreen> {
   String _filter = '';
 
+  Future<void> _download(BuildContext context, FilesService files, String path) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await files.downloadToDisk(path);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed')),
+        backgroundColor: res.ok ? AxColors.s2 : AxColors.bad,
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -305,17 +316,7 @@ class _FilesScreenState extends State<FilesScreen> {
                                         files.openFilePreview(f.path);
                                       }
                                     },
-                                    onDownload: () async {
-                                      final bytes = await files.downloadFileBytes(f.path);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text(bytes != null ? 'Downloaded ${f.name} (${bytes.length} bytes)' : 'Failed to download ${f.name}'),
-                                            backgroundColor: bytes != null ? AxColors.s2 : AxColors.bad,
-                                          ),
-                                        );
-                                      }
-                                    },
+                                    onDownload: () => _download(context, files, f.path),
                                   );
                                 },
                               ),
@@ -329,17 +330,7 @@ class _FilesScreenState extends State<FilesScreen> {
                         content: files.fileContent,
                         loading: files.previewLoading,
                         onClose: files.closePreview,
-                        onDownload: () async {
-                          final bytes = await files.downloadFileBytes(files.activePreviewPath!);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(bytes != null ? 'Downloaded ${files.activePreviewPath!.split('/').last} (${bytes.length} bytes)' : 'Failed to download file'),
-                                backgroundColor: bytes != null ? AxColors.s2 : AxColors.bad,
-                              ),
-                            );
-                          }
-                        },
+                        onDownload: () => _download(context, files, files.activePreviewPath!),
                       ),
                   ],
                 ),

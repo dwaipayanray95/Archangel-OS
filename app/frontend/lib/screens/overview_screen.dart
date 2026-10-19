@@ -12,6 +12,61 @@ import '../theme/tokens.dart';
 import '../widgets/ax_widgets.dart';
 import '../widgets/sparkline.dart';
 
+/// Shown (instead of "Waiting for…") once 10 s pass without any data.
+const kStillNothingMessage = 'Still nothing from your server. Check the tunnel is connected (top bar) or open Settings.';
+const kStaleAfter = Duration(seconds: 10);
+
+enum HealthLevel { unreachable, checking, warning, healthy }
+
+class HealthStatus {
+  final HealthLevel level;
+  final List<String> problems;
+  const HealthStatus(this.level, [this.problems = const []]);
+
+  bool get isHealthy => level == HealthLevel.healthy;
+
+  String get headline => switch (level) {
+        HealthLevel.unreachable => "Can't reach your server",
+        HealthLevel.checking => 'Waiting for the first reading…',
+        HealthLevel.warning => problems.join(' · '),
+        HealthLevel.healthy => 'All systems nominal',
+      };
+
+  String? get hint => level == HealthLevel.unreachable ? 'Check the tunnel is connected (top bar) or open Settings.' : null;
+
+  String get pill => switch (level) {
+        HealthLevel.unreachable => 'Offline',
+        HealthLevel.checking => 'Connecting',
+        HealthLevel.warning => 'Needs attention',
+        HealthLevel.healthy => 'Healthy',
+      };
+}
+
+/// Healthy only when connected AND CPU, memory and every disk are under 90%.
+HealthStatus evaluateHealth({required bool connected, required SystemMetrics? metrics}) {
+  if (!connected) return const HealthStatus(HealthLevel.unreachable);
+  if (metrics == null) return const HealthStatus(HealthLevel.checking);
+  const limit = 90.0;
+  final problems = <String>[];
+  if (metrics.cpu.usagePercent >= limit) {
+    problems.add('CPU is ${metrics.cpu.usagePercent.round()}% busy');
+  }
+  if (metrics.memory.usagePercent >= limit) {
+    problems.add('Memory is ${metrics.memory.usagePercent.round()}% used');
+  }
+  final mounts = metrics.disk.mounts;
+  if (mounts.isEmpty) {
+    if (metrics.disk.usagePercent >= limit) problems.add('Disk is ${metrics.disk.usagePercent.round()}% full');
+  } else {
+    for (final m in mounts) {
+      if (m.totalBytes > 0 && m.usagePercent >= limit) {
+        problems.add('Disk ${m.mountPoint} is ${m.usagePercent.round()}% full');
+      }
+    }
+  }
+  return problems.isEmpty ? const HealthStatus(HealthLevel.healthy) : HealthStatus(HealthLevel.warning, problems);
+}
+
 class _Tile {
   final String label;
   final String value;
@@ -26,13 +81,14 @@ class _Tile {
   const _Tile(this.label, this.value, this.unit, this.sub, this.delta, this.deltaColor, this.color, this.icon, this.spark, this.go);
 }
 
-List<_Tile> _buildTiles(SystemMetrics? metrics) {
+List<_Tile> _buildTiles(SystemMetrics? metrics, {bool stale = false}) {
   if (metrics == null) {
-    return const [
-      _Tile('CPU', '—', '%', 'Waiting for telemetry...', '', AxColors.fg3, AxColors.accent, Icons.memory, [0.0], AxSection.monitoring),
-      _Tile('MEMORY', '—', 'GB', 'Waiting for telemetry...', '', AxColors.fg3, AxColors.info, Icons.developer_board, [0.0], AxSection.monitoring),
-      _Tile('DISK', '—', 'GB', 'Waiting for telemetry...', '', AxColors.fg3, AxColors.fg, Icons.storage, [0.0], AxSection.monitoring),
-      _Tile('NETWORK', '—', 'MB/s', 'Waiting for telemetry...', '', AxColors.fg3, AxColors.accent, Icons.swap_vert, [0.0], AxSection.monitoring),
+    final sub = stale ? 'No data' : 'Waiting for telemetry…';
+    return [
+      _Tile('CPU', '—', '%', sub, '', AxColors.fg3, AxColors.accent, Icons.memory, [0.0], AxSection.monitoring),
+      _Tile('MEMORY', '—', 'GB', sub, '', AxColors.fg3, AxColors.info, Icons.developer_board, [0.0], AxSection.monitoring),
+      _Tile('DISK', '—', 'GB', sub, '', AxColors.fg3, AxColors.fg, Icons.storage, [0.0], AxSection.monitoring),
+      _Tile('NETWORK', '—', 'MB/s', sub, '', AxColors.fg3, AxColors.accent, Icons.swap_vert, [0.0], AxSection.monitoring),
     ];
   }
 
@@ -118,6 +174,7 @@ class OverviewScreen extends StatefulWidget {
 
 class _OverviewScreenState extends State<OverviewScreen> {
   Timer? _ticker;
+  final DateTime _openedAt = DateTime.now();
 
   @override
   void initState() {
@@ -142,12 +199,16 @@ class _OverviewScreenState extends State<OverviewScreen> {
     super.dispose();
   }
 
-  String _formatAgo(DateTime? lastPolled, bool isConnected) {
-    if (!isConnected) return 'connecting to telemetry...';
-    if (lastPolled == null) return 'telemetry active · live stream';
-    final elapsed = DateTime.now().difference(lastPolled).inSeconds;
-    if (elapsed <= 1) return 'all systems nominal · polled just now';
-    return 'all systems nominal · polled ${elapsed}s ago';
+  String _formatAgo(MonitoringService mon, HealthStatus health) {
+    if (health.level == HealthLevel.unreachable) {
+      return mon.status == MonitoringStatus.connecting ? 'Connecting to your server…' : "${health.headline} · ${health.hint}";
+    }
+    if (health.level == HealthLevel.checking) return health.headline;
+    final lastPolled = mon.lastPolled;
+    final ago = lastPolled == null
+        ? 'live stream'
+        : (DateTime.now().difference(lastPolled).inSeconds <= 1 ? 'polled just now' : 'polled ${DateTime.now().difference(lastPolled).inSeconds}s ago');
+    return '${health.headline} · $ago';
   }
 
   @override
@@ -157,6 +218,15 @@ class _OverviewScreenState extends State<OverviewScreen> {
     final metrics = mon.metrics;
     final isConnected = mon.isConnected;
     final wide = MediaQuery.of(context).size.width >= 760;
+    final health = evaluateHealth(connected: isConnected, metrics: metrics);
+    final connecting = mon.status == MonitoringStatus.connecting;
+    final stale = metrics == null && DateTime.now().difference(_openedAt) > kStaleAfter;
+    final pillColor = switch (health.level) {
+      HealthLevel.healthy => AxColors.accent,
+      HealthLevel.warning => AxColors.warn,
+      HealthLevel.checking => AxColors.warn,
+      HealthLevel.unreachable => connecting ? AxColors.warn : AxColors.fg3,
+    };
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
@@ -173,7 +243,7 @@ class _OverviewScreenState extends State<OverviewScreen> {
                     Text('Overview', style: AxTextStyles.h1),
                     const SizedBox(height: 3),
                     Text(
-                      _formatAgo(mon.lastPolled, isConnected),
+                      _formatAgo(mon, health),
                       style: AxTextStyles.mutedMono,
                     ),
                   ],
@@ -183,27 +253,27 @@ class _OverviewScreenState extends State<OverviewScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
                   decoration: BoxDecoration(
-                    color: isConnected ? AxColors.wash : AxColors.s2,
+                    color: health.isHealthy ? AxColors.wash : AxColors.s2,
                     borderRadius: BorderRadius.circular(AxRadius.pill),
                     border: Border.all(
-                      color: isConnected ? AxColors.accent.withValues(alpha: 0.18) : AxColors.line,
+                      color: health.isHealthy ? AxColors.accent.withValues(alpha: 0.18) : AxColors.line,
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       StatusDot(
-                        color: isConnected ? AxColors.accent : (mon.status == MonitoringStatus.connecting ? AxColors.warn : AxColors.fg3),
+                        color: pillColor,
                         size: 6,
-                        pulse: isConnected,
+                        pulse: health.isHealthy,
                       ),
                       const SizedBox(width: 7),
                       Text(
-                        isConnected ? 'Healthy' : (mon.status == MonitoringStatus.connecting ? 'Connecting' : 'Standby'),
+                        connecting && !isConnected ? 'Connecting' : health.pill,
                         style: AxTextStyles.sans.copyWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: isConnected ? AxColors.accent : (mon.status == MonitoringStatus.connecting ? AxColors.warn : AxColors.fg3),
+                          color: pillColor,
                         ),
                       ),
                     ],
@@ -211,11 +281,15 @@ class _OverviewScreenState extends State<OverviewScreen> {
                 ),
             ],
           ),
+          if (stale) ...[
+            const SizedBox(height: 12),
+            Text(kStillNothingMessage, style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.warn, height: 1.4)),
+          ],
           const SizedBox(height: 17),
           LayoutBuilder(
             builder: (context, c) {
               final cols = c.maxWidth >= 900 ? 4 : (c.maxWidth >= 560 ? 2 : 1);
-              final tiles = _buildTiles(metrics);
+              final tiles = _buildTiles(metrics, stale: stale);
               return GridView.count(
                 crossAxisCount: cols,
                 shrinkWrap: true,
@@ -533,11 +607,11 @@ class _IdentityAndActions extends StatelessWidget {
 
     final hostname = (metrics?.host.hostname.isNotEmpty ?? false)
         ? metrics!.host.hostname
-        : (backend.host?.isNotEmpty ?? false ? backend.host! : 'archangel-vps');
+        : (backend.host?.isNotEmpty ?? false ? backend.host! : '—');
 
     final os = (metrics?.host.os.isNotEmpty ?? false)
         ? metrics!.host.os
-        : 'Linux / POSIX';
+        : '—';
 
     final kernel = (metrics?.host.kernel.isNotEmpty ?? false)
         ? metrics!.host.kernel
@@ -555,7 +629,7 @@ class _IdentityAndActions extends StatelessWidget {
       ['Kernel', kernel],
       ['Tunnel', tunnelStatusText],
       ['Uptime', uptime],
-      ['Backend', backend.backendVersion ?? 'v0.2.14'],
+      ['Backend', backend.backendVersion ?? '—'],
     ];
 
     return Column(

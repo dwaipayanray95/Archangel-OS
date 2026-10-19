@@ -5,13 +5,13 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
 
 /// A plain local-file key/value store, replacing flutter_secure_storage
-/// for app state that isn't sensitive enough to need PIN-derived
+/// for app state that isn't sensitive enough to need passphrase-derived
 /// encryption (see ssh_credentials.dart / credential_crypto.dart for the
 /// one thing that is: the SSH private key that grants root on the VPS).
 ///
 /// This holds things like the paired host/token and the WireGuard
 /// tunnel config - real secrets, but ones the app needs on every launch
-/// to function at all, so gating them behind a PIN prompt every single
+/// to function at all, so gating them behind a passphrase prompt every single
 /// time would be worse than what this replaces. flutter_secure_storage
 /// on macOS is a thin wrapper over Keychain Services, which requires a
 /// stable code-signing entitlement (Keychain Sharing, set up via Xcode)
