@@ -36,20 +36,29 @@ Download the file for your device:
 |---|---|---|
 | Mac | `Archangel-macos.dmg` | Open it and drag **Archangel** to **Applications**. |
 | Windows | `Archangel-windows-setup.exe` | Run the installer. Windows may ask for administrator permission when the app starts. It needs this to create the private connection. |
-| Android | `app-arm64-v8a-release.apk` | For modern 64-bit (ARM64) phones. See below. |
+| Android | `Archangel-android.apk` | For modern 64-bit (ARM64) phones. See below. (Releases before v0.7.1 named it `app-arm64-v8a-release.apk`.) |
 
 > Not every release contains every app. If the newest release has no file for your device, look at the next older release.
 
-### Mac: "Archangel can't be opened"
+### Mac: "Archangel is damaged" or "can't be opened"
 
-The app is not signed with a paid Apple developer certificate, so macOS is cautious the first time.
+The app is not signed with a paid Apple developer certificate yet, so macOS blocks it the first time (often with a scary "damaged and can't be opened" message — the app is fine).
 
-1. Try to open Archangel. macOS says it can't verify the app. Click **Done** (not "Move to Bin").
-2. Open **System Settings** → **Privacy & Security**.
-3. Scroll down to the message about Archangel and click **Open Anyway**.
-4. Confirm. You only need to do this once.
+**Fix (once, after dragging Archangel into Applications):**
 
-(On older macOS versions, you can also right-click the app, choose **Open**, then **Open** again.)
+1. Open the **Terminal** app (press ⌘ Space, type `Terminal`, press Enter).
+2. Paste this line and press Enter:
+
+   ```bash
+   sudo xattr -d com.apple.quarantine /Applications/Archangel.app
+   ```
+
+3. Type your Mac password when asked (nothing shows while you type — that's normal) and press Enter.
+4. Open Archangel normally.
+
+This removes the "downloaded from the internet" flag macOS put on the app. You need to do it again after installing a new version from a fresh download. If it says `No such xattr`, the flag is already gone — just open the app.
+
+**Without Terminal (older macOS versions):** try to open Archangel, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway** (or right-click the app → **Open** → **Open**).
 
 ### Android: "Install unknown apps"
 

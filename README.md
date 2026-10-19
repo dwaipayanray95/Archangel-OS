@@ -39,6 +39,24 @@ You need a server running Ubuntu, an SSH key, and the app. The step-by-step guid
 
 **[Getting started](docs/getting-started.md)**
 
+### Download
+
+Get the app from the [Releases page](https://github.com/dwaipayanray95/Project-Archangel/releases/latest):
+
+| Device | File |
+|---|---|
+| Mac | `Archangel-macos.dmg` — open it, drag **Archangel** into **Applications** |
+| Windows | `Archangel-windows-setup.exe` |
+| Android | `Archangel-android.apk` — allow "install unknown apps" when asked |
+
+**Mac users:** the app isn't signed by Apple yet, so macOS will say it's "damaged" or "can't be opened". After moving it to Applications, run this once in the Terminal app (it asks for your Mac password):
+
+```bash
+sudo xattr -d com.apple.quarantine /Applications/Archangel.app
+```
+
+Then open Archangel normally. More detail in [Getting started](docs/getting-started.md#mac-archangel-is-damaged-or-cant-be-opened).
+
 No server yet? Pick a provider guide:
 [Oracle Cloud (free)](docs/guides/oracle-cloud.md) ·
 [Hetzner](docs/guides/hetzner.md) ·
