@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/subtle"
 	"net/http"
 	"net/http/httptest"
@@ -37,8 +38,8 @@ func TestMiddleware(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	verify := func(hash string) bool {
-		return subtle.ConstantTimeCompare([]byte(hash), []byte(realHash)) == 1
+	verify := func(hash string) (string, bool) {
+		return "phone", subtle.ConstantTimeCompare([]byte(hash), []byte(realHash)) == 1
 	}
 	handler := Middleware(verify, next)
 
@@ -97,5 +98,21 @@ func TestMiddleware(t *testing.T) {
 				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
 			}
 		})
+	}
+}
+
+func TestMiddlewareSetsDeviceName(t *testing.T) {
+	token, hash, _ := GenerateToken()
+	var got string
+	h := Middleware(func(h string) (string, bool) { return "laptop", h == hash },
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { got = DeviceName(r.Context()) }))
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req.Header.Set("X-Archangel-Token", token)
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if got != "laptop" {
+		t.Errorf("DeviceName = %q, want laptop", got)
+	}
+	if DeviceName(context.Background()) != "" {
+		t.Error("DeviceName on bare context should be empty")
 	}
 }

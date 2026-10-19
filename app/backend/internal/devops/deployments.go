@@ -24,8 +24,8 @@ func getDeployDirs() []string {
 		dirs = append(dirs, custom)
 	}
 	dirs = append(dirs, defaultDeployDirs...)
-	tempDeploy := filepath.Join(os.TempDir(), "archangel-deploy")
-	dirs = append(dirs, tempDeploy)
+	// Deliberately no os.TempDir() entry: a world-writable temp dir would
+	// let any local user plant a script that the app then offers to run.
 	return dirs
 }
 

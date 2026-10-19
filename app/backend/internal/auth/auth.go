@@ -12,6 +12,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -39,10 +40,26 @@ func HashToken(token string) string {
 
 // Verifier reports whether a SHA-256 hex hash matches some currently valid
 // token - a single legacy shared token, a per-device tokenstore.Store, or
-// both combined. Callers should use a constant-time comparison per
-// candidate hash, same discipline as the old single-hash check this
+// both combined - and, if so, which device it belongs to ("legacy" for the
+// config.yaml token_hash). Callers should use a constant-time comparison
+// per candidate hash, same discipline as the old single-hash check this
 // replaced.
-type Verifier func(hashHex string) bool
+type Verifier func(hashHex string) (name string, ok bool)
+
+type ctxKey struct{}
+
+// DeviceName returns the paired device's name the auth middleware matched
+// for this request ("" if the request didn't pass through Middleware).
+func DeviceName(ctx context.Context) string {
+	n, _ := ctx.Value(ctxKey{}).(string)
+	return n
+}
+
+// WithDeviceName returns ctx carrying the given device name. Exposed so
+// tests of downstream handlers can simulate an authenticated caller.
+func WithDeviceName(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, ctxKey{}, name)
+}
 
 // Middleware rejects any request that doesn't present a token verify
 // accepts.
@@ -62,11 +79,12 @@ func Middleware(verify Verifier, next http.Handler) http.Handler {
 			return
 		}
 
-		if !verify(HashToken(token)) {
+		name, ok := verify(HashToken(token))
+		if !ok {
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(WithDeviceName(r.Context(), name)))
 	})
 }

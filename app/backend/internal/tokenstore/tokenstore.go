@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -19,6 +21,26 @@ type Entry struct {
 	Name      string    `json:"name"`
 	HashHex   string    `json:"hash"`
 	CreatedAt time.Time `json:"created_at"`
+	// WgPublicKey and TunnelIP identify the device's WireGuard peer so
+	// `archangeld unpair` can remove it. Empty for entries created before
+	// these fields existed (omitempty keeps old files byte-compatible).
+	WgPublicKey string `json:"wg_public_key,omitempty"`
+	TunnelIP    string `json:"tunnel_ip,omitempty"`
+}
+
+// validDeviceName: starts alphanumeric, then letters/digits/space/_/./-,
+// 1-32 chars. The name is written into wg0.conf as a "# name" comment, so
+// anything that could break out of that line (newline especially) must be
+// impossible - `$` in Go's RE2 matches only at end of text, but newline is
+// excluded from the charset anyway.
+var validDeviceName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 _.-]{0,31}$`)
+
+// ValidateDeviceName reports whether name is acceptable as a device name.
+func ValidateDeviceName(name string) error {
+	if strings.ContainsAny(name, "\r\n") || !validDeviceName.MatchString(name) {
+		return fmt.Errorf("invalid device name %q: use 1-32 letters, digits, spaces, '_', '.' or '-', starting with a letter or digit", name)
+	}
+	return nil
 }
 
 // Store is not safe for concurrent writers - archangeld only ever writes
@@ -67,10 +89,70 @@ func (s *Store) IsValid(hashHex string) bool {
 	return false
 }
 
+// Lookup returns the name of the device whose token hash matches hashHex
+// (constant-time per entry, like IsValid).
+func (s *Store) Lookup(hashHex string) (string, bool) {
+	for _, e := range s.entries {
+		if subtle.ConstantTimeCompare([]byte(e.HashHex), []byte(hashHex)) == 1 {
+			return e.Name, true
+		}
+	}
+	return "", false
+}
+
+// Find returns the entry with the given name.
+func (s *Store) Find(name string) (Entry, bool) {
+	for _, e := range s.entries {
+		if e.Name == name {
+			return e, true
+		}
+	}
+	return Entry{}, false
+}
+
 // Add appends a new device entry and persists the store immediately.
-func (s *Store) Add(name, hashHex string) error {
-	s.entries = append(s.entries, Entry{Name: name, HashHex: hashHex, CreatedAt: time.Now().UTC()})
+// wgPublicKey and tunnelIP record the device's WireGuard peer.
+func (s *Store) Add(name, hashHex, wgPublicKey, tunnelIP string) error {
+	if err := ValidateDeviceName(name); err != nil {
+		return err
+	}
+	if _, exists := s.Find(name); exists {
+		return fmt.Errorf("a device named %q already exists", name)
+	}
+	s.entries = append(s.entries, Entry{
+		Name: name, HashHex: hashHex, CreatedAt: time.Now().UTC(),
+		WgPublicKey: wgPublicKey, TunnelIP: tunnelIP,
+	})
 	return s.save()
+}
+
+// Remove deletes the named device and persists the store.
+func (s *Store) Remove(name string) error {
+	for i, e := range s.entries {
+		if e.Name == name {
+			s.entries = append(s.entries[:i:i], s.entries[i+1:]...)
+			return s.save()
+		}
+	}
+	return fmt.Errorf("no device named %q", name)
+}
+
+// Rename changes a device's name and persists the store. Only the token
+// store entry changes; the "# name" comment in wg0.conf is left as-is.
+func (s *Store) Rename(oldName, newName string) error {
+	if err := ValidateDeviceName(newName); err != nil {
+		return err
+	}
+	if _, exists := s.Find(newName); exists {
+		return fmt.Errorf("a device named %q already exists", newName)
+	}
+	for i := range s.entries {
+		if s.entries[i].Name == oldName {
+			s.entries[i].Name = newName
+			return s.save()
+		}
+	}
+	return fmt.Errorf("no device named %q", oldName)
 }
 
 func (s *Store) save() error {

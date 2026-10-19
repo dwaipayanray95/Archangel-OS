@@ -1,6 +1,8 @@
 // Package terminal bridges a real PTY (pseudo-terminal) shell to a
 // WebSocket connection, so the Flutter app gets a genuine interactive
-// terminal - not just "run a command, get output back". Interactive
+// terminal - not just "run a command, get output back". Shells are hosted
+// by a tmux server outside the service sandbox (see tmux.go) so they
+// survive reconnects and service restarts. Interactive
 // programs (nano, htop, a shell prompt asking y/n) work correctly because
 // this is a real PTY, the same mechanism a normal SSH session uses.
 package terminal
@@ -8,6 +10,7 @@ package terminal
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -88,7 +91,19 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+// Handler serves GET /ws/terminal?session=<name>. The shell runs inside a
+// persistent tmux session (see tmux.go); if tmux can't be set up it falls
+// back to a plain, temporary login shell.
 func Handler(w http.ResponseWriter, r *http.Request) {
+	session := r.URL.Query().Get("session")
+	if session == "" {
+		session = defaultSession
+	}
+	if !validSessionName.MatchString(session) {
+		http.Error(w, "invalid session name (use 1-32 of A-Z a-z 0-9 _ -)", http.StatusBadRequest)
+		return
+	}
+
 	if !tryAcquireSession() {
 		http.Error(w, "too many concurrent terminal sessions", http.StatusServiceUnavailable)
 		return
@@ -119,11 +134,25 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(maxFrameBytes)
 	_ = conn.SetReadDeadline(time.Now().Add(idleTimeout))
 
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/bash"
+	var cmd *exec.Cmd
+	if err := ensureServer(); err != nil {
+		// Same behaviour as before tmux existed: a shell that is a child
+		// of this process (sandboxed, dies with the service). Tell the
+		// client first so it can show why history/persistence is missing.
+		slog.Warn("terminal: persistent sessions unavailable", "err", err)
+		sendFrame(conn, wsproto.Frame{
+			Type:    wsproto.TypeError,
+			Message: fmt.Sprintf("Persistent sessions unavailable (%v), using a temporary shell", err),
+		})
+		shell := os.Getenv("SHELL")
+		if shell == "" {
+			shell = "/bin/bash"
+		}
+		cmd = exec.Command(shell, "-l")
+	} else {
+		cmd = exec.Command("tmux", clientArgs(getSocketPath(), session)...)
+		cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	}
-	cmd := exec.Command(shell, "-l")
 
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
@@ -210,7 +239,9 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 cleanup:
 	// Kill covers the client-disconnect case (shell may still be running);
-	// it's a no-op error (ignored) if the shell already exited on its own.
+	// in tmux mode this kills only the tmux *client* - the session and its
+	// shells live on in the tmux server. It's a no-op error (ignored) if the
+	// process already exited on its own.
 	// Wait is required either way - without it cmd.ProcessState is never
 	// populated (exit code would always read as 0) and the child process
 	// is never reaped, leaking a zombie process per terminal session.

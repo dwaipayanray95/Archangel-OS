@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	// Force the fallback/demo path regardless of whether the machine
+	// Force the unavailable path regardless of whether the machine
 	// running these tests happens to have a live Docker daemon at the
 	// default socket path (true on GitHub Actions' ubuntu-latest runners).
 	docker.SetDefaultClient(docker.NewClient("/nonexistent/docker.sock"))
@@ -41,67 +41,41 @@ func TestContainersHandlerFallback(t *testing.T) {
 	}
 }
 
-func TestContainerActionHandler(t *testing.T) {
-	req := httptest.NewRequest("POST", "/api/v1/docker/containers/caddy/restart", nil)
-	req.SetPathValue("id", "caddy")
-	req.SetPathValue("action", "restart")
-	rec := httptest.NewRecorder()
-
-	docker.ContainerActionHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", rec.Code)
+func assertUnavailable(t *testing.T, rec *httptest.ResponseRecorder) {
+	t.Helper()
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d", rec.Code)
 	}
-
 	var res docker.ActionResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
 		t.Fatalf("failed decoding json: %v", err)
 	}
-
-	if !res.Success {
-		t.Errorf("expected success, got false: %s", res.Message)
+	if res.Success || res.Message != "Docker is not running on this server" {
+		t.Errorf("unexpected response: %+v", res)
 	}
 }
 
-func TestContainerActionHandlerRemove(t *testing.T) {
-	req := httptest.NewRequest("POST", "/api/v1/docker/containers/redis/remove", nil)
-	req.SetPathValue("id", "redis")
-	req.SetPathValue("action", "remove")
-	rec := httptest.NewRecorder()
-
-	docker.ContainerActionHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", rec.Code)
-	}
-
-	var res docker.ActionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("failed decoding json: %v", err)
-	}
-
-	if !res.Success {
-		t.Errorf("expected success, got false: %s", res.Message)
+func TestContainerActionHandlerUnavailable(t *testing.T) {
+	for _, action := range []string{"restart", "remove"} {
+		req := httptest.NewRequest("POST", "/api/v1/docker/containers/caddy/"+action, nil)
+		req.SetPathValue("id", "caddy")
+		req.SetPathValue("action", action)
+		rec := httptest.NewRecorder()
+		docker.ContainerActionHandler(rec, req)
+		assertUnavailable(t, rec)
 	}
 }
 
-func TestContainerCreateHandler(t *testing.T) {
+func TestContainerCreateHandlerUnavailable(t *testing.T) {
 	body := `{"image":"nginx:alpine","name":"test-web","ports":["8080:80"],"restart":"unless-stopped"}`
 	req := httptest.NewRequest("POST", "/api/v1/docker/containers/run", strings.NewReader(body))
 	rec := httptest.NewRecorder()
-
 	docker.ContainerCreateHandler(rec, req)
+	assertUnavailable(t, rec)
+}
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", rec.Code)
-	}
-
-	var res docker.ActionResponse
-	if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
-		t.Fatalf("failed decoding json: %v", err)
-	}
-
-	if !res.Success {
-		t.Errorf("expected success, got false: %s", res.Message)
+func TestGetVersionOfflineIsNotFabricated(t *testing.T) {
+	if v := docker.NewClient("/nonexistent/docker.sock").GetVersion(); v == "27.1.1" {
+		t.Errorf("GetVersion returned a fabricated version %q", v)
 	}
 }

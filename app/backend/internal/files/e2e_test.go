@@ -16,7 +16,7 @@ import (
 func TestFilesRoutesAuthAndExecution(t *testing.T) {
 	rawToken := "auth-token-xyz"
 	expectedHash := auth.HashToken(rawToken)
-	router := api.NewRouter(func(h string) bool { return h == expectedHash })
+	router := api.NewRouter(func(h string) (string, bool) { return "test", h == expectedHash })
 
 	tmpDir := t.TempDir()
 	if err := files.SetRoot(tmpDir); err != nil {

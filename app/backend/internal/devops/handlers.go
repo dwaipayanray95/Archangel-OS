@@ -2,7 +2,10 @@ package devops
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+
+	"github.com/dwaipayanray95/project-archangel/backend/internal/adminmode"
 )
 
 // ServicesHandler handles GET /api/v1/devops/services
@@ -42,7 +45,7 @@ func ServiceActionHandler(w http.ResponseWriter, r *http.Request) {
 	err := ServiceAction(name, action)
 	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(actionErrorStatus(err))
 		_ = json.NewEncoder(w).Encode(ActionResponse{
 			Success: false,
 			Message: err.Error(),
@@ -92,7 +95,7 @@ func ScheduledRunHandler(w http.ResponseWriter, r *http.Request) {
 	err := TriggerScheduled(name)
 	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(actionErrorStatus(err))
 		_ = json.NewEncoder(w).Encode(ActionResponse{
 			Success: false,
 			Message: err.Error(),
@@ -280,4 +283,13 @@ func DeploymentDeleteHandler(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "deployment script " + name + " deleted successfully",
 	})
+}
+
+// actionErrorStatus maps a systemctl action error to an HTTP status: 403
+// for deliberate refusals (lockout guards, Admin mode off), 500 otherwise.
+func actionErrorStatus(err error) int {
+	if errors.Is(err, ErrRefused) || errors.Is(err, adminmode.ErrOff) {
+		return http.StatusForbidden
+	}
+	return http.StatusInternalServerError
 }
