@@ -15,6 +15,10 @@ const kArchangeldTokenKey = 'archangeld_token';
 /// `archangeld gen-token`. Stored in the local app-state file (see
 /// local_kv_store.dart's doc comment for why this isn't Keychain-backed)
 /// rather than plaintext prefs.
+/// Consecutive failed health checks before a previously reachable server
+/// is treated as unreachable (checks run every ~10s).
+const kReachabilityGraceFailures = 3;
+
 class ArchangeldConnection extends ChangeNotifier {
   ArchangeldConnection({http.Client? client, LocalKvStore? store})
       : _client = client,
@@ -50,7 +54,7 @@ class ArchangeldConnection extends ChangeNotifier {
   /// reachable right now (through any tunnel - ours or the OS WireGuard
   /// app's). Short timeout; never throws. Calls made while one is running
   /// share its result.
-  Future<void> checkReachable({Duration timeout = const Duration(seconds: 3)}) {
+  Future<void> checkReachable({Duration timeout = const Duration(seconds: 5)}) {
     if (!isPaired) return Future.value();
     final host = _host;
     final running = _healthInFlight;
@@ -84,9 +88,14 @@ class ArchangeldConnection extends ChangeNotifier {
       ok = false;
     }
     if (_host != asked) return; // re-paired while the request was in flight
-    final changed = _reachable != ok;
-    _reachable = ok;
     _healthFailures = ok ? 0 : _healthFailures + 1;
+    // A server that was answering stays "reachable" through a couple of
+    // missed checks (a slow reply, a Wi-Fi blip); only several failures in
+    // a row mean it's really gone. Without this one timeout flipped the
+    // whole app to "offline" and back, so the connection looked flaky.
+    final next = ok || (_reachable == true && _healthFailures < kReachabilityGraceFailures);
+    final changed = _reachable != next;
+    _reachable = next;
     if (changed || !ok) notifyListeners();
   }
 

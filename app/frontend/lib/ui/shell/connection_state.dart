@@ -24,7 +24,7 @@ enum ConnectionPhase {
 
 /// How many failed health checks in a row before "reaching" turns into
 /// "isn't answering".
-const kHealthFailuresBeforeNotResponding = 2;
+const kHealthFailuresBeforeNotResponding = 3;
 
 /// Derives the connection phase from the facts we have.
 ///
