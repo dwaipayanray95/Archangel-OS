@@ -118,11 +118,17 @@ class ArchangeldConnection extends ChangeNotifier {
   /// `ws://<host>/ws/terminal?token=...` - plain ws, not wss: archangeld
   /// doesn't terminate TLS itself (see backend README), it relies on the
   /// WireGuard tunnel for transport encryption instead.
-  Uri terminalWsUri() {
+  ///
+  /// [session] names the persistent tmux session to attach to (created on
+  /// first use); the backend defaults to "main".
+  Uri terminalWsUri({String? session}) {
     if (!isPaired) {
       throw StateError('Not paired with a backend');
     }
-    return Uri.parse('ws://$_host/ws/terminal').replace(queryParameters: {'token': _token});
+    return Uri.parse('ws://$_host/ws/terminal').replace(queryParameters: {
+      'token': _token,
+      if (session != null) 'session': session,
+    });
   }
 
   /// `ws://<host>/ws/stats?token=...` - real-time metrics stream.
@@ -318,5 +324,48 @@ class ArchangeldConnection extends ChangeNotifier {
       throw StateError('Not paired with a backend');
     }
     return Uri.parse('http://$_host/api/v1/devops/deployments/$name');
+  }
+
+  /// `http://<host>/api/v1/terminal/sessions` - GET lists persistent
+  /// terminal sessions.
+  Uri terminalSessionsHttpUri() {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    return Uri.parse('http://$_host/api/v1/terminal/sessions');
+  }
+
+  /// `http://<host>/api/v1/terminal/sessions/{name}` - DELETE ends a session.
+  Uri terminalSessionHttpUri(String name) {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    return Uri.parse('http://$_host/api/v1/terminal/sessions/${Uri.encodeComponent(name)}');
+  }
+
+  /// `http://<host>/api/v1/devices` - GET lists paired devices.
+  Uri devicesHttpUri() {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    return Uri.parse('http://$_host/api/v1/devices');
+  }
+
+  /// `http://<host>/api/v1/devices/{name}` - DELETE revokes a device.
+  Uri deviceHttpUri(String name, {bool self = false}) {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    final uri = Uri.parse('http://$_host/api/v1/devices/${Uri.encodeComponent(name)}');
+    return self ? uri.replace(queryParameters: {'self': 'true'}) : uri;
+  }
+
+  /// `http://<host>/api/v1/system/admin-mode` - GET status, POST
+  /// `{"enabled": false}` to turn sudo off (turning it on needs SSH).
+  Uri adminModeHttpUri() {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    return Uri.parse('http://$_host/api/v1/system/admin-mode');
   }
 }
