@@ -176,7 +176,11 @@ String usageBadgeLabel(double percent, {required String high, required String mi
     percent >= kUsageLimit ? high : (percent >= 75 ? mid : ok);
 
 /// "4.1" / "16" style amounts (one decimal under 10 GB, none above).
-String gbText(double gb) => gb >= 10 ? gb.toStringAsFixed(0) : gb.toStringAsFixed(1);
+String gbText(double gb) {
+  if (gb >= 10) return gb.toStringAsFixed(0);
+  final s = gb.toStringAsFixed(1);
+  return s.endsWith('.0') ? s.substring(0, s.length - 2) : s;
+}
 
 /// "3d 4h 12m" / "2h 5m 9s" / "4m 2s".
 String formatUptime(int seconds) {
