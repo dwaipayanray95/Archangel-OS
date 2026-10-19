@@ -47,7 +47,7 @@ void main() {
         ]);
       });
       final svc = DevicesService(client: client);
-      await svc.init(conn);
+      svc.init(conn);
       await pumpEventQueue();
 
       expect(svc.loaded, isTrue);
