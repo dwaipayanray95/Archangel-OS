@@ -105,6 +105,24 @@ sudo chmod 440 /etc/sudoers.d/archangel''';
   /// existing server never silently turns Admin mode back on after the user
   /// switched it off. `sudo test` because /etc/sudoers.d isn't searchable by
   /// non-root users (mode 0750), so a plain `[ -f ]` would always say no.
+  /// Packages and boot ordering that newer archangeld versions rely on,
+  /// re-applied on update/sync so servers set up before they existed catch
+  /// up: tmux + dbus-user-session for persistent terminal sessions (run
+  /// under the archangel user's systemd user manager), lingering so that
+  /// manager runs without a login, and Docker starting after WireGuard so
+  /// containers published on the tunnel address can bind at boot. Mirrors
+  /// infra/scripts/baseline_setup.sh.
+  static const _serverPrereqsScript = '''
+if ! dpkg -s tmux >/dev/null 2>&1 || ! dpkg -s dbus-user-session >/dev/null 2>&1; then
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq tmux dbus-user-session
+fi
+sudo loginctl enable-linger archangel || true
+if [ -d /etc/systemd/system ] && command -v docker >/dev/null 2>&1; then
+  sudo mkdir -p /etc/systemd/system/docker.service.d
+  printf '[Unit]\\nAfter=wg-quick@wg0.service\\nWants=wg-quick@wg0.service\\n' | sudo tee /etc/systemd/system/docker.service.d/archangel-wg.conf > /dev/null
+fi''';
+
   static const _sudoersRefreshScript = '''
 if sudo test -f /etc/sudoers.d/archangel; then
 $_sudoersGrantScript
@@ -491,6 +509,7 @@ sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
 sudo chown -R archangel:archangel /home/archangel
 sudo usermod -d /home/archangel -s /bin/bash archangel || true
 $_sudoersRefreshScript
+$_serverPrereqsScript
 sudo cp -f $_remoteScriptDir/archangel.service /etc/systemd/system/archangel.service
 
 # If config.yaml has empty files_root, update it to /home/archangel
@@ -584,6 +603,7 @@ sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
 sudo chown -R archangel:archangel /home/archangel
 sudo usermod -d /home/archangel -s /bin/bash archangel || true
 $_sudoersRefreshScript
+$_serverPrereqsScript
 sudo cp -f $_remoteScriptDir/archangel.service /etc/systemd/system/archangel.service
 
 # If config.yaml has empty files_root, update it to /home/archangel
