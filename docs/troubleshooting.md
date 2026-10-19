@@ -61,7 +61,7 @@ You see a banner like "Persistent sessions unavailable ... using a temporary she
 
 **Fix:** the server is probably missing `tmux` or `dbus-user-session`.
 
-1. In the app, open **Settings**. Tap the update badge next to **Backend version** if there is one, or tap **Sync server permissions**. The app signs in over SSH and installs the missing pieces.
+1. In the app, open **Settings → This server**. Tap **Update** if an update is offered, otherwise tap **Repair server permissions**. The app signs in over SSH and installs the missing pieces.
 2. Open a new terminal session.
 
 Or fix it by hand on the server:
