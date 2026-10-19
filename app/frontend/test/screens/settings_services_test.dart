@@ -166,11 +166,23 @@ void main() {
       expect(c.reachable, isTrue);
       expect(c.healthFailures, 0);
 
+      // A server that was answering survives a couple of missed checks
+      // (slow reply, Wi-Fi blip) and is only treated as gone after
+      // kReachabilityGraceFailures failures in a row.
       ok = false;
       await c.checkReachable();
       await c.checkReachable();
-      expect(c.reachable, isFalse);
+      expect(c.reachable, isTrue);
       expect(c.healthFailures, 2);
+      await c.checkReachable();
+      expect(c.reachable, isFalse);
+      expect(c.healthFailures, kReachabilityGraceFailures);
+
+      // One success restores it immediately.
+      ok = true;
+      await c.checkReachable();
+      expect(c.reachable, isTrue);
+      expect(c.healthFailures, 0);
 
       await c.pair(host: '10.0.0.2:8443', token: 't');
       expect(c.reachable, isNull);

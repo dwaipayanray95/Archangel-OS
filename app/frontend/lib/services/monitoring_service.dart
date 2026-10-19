@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/system_metrics.dart';
 import 'api_error.dart';
@@ -39,7 +40,13 @@ class MonitoringService extends ChangeNotifier {
   WebSocketChannel? _wsChannel;
   StreamSubscription? _wsSub;
   Timer? _procTimer;
+  Timer? _reconnectTimer;
   ArchangeldConnection? _backend;
+
+  /// Bumped on every (re)connect and on stop, so callbacks from an older
+  /// socket can't change the state of the current one.
+  int _gen = 0;
+  int _failures = 0;
   int _desiredIntervalMs = 2000;
 
   bool get isConnected => _status == MonitoringStatus.connected;
@@ -91,7 +98,12 @@ class MonitoringService extends ChangeNotifier {
   }
 
   void start(ArchangeldConnection backend) {
-    if (_backend == backend && _status == MonitoringStatus.connected) {
+    // Several places start monitoring at almost the same moment (the shell
+    // activating the screen, the screen's own initState); only the first
+    // may open a socket.
+    if (_backend == backend &&
+        (_status == MonitoringStatus.connected || _status == MonitoringStatus.connecting) &&
+        _wsChannel != null) {
       return;
     }
     _backend = backend;
@@ -111,11 +123,19 @@ class MonitoringService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void stop() {
+  void _closeSocket() {
     _wsSub?.cancel();
     _wsSub = null;
     _wsChannel?.sink.close();
     _wsChannel = null;
+  }
+
+  void stop() {
+    _gen++;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _failures = 0;
+    _closeSocket();
     _procTimer?.cancel();
     _procTimer = null;
     _status = MonitoringStatus.disconnected;
@@ -130,40 +150,47 @@ class MonitoringService extends ChangeNotifier {
       return;
     }
 
-    _status = MonitoringStatus.connecting;
-    _error = null;
-    notifyListeners();
+    // Never leave an older socket running alongside the new one - its close
+    // would otherwise flip the shared status and start yet another
+    // reconnect, which made the live stream look like it kept dropping.
+    _closeSocket();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    final gen = ++_gen;
+
+    if (_metrics == null) {
+      _status = MonitoringStatus.connecting;
+      _error = null;
+      notifyListeners();
+    }
 
     // 1. Initial snapshot fetch via REST
     fetchSnapshot();
     fetchProcesses();
 
-    // 2. Open live WebSocket stream
+    // 2. Open live WebSocket stream. The ping keeps NAT/firewall state alive
+    // and detects a dead socket within ~2 intervals.
     try {
-      final uri = _backend!.statsWsUri();
-      _wsChannel = WebSocketChannel.connect(uri);
-      _wsSub = _wsChannel!.stream.listen(
-        _onWsMessage,
+      final channel = IOWebSocketChannel.connect(_backend!.statsWsUri(), pingInterval: const Duration(seconds: 15));
+      _wsChannel = channel;
+      _wsSub = channel.stream.listen(
+        (raw) {
+          if (gen != _gen) return;
+          _failures = 0;
+          _onWsMessage(raw);
+        },
         onDone: () {
-          if (_status == MonitoringStatus.connected) {
-            _status = MonitoringStatus.disconnected;
-            notifyListeners();
-            _scheduleReconnect();
-          }
+          if (gen != _gen) return;
+          _onSocketLost(null);
         },
         onError: (err) {
-          _status = MonitoringStatus.error;
-          _error = err.toString();
-          notifyListeners();
-          _scheduleReconnect();
+          if (gen != _gen) return;
+          _onSocketLost(err.toString());
         },
         cancelOnError: true,
       );
     } catch (e) {
-      _status = MonitoringStatus.error;
-      _error = e.toString();
-      notifyListeners();
-      _scheduleReconnect();
+      _onSocketLost(e.toString());
     }
 
     // 3. Periodic process list refresh every 5 seconds
@@ -173,11 +200,28 @@ class MonitoringService extends ChangeNotifier {
     });
   }
 
+  /// A dropped stream is retried quietly with backoff (2s, 4s, 8s ... 30s).
+  /// The last readings stay on screen and the status only becomes an error
+  /// after three failed attempts in a row, so one hiccup doesn't flash
+  /// "disconnected" across the app.
+  void _onSocketLost(String? error) {
+    _failures++;
+    if (_failures >= 3) {
+      _status = MonitoringStatus.error;
+      _error = error ?? 'Lost the live connection to your server';
+    } else if (_status != MonitoringStatus.connected) {
+      _status = MonitoringStatus.connecting;
+    }
+    notifyListeners();
+    _scheduleReconnect();
+  }
+
   void _scheduleReconnect() {
-    Future.delayed(const Duration(seconds: 4), () {
-      if (_active && _status != MonitoringStatus.connected && _backend != null && _backend!.isPaired) {
-        _connect();
-      }
+    if (_reconnectTimer?.isActive ?? false) return;
+    final seconds = (2 << (_failures - 1).clamp(0, 4)).clamp(2, 30);
+    _reconnectTimer = Timer(Duration(seconds: seconds), () {
+      _reconnectTimer = null;
+      if (_active && _backend != null && _backend!.isPaired) _connect();
     });
   }
 
