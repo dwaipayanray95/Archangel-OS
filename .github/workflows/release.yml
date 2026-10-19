@@ -281,7 +281,7 @@ jobs:
           files: |
             app/frontend/build/macos/Build/Products/Release/Archangel-macos.dmg
             version-manifest.json
-          generate_release_notes: true
+          generate_release_notes: false
 
   build-windows:
     needs: plan
@@ -346,7 +346,7 @@ jobs:
           files: |
             app/frontend/windows/installer/Output/Archangel-windows-setup.exe
             version-manifest.json
-          generate_release_notes: true
+          generate_release_notes: false
 
   build-android:
     needs: plan
@@ -408,7 +408,9 @@ jobs:
           files: |
             app/frontend/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
             version-manifest.json
-          generate_release_notes: true
+          # Only one job may generate notes (each run appends a copy). The
+          # backend job does it when it runs; Android covers frontend-only releases.
+          generate_release_notes: ${{ needs.plan.outputs.backend != 'true' }}
 
   build-backend:
     needs: plan
