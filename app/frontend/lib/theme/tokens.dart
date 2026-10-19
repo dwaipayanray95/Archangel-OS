@@ -1,7 +1,6 @@
 // Design tokens ported 1:1 from the Claude Design mockup
 // (Archangel.dc.html --ax-* CSS custom properties).
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AxColors {
   AxColors._();
@@ -58,8 +57,8 @@ class AxMotion {
 class AxTextStyles {
   AxTextStyles._();
 
-  static TextStyle mono = GoogleFonts.jetBrainsMono(color: AxColors.fg);
-  static TextStyle sans = GoogleFonts.manrope(color: AxColors.fg);
+  static TextStyle mono = const TextStyle(fontFamily: 'IBMPlexMono', color: AxColors.fg);
+  static TextStyle sans = const TextStyle(fontFamily: 'Inter', color: AxColors.fg);
 
   static TextStyle label = mono.copyWith(
     fontSize: 9.5,

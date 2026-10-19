@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// The accent choices offered in Settings > Appearance. Each has a variant
 /// tuned for the dark palette and one for the light palette so that accent
@@ -168,6 +167,11 @@ class AxRadii {
 
 /// Type scale. Nothing is below 12 sp; body is 14 sp. Colours are applied by
 /// the widgets using the palette; families come from the app text theme.
+/// Bundled font families (see pubspec.yaml `fonts:`): Inter for interface
+/// text, IBM Plex Mono for the terminal, code and numbers.
+const kUiFontFamily = 'Inter';
+const kMonoFontFamily = 'IBMPlexMono';
+
 class AxType {
   const AxType();
   TextStyle get caption => const TextStyle(fontSize: 12, height: 1.35);
@@ -175,7 +179,7 @@ class AxType {
   TextStyle get label => const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, height: 1.3);
   TextStyle get title => const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, height: 1.3);
   TextStyle get headline => const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, height: 1.25);
-  TextStyle get mono => const TextStyle(fontSize: 13, fontFamily: 'monospace', height: 1.4);
+  TextStyle get mono => const TextStyle(fontSize: 13, fontFamily: kMonoFontFamily, height: 1.4);
 }
 
 /// The Archangel design tokens as a [ThemeExtension]; read with `context.ax`.
@@ -238,8 +242,8 @@ double axMinTarget(BuildContext context) {
 ThemeData buildTheme(Brightness brightness, [AxAccent accent = AxAccent.green]) {
   final ax = ArchangelTheme.of(brightness, accent);
   final c = ax.colors;
-  final base = ThemeData(brightness: brightness, useMaterial3: true);
-  final textTheme = GoogleFonts.manropeTextTheme(base.textTheme).apply(bodyColor: c.text, displayColor: c.text);
+  final base = ThemeData(brightness: brightness, useMaterial3: true, fontFamily: kUiFontFamily);
+  final textTheme = base.textTheme.apply(fontFamily: kUiFontFamily, bodyColor: c.text, displayColor: c.text);
   return base.copyWith(
     extensions: [ax],
     scaffoldBackgroundColor: c.bg,

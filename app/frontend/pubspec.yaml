@@ -111,3 +111,28 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+  # Bundled UI fonts (SIL Open Font License - see assets/fonts/*-LICENSE.txt):
+  # Inter for interface text, IBM Plex Mono for the terminal, code and
+  # numbers. Bundled rather than fetched at runtime so the app works offline
+  # and never flashes a fallback font. Families are referenced through
+  # kUiFontFamily / kMonoFontFamily in lib/ui/theme.dart.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: IBMPlexMono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexMono-SemiBold.ttf
+          weight: 600

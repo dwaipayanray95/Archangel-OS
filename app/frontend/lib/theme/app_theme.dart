@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'tokens.dart';
 
 ThemeData buildAppTheme({Color accent = AxColors.accent}) {
@@ -11,7 +10,8 @@ ThemeData buildAppTheme({Color accent = AxColors.accent}) {
       primary: accent,
       secondary: accent,
     ),
-    textTheme: GoogleFonts.manropeTextTheme(base.textTheme).apply(
+    textTheme: base.textTheme.apply(
+      fontFamily: 'Inter',
       bodyColor: AxColors.fg,
       displayColor: AxColors.fg,
     ),
