@@ -10,7 +10,6 @@ import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/ui/screens/apps/run_app_page.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 class _FakeContainers extends ContainersService {
   _FakeContainers(this._ov);
@@ -93,7 +92,6 @@ Future<void> _pump(
   Brightness brightness = Brightness.dark,
   Widget home = const ContainersScreen(),
 }) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

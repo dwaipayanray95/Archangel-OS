@@ -91,7 +91,6 @@ void main() {
 
   group('status strip', () {
     Future<WireGuardController> pumpStrip(WidgetTester tester, http.Client client) async {
-      ignoreFontDownloadErrors();
       final registry = ServerRegistry();
       final backend = ArchangeldConnection(client: client);
       final wg = WireGuardController();

@@ -16,14 +16,14 @@ void main() {
     final a = AppState();
     expect(a.themeMode, kDefaultThemeMode);
     expect(a.accentChoice, AxAccent.green);
-    a.themeMode = ThemeMode.system;
+    a.themeMode = ThemeMode.dark;
     a.accentChoice = AxAccent.ice;
     // Writes are fire-and-forget; give the file IO a moment.
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
     final b = AppState();
     await b.loadAppearance();
-    expect(b.themeMode, ThemeMode.system);
+    expect(b.themeMode, ThemeMode.dark);
     expect(b.accentChoice, AxAccent.ice);
     expect(b.accent, AxAccent.ice.dark);
   });

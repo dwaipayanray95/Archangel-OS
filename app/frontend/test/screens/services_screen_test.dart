@@ -11,7 +11,6 @@ import 'package:archangel/ui/screens/services/script_editor_page.dart';
 import 'package:archangel/ui/screens/services/services_logic.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 class _FakeConn extends ArchangeldConnection {
   @override
@@ -93,7 +92,6 @@ Future<void> _pump(
   Brightness brightness = Brightness.dark,
   Widget home = const DevopsScreen(),
 }) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

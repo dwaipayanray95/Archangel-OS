@@ -10,7 +10,6 @@ import 'package:archangel/services/files_service.dart';
 import 'package:archangel/ui/screens/files/file_helpers.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 class _FakeFiles extends FilesService {
   _FakeFiles({this.fakeListing, this.fakeError});
@@ -56,7 +55,6 @@ DirectoryListingModel _listing() => DirectoryListingModel(
     );
 
 Future<void> _pump(WidgetTester tester, _FakeFiles svc, Size size, {Brightness b = Brightness.dark}) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

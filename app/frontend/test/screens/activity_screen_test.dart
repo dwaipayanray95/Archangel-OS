@@ -10,7 +10,6 @@ import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/ui/screens/activity/activity_logic.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 class FakeMonitoring extends MonitoringService {
   FakeMonitoring({this.fakeMetrics, this.procs = const []});
@@ -92,7 +91,6 @@ Future<FakeMonitoring> pumpActivity(
   Size size = const Size(390, 844),
   Brightness brightness = Brightness.dark,
 }) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

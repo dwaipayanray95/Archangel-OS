@@ -6,10 +6,8 @@ import 'package:archangel/screens/setup/setup_wizard_screen.dart';
 import 'package:archangel/ui/screens/setup/setup_hints.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 Future<void> _pump(WidgetTester tester, Widget home, {Brightness brightness = Brightness.dark, Size size = const Size(400, 900)}) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

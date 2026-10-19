@@ -14,7 +14,6 @@ import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 class FakeMonitoring extends MonitoringService {
   FakeMonitoring({this.fakeMetrics, this.fakeStatus = MonitoringStatus.connected, this.rebootResult});
@@ -139,7 +138,6 @@ Future<(AppState, FakeMonitoring)> pumpHome(
   String? latestBackend,
   ProcessActionResult? rebootResult,
 }) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

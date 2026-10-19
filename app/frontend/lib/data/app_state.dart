@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/local_kv_store.dart';
-import '../theme/tokens.dart';
 import '../ui/theme.dart';
 
 const _kThemeModeKey = 'appearance_theme_mode';
@@ -23,10 +22,8 @@ const axSectionLabels = <AxSection, String>{
 /// Destinations shown under "More" on phones.
 const axMoreSections = <AxSection>[AxSection.activity, AxSection.services, AxSection.settings];
 
-/// The default theme mode. Legacy screens still paint with the dark-only
-/// [AxColors] constants, so this stays dark until every screen has moved to
-/// `context.ax`; then it becomes [ThemeMode.system].
-const kDefaultThemeMode = ThemeMode.dark;
+/// The default theme mode: follow the operating system's light/dark setting.
+const kDefaultThemeMode = ThemeMode.system;
 
 /// Root app state: active section, accent color, palette/notif overlays.
 /// Kept deliberately simple (ChangeNotifier) — this is a single-user app
