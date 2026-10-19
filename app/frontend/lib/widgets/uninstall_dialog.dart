@@ -140,11 +140,16 @@ class _UninstallDialogState extends State<UninstallDialog> {
           // The server this device was paired to no longer exists -
           // clear local pairing state so the app doesn't keep showing
           // "paired" against a dead server.
-          await removeActiveServer(
-            registry: context.read<ServerRegistry>(),
-            wg: context.read<WireGuardController>(),
-            backend: context.read<ArchangeldConnection>(),
-          );
+          try {
+            await removeActiveServer(
+              registry: context.read<ServerRegistry>(),
+              wg: context.read<WireGuardController>(),
+              backend: context.read<ArchangeldConnection>(),
+            );
+          } catch (_) {
+            // The server is gone; the next saved server could not be
+            // opened. The pairing was cleared, so just finish.
+          }
           if (!mounted) return;
           setState(() => _step = _UninstallStep.done);
         }

@@ -236,6 +236,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
 
   void _fail(String stage, Object error) {
     _elapsedTimer?.cancel();
+    _transport?.close();
+    _transport = null;
     if (!mounted) return;
     setState(() {
       _connecting = false;
@@ -341,6 +343,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
       },
       onDone: () {
         _elapsedTimer?.cancel();
+        _transport?.close();
+        _transport = null;
         if (!mounted || _error != null) return;
         setState(() {
           _bundle = service.result;

@@ -9,6 +9,47 @@ import 'package:archangel/services/server_registry.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'test_utils.dart';
 
+class _FailingStore extends LocalKvStore {
+  _FailingStore({this.failReads = false}) : super.forTesting();
+  final bool failReads;
+  @override
+  Future<void> write(String key, String value) async => throw StateError('disk full');
+  @override
+  Future<String?> read(String key) async => failReads ? throw StateError('unreadable') : null;
+}
+
+class _CountingWg extends WireGuardController {
+  int connects = 0;
+  @override
+  Future<void> connect() async => connects++;
+}
+
+/// Fails the first pair() only.
+class _OnceFailing extends ArchangeldConnection {
+  _OnceFailing(this.inner);
+  final ArchangeldConnection inner;
+  bool _failed = false;
+  @override
+  Future<void> pair({required String host, required String token}) async {
+    if (!_failed) {
+      _failed = true;
+      throw StateError('boom');
+    }
+    return inner.pair(host: host, token: token);
+  }
+  @override
+  String? get token => inner.token;
+}
+
+ServerProfile _keyed(String id, String host, String key) => ServerProfile(
+      id: id,
+      name: 'Server $id',
+      host: host,
+      token: 'tok-$id',
+      wgConfig: '[Interface]\nPrivateKey = k$id\nAddress = 10.0.0.2/32\n[Peer]\nPublicKey = $key\nEndpoint = 1.2.3.4:51820\n',
+      createdAt: DateTime.utc(2025, 1, 1),
+    );
+
 ServerProfile _profile(String id, String host, {String? name}) => ServerProfile(
       id: id,
       name: name ?? 'Server $id',
@@ -18,7 +59,7 @@ ServerProfile _profile(String id, String host, {String? name}) => ServerProfile(
       createdAt: DateTime.utc(2025, 1, 1),
     );
 
-String _bundleCode({String name = 'laptop', String host = '10.8.0.1:8443', String token = 'tok'}) => base64.encode(utf8.encode(jsonEncode({
+String _bundleCode({String name = 'laptop', String host = '10.8.0.1:8443', String token = 'tok', String pub = 'pub'}) => base64.encode(utf8.encode(jsonEncode({
       'v': 1,
       'name': name,
       'host': host,
@@ -26,7 +67,7 @@ String _bundleCode({String name = 'laptop', String host = '10.8.0.1:8443', Strin
       'wg': {
         'private_key': 'priv',
         'address': '10.8.0.2/32',
-        'server_public_key': 'pub',
+        'server_public_key': pub,
         'endpoint': '203.0.113.5:51820',
         'allowed_ips': ['10.8.0.0/24'],
       },
@@ -200,6 +241,57 @@ void main() {
     });
   });
 
+  group('server identity', () {
+    test('serverKey is read from the [Peer] section only', () {
+      expect(_keyed('a', 'h', 'KEY=').serverKey, 'KEY=');
+      expect(_profile('a', 'h').serverKey, isNull);
+    });
+
+    test('two servers with the same host but different keys both persist', () async {
+      final r = ServerRegistry();
+      await r.load();
+      await r.add(_keyed('a', '10.10.0.1:8443', 'keyA'));
+      await r.add(_keyed('b', '10.10.0.1:8443', 'keyB'));
+      final r2 = await reloaded();
+      expect(r2.profiles.map((p) => p.id), ['a', 'b']);
+    });
+
+    test('re-pairing the same key replaces credentials', () async {
+      final r = ServerRegistry();
+      await r.load();
+      await r.add(_keyed('a', '10.10.0.1:8443', 'keyA'));
+      await r.add(_keyed('b', '10.10.0.1:8443', 'keyB'));
+      final again = await r.add(_keyed('c', '10.10.0.1:8443', 'keyA').copyWith(token: 'fresh'));
+      expect(r.profiles, hasLength(2));
+      expect(again.id, 'a');
+      expect(r.byId('a')!.token, 'fresh');
+      expect(r.activeId, 'a');
+    });
+
+    test('a corrupt single entry is skipped, the rest load', () async {
+      final r = ServerRegistry();
+      await r.load();
+      await r.add(_profile('a', 'h1'));
+      await r.add(_profile('b', 'h2'));
+      final list = jsonDecode((await LocalKvStore.instance.read('server_profiles_v1'))!) as List;
+      list.insert(1, {'id': 'bad'});
+      list.insert(0, 'nonsense');
+      await LocalKvStore.instance.write('server_profiles_v1', jsonEncode(list));
+      final r2 = await reloaded();
+      expect(r2.profiles.map((p) => p.id), ['a', 'b']);
+    });
+
+    test('load completes when persisting fails', () async {
+      final r = ServerRegistry(store: _FailingStore());
+      await r.load();
+      expect(r.isLoaded, isTrue);
+      final c = ArchangeldConnection(store: _FailingStore(failReads: true));
+      await c.load();
+      expect(c.isLoaded, isTrue);
+      expect(c.isPaired, isFalse);
+    });
+  });
+
   group('pairing and switching', () {
     test('pairNewServer adds a profile named from the bundle and points the app at it', () async {
       final r = ServerRegistry();
@@ -225,8 +317,8 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta')));
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb')));
+      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta', pub: 'pubA')));
+      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb', pub: 'pubB')));
       expect(backend.token, 'tb');
 
       await switchToServer(a.id, registry: r, wg: wg, backend: backend);
@@ -240,8 +332,8 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta')));
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb')));
+      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta', pub: 'pubA')));
+      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb', pub: 'pubB')));
 
       await removeActiveServer(registry: r, wg: wg, backend: backend);
       expect(r.activeId, a.id);
@@ -252,6 +344,60 @@ void main() {
       expect(backend.isPaired, isFalse);
       expect(wg.isPaired, isFalse);
       expect(await LocalKvStore.instance.read(kArchangeldHostKey), isNull);
+    });
+
+    test('switching between same-host servers bumps the pairing generation', () async {
+      final r = ServerRegistry();
+      await r.load();
+      final wg = WireGuardController();
+      final backend = ArchangeldConnection();
+      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')));
+      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')));
+      expect(r.profiles, hasLength(2));
+      final gen = backend.pairingGeneration;
+      await switchToServer(a.id, registry: r, wg: wg, backend: backend);
+      expect(backend.pairingGeneration, greaterThan(gen));
+      expect(backend.token, 'ta');
+    });
+
+    test('activating a profile without a tunnel config unpairs the old tunnel', () async {
+      final r = ServerRegistry();
+      await r.load();
+      final wg = WireGuardController();
+      final backend = ArchangeldConnection();
+      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(pub: 'pubA')));
+      expect(wg.isPaired, isTrue);
+      await activateProfile(_profile('x', 'h9:1').copyWith(wgConfig: ''), wg: wg, backend: backend);
+      expect(wg.isPaired, isFalse);
+      expect(backend.host, 'h9:1');
+    });
+
+    test('pairNewServer rolls back when activation fails', () async {
+      final r = ServerRegistry();
+      await r.load();
+      final wg = WireGuardController();
+      final backend = ArchangeldConnection();
+      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')));
+      // fail only the first pair() call (the new server), allow the restore
+      final failing = _OnceFailing(backend);
+      await expectLater(
+        pairNewServer(registry: r, wg: wg, backend: failing, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB'))),
+        throwsStateError,
+      );
+      expect(r.profiles.map((p) => p.id), [a.id]);
+      expect(r.activeId, a.id);
+      expect(backend.token, 'ta');
+    });
+
+    test('the tunnel is not connected on switch when it was down', () async {
+      final r = ServerRegistry();
+      await r.load();
+      final wg = _CountingWg();
+      final backend = ArchangeldConnection();
+      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')));
+      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')));
+      await switchToServer(a.id, registry: r, wg: wg, backend: backend);
+      expect(wg.connects, 0);
     });
   });
 }

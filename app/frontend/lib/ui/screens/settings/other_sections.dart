@@ -244,6 +244,7 @@ class DangerZoneSection extends StatelessWidget {
     final wg = context.read<WireGuardController>();
     final backend = context.read<ArchangeldConnection>();
     final name = registry.active?.name;
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final ok = await showConfirmDialog(
       context,
       title: name == null ? 'Unpair from this server?' : 'Unpair from "$name"?',
@@ -252,6 +253,11 @@ class DangerZoneSection extends StatelessWidget {
       confirmLabel: 'Unpair',
       danger: true,
     );
-    if (ok) await removeActiveServer(registry: registry, wg: wg, backend: backend);
+    if (!ok) return;
+    try {
+      await removeActiveServer(registry: registry, wg: wg, backend: backend);
+    } catch (_) {
+      showSnack(messenger, 'Could not switch to the next server. This device was unpaired; pair again or pick a server.');
+    }
   }
 }

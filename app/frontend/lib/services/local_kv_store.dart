@@ -26,6 +26,10 @@ import 'package:path_provider/path_provider.dart';
 class LocalKvStore {
   LocalKvStore._(this._fileName);
 
+  /// Test seam: an independent store (e.g. a subclass whose writes fail).
+  @visibleForTesting
+  LocalKvStore.forTesting() : _fileName = 'archangel_test_state.json';
+
   final String _fileName;
   Map<String, String>? _cache;
 

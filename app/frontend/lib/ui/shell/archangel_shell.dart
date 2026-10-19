@@ -60,7 +60,8 @@ class _ArchangelShellState extends State<ArchangelShell> {
   /// destination's key so their per-server state (terminal tabs, current
   /// folder, selections) starts fresh.
   int _generation = 0;
-  String? _lastHost;
+  bool _hadServer = false;
+  int _lastPairing = 0;
   String? _lastPollKey;
   late ArchangeldConnection _backend;
 
@@ -68,7 +69,8 @@ class _ArchangelShellState extends State<ArchangelShell> {
   void initState() {
     super.initState();
     _backend = context.read<ArchangeldConnection>();
-    _lastHost = _backend.host;
+    _hadServer = _backend.isPaired;
+    _lastPairing = _backend.pairingGeneration;
     _backend.addListener(_onBackendChanged);
   }
 
@@ -79,11 +81,13 @@ class _ArchangelShellState extends State<ArchangelShell> {
   }
 
   void _onBackendChanged() {
-    final host = _backend.host;
-    if (host == _lastHost) return;
-    final hadServer = _lastHost != null;
-    _lastHost = host;
-    if (host == null || !hadServer) return; // unpaired / first pairing: nothing stale to clear
+    // Compare the pairing generation, not the host: two servers set up with
+    // defaults share the same host:port.
+    if (_backend.pairingGeneration == _lastPairing) return;
+    _lastPairing = _backend.pairingGeneration;
+    final hadServer = _hadServer;
+    _hadServer = _backend.isPaired;
+    if (!_backend.isPaired || !hadServer) return; // unpaired / first pairing: nothing stale to clear
     context.read<MonitoringService>().reset();
     context.read<ContainersService>().reset();
     context.read<DevopsService>().reset();

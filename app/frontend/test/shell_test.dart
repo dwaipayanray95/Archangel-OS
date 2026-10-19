@@ -243,6 +243,24 @@ void main() {
       await _settle(tester);
       expect(tester.state(find.byType(OverviewScreen)), isNot(same(before)));
     });
+
+    testWidgets('switching to another server with the same host also rebuilds destinations', (tester) async {
+      await pumpAppShell(tester);
+      final backend = _read<ArchangeldConnection>(tester);
+      Future<void> pair(String token) => tester.runAsync(() async {
+            await backend.pair(host: '10.10.0.1:8443', token: token);
+            while (backend.backendChecking) {
+              await Future<void>.delayed(const Duration(milliseconds: 10));
+            }
+          });
+      await pair('a');
+      await _settle(tester);
+      final before = tester.state(find.byType(OverviewScreen));
+
+      await pair('b');
+      await _settle(tester);
+      expect(tester.state(find.byType(OverviewScreen)), isNot(same(before)));
+    });
   });
 
   group('back button', () {

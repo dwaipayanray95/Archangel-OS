@@ -56,6 +56,12 @@ class ServerProfile {
     required this.createdAt,
   });
 
+  /// The server's WireGuard public key (the `[Peer] PublicKey` of
+  /// [wgConfig]), which identifies the server itself: unlike [host] it is
+  /// unique per server (every default install uses 10.10.0.1:8443). Null
+  /// when the config has none. Computed, so old stored profiles have it too.
+  String? get serverKey => wgServerPublicKey(wgConfig);
+
   ServerProfile copyWith({
     String? name,
     String? host,
@@ -122,6 +128,26 @@ class ServerProfile {
   int get hashCode => Object.hash(id, name, host, token, wgConfig, sshHost, sshUser, appPort, wgPort);
 }
 
+/// The `[Peer] PublicKey` of a wg-quick config, or null.
+String? wgServerPublicKey(String wgConfig) {
+  var inPeer = false;
+  for (final raw in wgConfig.split('\n')) {
+    final line = raw.trim();
+    if (line.startsWith('[') && line.endsWith(']')) {
+      inPeer = line.substring(1, line.length - 1).trim().toLowerCase() == 'peer';
+      continue;
+    }
+    if (!inPeer) continue;
+    final eq = line.indexOf('=');
+    if (eq == -1) continue;
+    if (line.substring(0, eq).trim().toLowerCase() == 'publickey') {
+      final v = line.substring(eq + 1).trim();
+      return v.isEmpty ? null : v;
+    }
+  }
+  return null;
+}
+
 String _newId() {
   final r = Random.secure();
   final bytes = List<int>.generate(8, (_) => r.nextInt(256));
@@ -173,7 +199,14 @@ class ServerRegistry extends ChangeNotifier {
       final raw = await _store.read(_kProfilesKey);
       if (raw != null) {
         final list = jsonDecode(raw) as List<dynamic>;
-        _profiles = [for (final e in list) ServerProfile.fromJson(e as Map<String, dynamic>)];
+        // One malformed entry must not drop the servers that are fine.
+        final parsed = <ServerProfile>[];
+        for (final e in list) {
+          try {
+            parsed.add(ServerProfile.fromJson(e as Map<String, dynamic>));
+          } catch (_) {}
+        }
+        _profiles = parsed;
         _activeId = await _store.read(_kActiveKey);
       } else {
         await _migrateLegacy();
@@ -187,12 +220,18 @@ class ServerRegistry extends ChangeNotifier {
         await _migrateLegacy();
       } catch (_) {}
     }
-    if (_profiles.isNotEmpty && byId(_activeId ?? '') == null) {
-      _activeId = _profiles.first.id;
-      await _persist();
+    try {
+      if (_profiles.isNotEmpty && byId(_activeId ?? '') == null) {
+        _activeId = _profiles.first.id;
+        await _persist();
+      }
+    } catch (_) {
+      // The in-memory state is still right; a failed write must not keep
+      // the app on the loading spinner.
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
-    _loaded = true;
-    notifyListeners();
   }
 
   /// An install from before multi-server support has one pairing in the
@@ -225,11 +264,29 @@ class ServerRegistry extends ChangeNotifier {
     }
   }
 
-  /// Adds [profile] (or, when a profile for the same host exists, updates
-  /// that one in place so re-pairing doesn't create duplicates) and
-  /// returns the stored profile. Becomes active unless [activate] is false.
+  /// Index of the stored profile for the same server as [profile]: the same
+  /// WireGuard server key, or - only when neither has a key - the same host.
+  int _indexOfSameServer(ServerProfile profile) {
+    final key = profile.serverKey;
+    return _profiles.indexWhere((p) => key != null ? p.serverKey == key : p.serverKey == null && p.host == profile.host);
+  }
+
+  /// Puts the registry back to an earlier state (rollback after a failed
+  /// activation).
+  Future<void> restore(List<ServerProfile> profiles, String? activeId) async {
+    _profiles = List.of(profiles);
+    _activeId = activeId;
+    await _persist();
+    notifyListeners();
+  }
+
+  /// Adds [profile] (or, when a profile for the same server - see
+  /// [ServerProfile.serverKey] - exists, updates that one in place so
+  /// re-pairing doesn't create duplicates; a different server that happens
+  /// to share the host:port is added separately) and returns the stored
+  /// profile. Becomes active unless [activate] is false.
   Future<ServerProfile> add(ServerProfile profile, {bool activate = true}) async {
-    final existing = _profiles.indexWhere((p) => p.host == profile.host);
+    final existing = _indexOfSameServer(profile);
     ServerProfile stored;
     if (existing >= 0) {
       final old = _profiles[existing];
@@ -323,6 +380,10 @@ Future<void> activateProfile(
   if (_tunnelUp(wg)) await wg.disconnect();
   if (profile.wgConfig.trim().isNotEmpty) {
     await wg.pair(profile.wgConfig);
+  } else {
+    // Don't leave the previous server's tunnel config behind while the
+    // backend points at this one.
+    await wg.unpair();
   }
   await backend.pair(host: profile.host, token: profile.token);
   if (connectTunnel && profile.wgConfig.trim().isNotEmpty) {
@@ -334,6 +395,8 @@ Future<void> activateProfile(
 /// points the app at it. The tunnel is reconnected only if one was up (a
 /// first pairing keeps the existing "pair, then connect from Settings"
 /// behaviour; adding a second server while connected moves the tunnel).
+/// If activation fails the registry and the live connection are put back
+/// as they were, and the error is rethrown.
 Future<ServerProfile> pairNewServer({
   required ServerRegistry registry,
   required WireGuardController wg,
@@ -344,12 +407,52 @@ Future<ServerProfile> pairNewServer({
   String sshUser = 'ubuntu',
 }) async {
   final wasUp = _tunnelUp(wg);
+  final before = registry.profiles;
+  final beforeActiveId = registry.activeId;
+  final previous = registry.active;
   final stored = await registry.add(registry.profileFromBundle(bundle, name: name, sshHost: sshHost, sshUser: sshUser));
-  await activateProfile(stored, wg: wg, backend: backend, connectTunnel: wasUp);
+  try {
+    await activateProfile(stored, wg: wg, backend: backend, connectTunnel: wasUp);
+  } catch (_) {
+    try {
+      await registry.restore(before, beforeActiveId);
+    } catch (_) {}
+    await _restoreConnection(previous, wg: wg, backend: backend, connectTunnel: wasUp);
+    rethrow;
+  }
   return stored;
 }
 
-/// Switches to the already-known profile [id].
+/// Best effort: bring the live connection back to [previous], or clear it
+/// when there was none, so no half-applied pairing stays live.
+Future<void> _restoreConnection(
+  ServerProfile? previous, {
+  required WireGuardController wg,
+  required ArchangeldConnection backend,
+  required bool connectTunnel,
+}) async {
+  try {
+    if (previous != null) {
+      await activateProfile(previous, wg: wg, backend: backend, connectTunnel: connectTunnel);
+    } else {
+      await _clearPairing(wg: wg, backend: backend);
+    }
+  } catch (_) {
+    // Best effort; the original failure is what the caller needs.
+  }
+}
+
+Future<void> _clearPairing({required WireGuardController wg, required ArchangeldConnection backend}) async {
+  try {
+    await backend.unpair();
+  } catch (_) {}
+  try {
+    await wg.unpair();
+  } catch (_) {}
+}
+
+/// Switches to the already-known profile [id]. The tunnel is brought up on
+/// the new server only if it was up before.
 Future<void> switchToServer(
   String id, {
   required ServerRegistry registry,
@@ -359,34 +462,36 @@ Future<void> switchToServer(
   final profile = registry.byId(id);
   if (profile == null) return;
   final previous = registry.active;
+  final wasUp = _tunnelUp(wg);
   await registry.setActive(id);
   try {
-    await activateProfile(profile, wg: wg, backend: backend);
+    await activateProfile(profile, wg: wg, backend: backend, connectTunnel: wasUp);
   } catch (_) {
     // Bringing the new server up failed: go back to the one that was
     // working rather than leaving the registry pointing at a server the
     // app isn't actually connected to.
     if (previous != null && previous.id != id) {
-      await registry.setActive(previous.id);
       try {
-        await activateProfile(previous, wg: wg, backend: backend);
-      } catch (_) {
-        // Best effort; the original failure is what the caller needs.
-      }
+        await registry.setActive(previous.id);
+      } catch (_) {}
+      await _restoreConnection(previous, wg: wg, backend: backend, connectTunnel: wasUp);
     }
     rethrow;
   }
 }
 
 /// Forgets the active server on this device ("Unpair"). If another profile
-/// remains it becomes active and its tunnel is brought up; with none left
-/// the pairing is cleared entirely so the root router shows the setup
-/// landing.
+/// remains it becomes active and its tunnel is brought up (if one was up);
+/// with none left the pairing is cleared entirely so the root router shows
+/// the setup landing. If activating the next server fails the removal
+/// stays, the live pairing is cleared so no stale credentials remain, and
+/// the error is rethrown.
 Future<void> removeActiveServer({
   required ServerRegistry registry,
   required WireGuardController wg,
   required ArchangeldConnection backend,
 }) async {
+  final wasUp = _tunnelUp(wg);
   final current = registry.active;
   if (current != null) await registry.remove(current.id);
   final next = registry.active;
@@ -394,6 +499,11 @@ Future<void> removeActiveServer({
     await backend.unpair();
     await wg.unpair();
   } else {
-    await activateProfile(next, wg: wg, backend: backend);
+    try {
+      await activateProfile(next, wg: wg, backend: backend, connectTunnel: wasUp);
+    } catch (_) {
+      await _clearPairing(wg: wg, backend: backend);
+      rethrow;
+    }
   }
 }
