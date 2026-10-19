@@ -13,7 +13,10 @@ class RunAppPage extends StatefulWidget {
 
   static Future<bool?> open(BuildContext context, ContainersService service) {
     return Navigator.of(context).push<bool>(
-      MaterialPageRoute(fullscreenDialog: true, builder: (_) => RunAppPage(service: service)),
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => RunAppPage(service: service),
+      ),
     );
   }
 
@@ -60,7 +63,11 @@ class _RunAppPageState extends State<RunAppPage> {
   bool _busy = false;
   String? _error;
 
-  static const _examples = ['nginx', 'louislam/uptime-kuma', 'vaultwarden/server'];
+  static const _examples = [
+    'nginx',
+    'louislam/uptime-kuma',
+    'vaultwarden/server',
+  ];
 
   @override
   void dispose() {
@@ -85,13 +92,20 @@ class _RunAppPageState extends State<RunAppPage> {
       _error = null;
     });
     final ports = buildPortSpecs([
-      for (final r in _ports) PortMapping(containerPort: r.container.text, hostPort: r.host.text, visibility: r.visibility),
+      for (final r in _ports)
+        PortMapping(
+          containerPort: r.container.text,
+          hostPort: r.host.text,
+          visibility: r.visibility,
+        ),
     ]);
     final volumes = buildVolumeSpecs([
-      for (final r in _folders) FolderMapping(hostPath: r.host.text, containerPath: r.container.text),
+      for (final r in _folders)
+        FolderMapping(hostPath: r.host.text, containerPath: r.container.text),
     ]);
     final env = buildEnvSpecs([
-      for (final r in _settings) SettingEntry(key: r.key.text, value: r.value.text),
+      for (final r in _settings)
+        SettingEntry(key: r.key.text, value: r.value.text),
     ]);
     final res = await widget.service.createContainer(
       image: _image.text.trim(),
@@ -137,175 +151,224 @@ class _RunAppPageState extends State<RunAppPage> {
               constraints: const BoxConstraints(maxWidth: 720),
               child: Form(
                 key: _formKey,
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(pad, ax.space.sm, pad, pad + MediaQuery.of(context).viewInsets.bottom),
-                  children: [
-                    Text(
-                      'Apps run in their own sealed box on your server. Pick an app image, choose how you reach it, and run it.',
-                      style: ax.typo.body.copyWith(color: c.textMuted),
-                    ),
-                    SizedBox(height: ax.space.xl),
-                    _section(context, 'App image', null, [
-                      TextFormField(
-                        controller: _image,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Image',
-                          hintText: 'nginx',
-                          helperText: 'The name of the app on Docker Hub.',
-                        ),
-                        validator: (v) => validateImage(v ?? ''),
+                // Not a lazy ListView: the form is short and every field must
+                // exist so validation covers rows scrolled out of view.
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    pad,
+                    ax.space.sm,
+                    pad,
+                    pad + MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Apps run in their own sealed box on your server. Pick an app image, choose how you reach it, and run it.',
+                        style: ax.typo.body.copyWith(color: c.textMuted),
                       ),
-                      SizedBox(height: ax.space.sm),
-                      Wrap(
-                        spacing: ax.space.sm,
-                        runSpacing: ax.space.sm,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text('Examples:', style: ax.typo.caption.copyWith(color: c.textMuted)),
-                          for (final e in _examples)
-                            ActionChip(
-                              label: Text(e, style: ax.typo.caption.copyWith(color: c.text)),
-                              backgroundColor: c.surfaceAlt,
-                              side: BorderSide(color: c.outline),
-                              onPressed: () => setState(() => _image.text = e),
-                            ),
-                        ],
-                      ),
-                      SizedBox(height: ax.space.lg),
-                      TextFormField(
-                        controller: _name,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Name (optional)',
-                          helperText: 'A short name to recognise it by. Leave blank to pick one for you.',
-                        ),
-                        validator: (v) => validateAppName(v ?? ''),
-                      ),
-                    ]),
-                    _section(
-                      context,
-                      'Ports',
-                      const HelpTip(
-                        title: 'Ports',
-                        message: 'A port is a numbered door into an app. Web apps usually listen on port 80 or 8080 '
-                            'inside. Choose which port on your server leads to it. "Private" doors can only be '
-                            'used by your paired devices over the secure connection. "Public" doors are open to '
-                            'everyone on the internet, so only use them for things meant to be public.',
-                      ),
-                      [
-                        if (_ports.isEmpty)
-                          Text(
-                            'No ports yet. Add one if you want to open the app from a browser.',
-                            style: ax.typo.body.copyWith(color: c.textMuted),
+                      SizedBox(height: ax.space.xl),
+                      _section(context, 'App image', null, [
+                        TextFormField(
+                          controller: _image,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Image',
+                            hintText: 'nginx',
+                            helperText: 'The name of the app on Docker Hub.',
                           ),
-                        for (var i = 0; i < _ports.length; i++) _portRow(context, i),
+                          validator: (v) => validateImage(v ?? ''),
+                        ),
                         SizedBox(height: ax.space.sm),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: AxButton.secondary(
-                            label: 'Add a port',
-                            icon: Icons.add_rounded,
-                            onPressed: () => setState(() => _ports.add(_PortRow())),
-                          ),
-                        ),
-                      ],
-                    ),
-                    _section(
-                      context,
-                      'Folders',
-                      const HelpTip(
-                        title: 'Folders',
-                        message: 'Apps forget everything when they are removed unless they save to a folder on your '
-                            'server. Link a folder on your server (the first path) to a place inside the app (the '
-                            'second path) so its data is kept. The app’s page will say where it stores data.',
-                      ),
-                      [
-                        if (_folders.isEmpty)
-                          Text(
-                            'No folders linked. Without one, the app’s data is lost if you remove it.',
-                            style: ax.typo.body.copyWith(color: c.textMuted),
-                          ),
-                        for (var i = 0; i < _folders.length; i++) _folderRow(context, i),
-                        SizedBox(height: ax.space.sm),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: AxButton.secondary(
-                            label: 'Add a folder',
-                            icon: Icons.add_rounded,
-                            onPressed: () => setState(() => _folders.add(_FolderRow())),
-                          ),
-                        ),
-                      ],
-                    ),
-                    _section(
-                      context,
-                      'Settings',
-                      const HelpTip(
-                        title: 'Settings',
-                        message: 'Some apps are configured with named values, for example a password or a time zone. '
-                            'Their instructions list the names to use, such as TZ with the value Europe/London.',
-                      ),
-                      [
-                        if (_settings.isEmpty)
-                          Text(
-                            'No settings. Most apps work without any.',
-                            style: ax.typo.body.copyWith(color: c.textMuted),
-                          ),
-                        for (var i = 0; i < _settings.length; i++) _settingRow(context, i),
-                        SizedBox(height: ax.space.sm),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: AxButton.secondary(
-                            label: 'Add a setting',
-                            icon: Icons.add_rounded,
-                            onPressed: () => setState(() => _settings.add(_SettingRow())),
-                          ),
-                        ),
-                      ],
-                    ),
-                    _section(context, 'If the server restarts', null, [
-                      DropdownButtonFormField<String>(
-                        value: _restart,
-                        isExpanded: true,
-                        dropdownColor: c.surfaceHigh,
-                        decoration: const InputDecoration(labelText: 'Restart behaviour'),
-                        items: [
-                          for (final (value, label) in restartChoices)
-                            DropdownMenuItem(value: value, child: Text(label, overflow: TextOverflow.ellipsis)),
-                        ],
-                        onChanged: (v) => setState(() => _restart = v ?? _restart),
-                      ),
-                    ]),
-                    if (_error != null) ...[
-                      Container(
-                        padding: EdgeInsets.all(ax.space.md),
-                        decoration: BoxDecoration(
-                          color: c.dangerWash,
-                          borderRadius: BorderRadius.circular(ax.radii.md),
-                          border: Border.all(color: c.danger),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Wrap(
+                          spacing: ax.space.sm,
+                          runSpacing: ax.space.sm,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Icon(Icons.error_outline, color: c.danger),
-                            SizedBox(width: ax.space.sm),
-                            Expanded(child: Text(_error!, style: ax.typo.body.copyWith(color: c.text))),
+                            Text(
+                              'Examples:',
+                              style: ax.typo.caption.copyWith(
+                                color: c.textMuted,
+                              ),
+                            ),
+                            for (final e in _examples)
+                              ActionChip(
+                                label: Text(
+                                  e,
+                                  style: ax.typo.caption.copyWith(
+                                    color: c.text,
+                                  ),
+                                ),
+                                backgroundColor: c.surfaceAlt,
+                                side: BorderSide(color: c.outline),
+                                onPressed:
+                                    () => setState(() => _image.text = e),
+                              ),
                           ],
                         ),
+                        SizedBox(height: ax.space.lg),
+                        TextFormField(
+                          controller: _name,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Name (optional)',
+                            helperText:
+                                'A short name to recognise it by. Leave blank to pick one for you.',
+                          ),
+                          validator: (v) => validateAppName(v ?? ''),
+                        ),
+                      ]),
+                      _section(
+                        context,
+                        'Ports',
+                        const HelpTip(
+                          title: 'Ports',
+                          message:
+                              'A port is a numbered door into an app. Web apps usually listen on port 80 or 8080 '
+                              'inside. Choose which port on your server leads to it. "Private" doors can only be '
+                              'used by your paired devices over the secure connection. "Public" doors are open to '
+                              'everyone on the internet, so only use them for things meant to be public.',
+                        ),
+                        [
+                          if (_ports.isEmpty)
+                            Text(
+                              'No ports yet. Add one if you want to open the app from a browser.',
+                              style: ax.typo.body.copyWith(color: c.textMuted),
+                            ),
+                          for (var i = 0; i < _ports.length; i++)
+                            _portRow(context, i),
+                          SizedBox(height: ax.space.sm),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: AxButton.secondary(
+                              label: 'Add a port',
+                              icon: Icons.add_rounded,
+                              onPressed:
+                                  () => setState(() => _ports.add(_PortRow())),
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: ax.space.lg),
+                      _section(
+                        context,
+                        'Folders',
+                        const HelpTip(
+                          title: 'Folders',
+                          message:
+                              'Apps forget everything when they are removed unless they save to a folder on your '
+                              'server. Link a folder on your server (the first path) to a place inside the app (the '
+                              'second path) so its data is kept. The app’s page will say where it stores data.',
+                        ),
+                        [
+                          if (_folders.isEmpty)
+                            Text(
+                              'No folders linked. Without one, the app’s data is lost if you remove it.',
+                              style: ax.typo.body.copyWith(color: c.textMuted),
+                            ),
+                          for (var i = 0; i < _folders.length; i++)
+                            _folderRow(context, i),
+                          SizedBox(height: ax.space.sm),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: AxButton.secondary(
+                              label: 'Add a folder',
+                              icon: Icons.add_rounded,
+                              onPressed:
+                                  () => setState(
+                                    () => _folders.add(_FolderRow()),
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      _section(
+                        context,
+                        'Settings',
+                        const HelpTip(
+                          title: 'Settings',
+                          message:
+                              'Some apps are configured with named values, for example a password or a time zone. '
+                              'Their instructions list the names to use, such as TZ with the value Europe/London.',
+                        ),
+                        [
+                          if (_settings.isEmpty)
+                            Text(
+                              'No settings. Most apps work without any.',
+                              style: ax.typo.body.copyWith(color: c.textMuted),
+                            ),
+                          for (var i = 0; i < _settings.length; i++)
+                            _settingRow(context, i),
+                          SizedBox(height: ax.space.sm),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: AxButton.secondary(
+                              label: 'Add a setting',
+                              icon: Icons.add_rounded,
+                              onPressed:
+                                  () => setState(
+                                    () => _settings.add(_SettingRow()),
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      _section(context, 'If the server restarts', null, [
+                        DropdownButtonFormField<String>(
+                          value: _restart,
+                          isExpanded: true,
+                          dropdownColor: c.surfaceHigh,
+                          decoration: const InputDecoration(
+                            labelText: 'Restart behaviour',
+                          ),
+                          items: [
+                            for (final (value, label) in restartChoices)
+                              DropdownMenuItem(
+                                value: value,
+                                child: Text(
+                                  label,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged:
+                              (v) => setState(() => _restart = v ?? _restart),
+                        ),
+                      ]),
+                      if (_error != null) ...[
+                        Container(
+                          padding: EdgeInsets.all(ax.space.md),
+                          decoration: BoxDecoration(
+                            color: c.dangerWash,
+                            borderRadius: BorderRadius.circular(ax.radii.md),
+                            border: Border.all(color: c.danger),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.error_outline, color: c.danger),
+                              SizedBox(width: ax.space.sm),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: ax.typo.body.copyWith(color: c.text),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: ax.space.lg),
+                      ],
+                      AxButton(
+                        label: 'Run app',
+                        icon: Icons.play_arrow_rounded,
+                        expand: true,
+                        loading: _busy,
+                        onPressed: _busy ? null : _submit,
+                      ),
                     ],
-                    AxButton(
-                      label: 'Run app',
-                      icon: Icons.play_arrow_rounded,
-                      expand: true,
-                      loading: _busy,
-                      onPressed: _busy ? null : _submit,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -315,7 +378,12 @@ class _RunAppPageState extends State<RunAppPage> {
     );
   }
 
-  Widget _section(BuildContext context, String title, Widget? help, List<Widget> children) {
+  Widget _section(
+    BuildContext context,
+    String title,
+    Widget? help,
+    List<Widget> children,
+  ) {
     final ax = context.ax;
     final c = ax.colors;
     return Padding(
@@ -326,7 +394,13 @@ class _RunAppPageState extends State<RunAppPage> {
           Row(
             children: [
               Expanded(
-                child: Semantics(header: true, child: Text(title, style: ax.typo.title.copyWith(color: c.text))),
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: ax.typo.title.copyWith(color: c.text),
+                  ),
+                ),
               ),
               if (help != null) help,
             ],
@@ -338,7 +412,12 @@ class _RunAppPageState extends State<RunAppPage> {
     );
   }
 
-  Widget _rowFrame(BuildContext context, {required List<Widget> children, required String removeTip, required VoidCallback onRemove}) {
+  Widget _rowFrame(
+    BuildContext context, {
+    required List<Widget> children,
+    required String removeTip,
+    required VoidCallback onRemove,
+  }) {
     final ax = context.ax;
     final c = ax.colors;
     return Padding(
@@ -354,8 +433,17 @@ class _RunAppPageState extends State<RunAppPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)),
-              AxIconButton(icon: Icons.close_rounded, tooltip: removeTip, onPressed: onRemove),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                ),
+              ),
+              AxIconButton(
+                icon: Icons.close_rounded,
+                tooltip: removeTip,
+                onPressed: onRemove,
+              ),
             ],
           ),
         ),
@@ -379,7 +467,10 @@ class _RunAppPageState extends State<RunAppPage> {
               child: TextFormField(
                 controller: r.container,
                 keyboardType: TextInputType.text,
-                decoration: const InputDecoration(labelText: 'Port inside the app', hintText: '80'),
+                decoration: const InputDecoration(
+                  labelText: 'Port inside the app',
+                  hintText: '80',
+                ),
                 validator: (v) => validateContainerPort(v ?? ''),
               ),
             ),
@@ -388,7 +479,10 @@ class _RunAppPageState extends State<RunAppPage> {
               child: TextFormField(
                 controller: r.host,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Port on your server', hintText: '8080'),
+                decoration: const InputDecoration(
+                  labelText: 'Port on your server',
+                  hintText: '8080',
+                ),
                 validator: (v) => validateHostPort(v ?? ''),
               ),
             ),
@@ -401,7 +495,11 @@ class _RunAppPageState extends State<RunAppPage> {
           dropdownColor: c.surfaceHigh,
           decoration: const InputDecoration(labelText: 'Who can reach it'),
           items: [
-            for (final v in PortVisibility.values) DropdownMenuItem(value: v, child: Text(v.label, overflow: TextOverflow.ellipsis)),
+            for (final v in PortVisibility.values)
+              DropdownMenuItem(
+                value: v,
+                child: Text(v.label, overflow: TextOverflow.ellipsis),
+              ),
           ],
           onChanged: (v) => setState(() => r.visibility = v ?? r.visibility),
         ),
@@ -446,15 +544,23 @@ class _RunAppPageState extends State<RunAppPage> {
         TextFormField(
           controller: r.host,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Folder on your server', hintText: '/srv/myapp'),
-          validator: (v) => validateFolderPath(v ?? '', what: 'Folder on your server'),
+          decoration: const InputDecoration(
+            labelText: 'Folder on your server',
+            hintText: '/srv/myapp',
+          ),
+          validator:
+              (v) => validateFolderPath(v ?? '', what: 'Folder on your server'),
         ),
         SizedBox(height: ax.space.md),
         TextFormField(
           controller: r.container,
           autocorrect: false,
-          decoration: const InputDecoration(labelText: 'Place inside the app', hintText: '/data'),
-          validator: (v) => validateFolderPath(v ?? '', what: 'Place inside the app'),
+          decoration: const InputDecoration(
+            labelText: 'Place inside the app',
+            hintText: '/data',
+          ),
+          validator:
+              (v) => validateFolderPath(v ?? '', what: 'Place inside the app'),
         ),
       ],
     );
@@ -480,7 +586,10 @@ class _RunAppPageState extends State<RunAppPage> {
           controller: r.value,
           autocorrect: false,
           enableSuggestions: false,
-          decoration: const InputDecoration(labelText: 'Value', hintText: 'Europe/London'),
+          decoration: const InputDecoration(
+            labelText: 'Value',
+            hintText: 'Europe/London',
+          ),
         ),
       ],
     );
