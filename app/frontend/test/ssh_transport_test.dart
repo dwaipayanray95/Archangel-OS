@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:archangel/services/known_hosts.dart';
+import 'test_utils.dart';
 import 'package:archangel/services/ssh_transport.dart';
 
 /// KnownHosts is backed by flutter_secure_storage, whose platform channel
@@ -33,6 +34,7 @@ void _fakeSecureStorage() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   _fakeSecureStorage();
+  setUp(useTempKvStore);
 
   group('resolveHostKeyTrust', () {
     test('trusts a first-time host only after the prompt accepts, and remembers it', () async {
