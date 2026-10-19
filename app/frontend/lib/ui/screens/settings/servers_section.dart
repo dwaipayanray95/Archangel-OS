@@ -20,8 +20,8 @@ class ServersSection extends StatelessWidget {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       await switchToServer(p.id, registry: registry, wg: wg, backend: backend);
-    } catch (e) {
-      showSnack(messenger, 'Could not switch to ${p.name}: $e');
+    } catch (_) {
+      showSnack(messenger, 'Could not switch to ${p.name}. Check your connection and try again.');
     }
   }
 
@@ -35,6 +35,7 @@ class ServersSection extends StatelessWidget {
     final registry = context.read<ServerRegistry>();
     final wg = context.read<WireGuardController>();
     final backend = context.read<ArchangeldConnection>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final ok = await showConfirmDialog(
       context,
       title: 'Remove "${p.name}"?',
@@ -44,10 +45,14 @@ class ServersSection extends StatelessWidget {
       danger: true,
     );
     if (!ok) return;
-    if (registry.activeId == p.id) {
-      await removeActiveServer(registry: registry, wg: wg, backend: backend);
-    } else {
-      await registry.remove(p.id);
+    try {
+      if (registry.activeId == p.id) {
+        await removeActiveServer(registry: registry, wg: wg, backend: backend);
+      } else {
+        await registry.remove(p.id);
+      }
+    } catch (_) {
+      showSnack(messenger, 'Could not remove ${p.name} cleanly. Check the other server and try again.');
     }
   }
 

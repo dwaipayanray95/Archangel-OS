@@ -41,7 +41,7 @@ class StatusStrip extends StatefulWidget {
 class _StatusStripState extends State<StatusStrip> {
   Timer? _timer;
   TunnelStatus? _lastTunnel;
-  String? _lastHost;
+  int? _lastPairing;
 
   @override
   void initState() {
@@ -72,9 +72,9 @@ class _StatusStripState extends State<StatusStrip> {
     final name = registry.active?.name;
 
     // Check straight away on start and whenever the tunnel or server changes.
-    if (_lastTunnel != wg.status || _lastHost != backend.host) {
+    if (_lastTunnel != wg.status || _lastPairing != backend.pairingGeneration) {
       _lastTunnel = wg.status;
-      _lastHost = backend.host;
+      _lastPairing = backend.pairingGeneration;
       WidgetsBinding.instance.addPostFrameCallback((_) => _check());
     }
 

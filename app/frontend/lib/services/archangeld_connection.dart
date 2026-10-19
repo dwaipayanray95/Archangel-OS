@@ -9,7 +9,6 @@ import 'local_kv_store.dart';
 /// migration of pre-multi-server installs).
 const kArchangeldHostKey = 'archangeld_host';
 const kArchangeldTokenKey = 'archangeld_token';
-final _store = LocalKvStore.instance;
 
 /// The archangeld connection details: host:port (reachable only over the
 /// WireGuard tunnel - see WIREGUARD.md) and the single auth token from
@@ -17,7 +16,16 @@ final _store = LocalKvStore.instance;
 /// local_kv_store.dart's doc comment for why this isn't Keychain-backed)
 /// rather than plaintext prefs.
 class ArchangeldConnection extends ChangeNotifier {
-  ArchangeldConnection({http.Client? client}) : _client = client;
+  ArchangeldConnection({http.Client? client, LocalKvStore? store})
+      : _client = client,
+        _store = store ?? LocalKvStore.instance;
+
+  final LocalKvStore _store;
+
+  /// Bumped on every pair/unpair, so listeners can tell "re-pointed at
+  /// another server" even when two servers share the same host:port.
+  int _pairingGeneration = 0;
+  int get pairingGeneration => _pairingGeneration;
 
   /// Injected in tests; null means the plain top-level `http` functions.
   final http.Client? _client;
@@ -36,6 +44,7 @@ class ArchangeldConnection extends ChangeNotifier {
   int get healthFailures => _healthFailures;
 
   Future<void>? _healthInFlight;
+  String? _healthInFlightHost;
 
   /// Asks the server's unauthenticated /api/v1/health whether it is
   /// reachable right now (through any tunnel - ours or the OS WireGuard
@@ -43,7 +52,20 @@ class ArchangeldConnection extends ChangeNotifier {
   /// share its result.
   Future<void> checkReachable({Duration timeout = const Duration(seconds: 3)}) {
     if (!isPaired) return Future.value();
-    return _healthInFlight ??= _checkReachable(timeout).whenComplete(() => _healthInFlight = null);
+    final host = _host;
+    final running = _healthInFlight;
+    if (running != null && _healthInFlightHost == host) return running;
+    // A check still running for another host must not stand in for this one.
+    late final Future<void> f;
+    f = _checkReachable(timeout).whenComplete(() {
+      if (identical(_healthInFlight, f)) {
+        _healthInFlight = null;
+        _healthInFlightHost = null;
+      }
+    });
+    _healthInFlight = f;
+    _healthInFlightHost = host;
+    return f;
   }
 
   Future<void> _checkReachable(Duration timeout) async {
@@ -102,10 +124,17 @@ class ArchangeldConnection extends ChangeNotifier {
   bool get isLoaded => _loaded;
 
   Future<void> load() async {
-    _host = await _store.read(kArchangeldHostKey);
-    _token = await _store.read(kArchangeldTokenKey);
-    _loaded = true;
-    notifyListeners();
+    try {
+      _host = await _store.read(kArchangeldHostKey);
+      _token = await _store.read(kArchangeldTokenKey);
+    } catch (_) {
+      // Unreadable storage: start unpaired rather than hang on the spinner.
+      _host = null;
+      _token = null;
+    } finally {
+      _loaded = true;
+      notifyListeners();
+    }
     if (isPaired) {
       unawaited(refreshBackendVersion());
     }
@@ -121,6 +150,7 @@ class ArchangeldConnection extends ChangeNotifier {
     await _store.write(kArchangeldTokenKey, cleanToken);
     _host = cleanHost;
     _token = cleanToken;
+    _pairingGeneration++;
     _resetReachability();
     notifyListeners();
     unawaited(refreshBackendVersion());
@@ -132,6 +162,7 @@ class ArchangeldConnection extends ChangeNotifier {
     _host = null;
     _token = null;
     _backendVersion = null;
+    _pairingGeneration++;
     _resetReachability();
     notifyListeners();
   }

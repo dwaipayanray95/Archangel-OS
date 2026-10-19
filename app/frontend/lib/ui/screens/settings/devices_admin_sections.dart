@@ -43,7 +43,12 @@ class DevicesSection extends StatelessWidget {
     }
     if (device.current) {
       // This device just lost access: forget the pairing locally as well.
-      await removeActiveServer(registry: registry, wg: wg, backend: backend);
+      try {
+        await removeActiveServer(registry: registry, wg: wg, backend: backend);
+      } catch (_) {
+        showSnack(messenger, 'Access was revoked, but the next server could not be opened. Pick a server to continue.');
+        return;
+      }
     }
     showSnack(messenger, device.current ? result.message : 'Revoked ${device.name}.');
   }
