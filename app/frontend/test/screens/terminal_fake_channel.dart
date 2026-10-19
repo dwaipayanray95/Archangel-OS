@@ -1,3 +1,5 @@
+// ignore_for_file: depend_on_referenced_packages
+// stream_channel is web_socket_channel's own base package; only needed to fake it.
 import 'dart:async';
 import 'dart:convert';
 
@@ -79,10 +81,14 @@ Future<ArchangeldConnection> pairedBackend() async {
   return b;
 }
 
-/// A connected session over a [FakeTerminalChannel].
-Future<(TerminalSession, FakeTerminalChannel)> connectedFakeSession({String name = 'main'}) async {
+/// A connected session over a [FakeTerminalChannel]. Pass a backend from
+/// [pairedBackend] to keep session creation in the caller's (fake-async) zone.
+(TerminalSession, FakeTerminalChannel) connectedFakeSessionWith(ArchangeldConnection backend, {String name = 'main'}) {
   final ch = FakeTerminalChannel();
   final session = TerminalSession(label: name, channelFactory: (_) => ch);
-  session.connect(await pairedBackend());
+  session.connect(backend);
   return (session, ch);
 }
+
+Future<(TerminalSession, FakeTerminalChannel)> connectedFakeSession({String name = 'main'}) async =>
+    connectedFakeSessionWith(await pairedBackend(), name: name);
