@@ -81,7 +81,6 @@ Future<_Harness> _pumpSettings(
   Future<http.Response> Function(http.Request req)? devicesHandler,
   Widget Function(Widget child)? wrap,
 }) async {
-  ignoreFontDownloadErrors();
   final registry = ServerRegistry();
   final requests = <http.Request>[];
   final backend = ArchangeldConnection(client: MockClient((_) async => _json({'version': '0.5.0'})));
@@ -268,7 +267,6 @@ void main() {
 
   group('uninstall', () {
     testWidgets('uses the active profile\'s ports and SSH address, not 8443/51820', (tester) async {
-      ignoreFontDownloadErrors();
       final registry = ServerRegistry();
       final backend = ArchangeldConnection(client: MockClient((_) async => _json({})));
       final wg = WireGuardController();

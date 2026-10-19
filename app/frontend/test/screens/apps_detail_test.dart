@@ -10,7 +10,6 @@ import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/ui/screens/apps/log_view.dart';
 import 'package:archangel/ui/theme.dart';
 
-import '../test_utils.dart';
 
 class _Svc extends ContainersService {
   final logs = <DockerLogEntry>[
@@ -47,7 +46,6 @@ const _web = DockerContainerItem(
 );
 
 Future<_Svc> _pump(WidgetTester tester, Size size, Brightness b) async {
-  ignoreFontDownloadErrors();
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

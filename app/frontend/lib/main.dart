@@ -11,7 +11,6 @@ import 'services/files_service.dart';
 import 'services/monitoring_service.dart';
 import 'services/update_check_service.dart';
 import 'services/wireguard_controller.dart';
-import 'theme/tokens.dart';
 import 'services/server_registry.dart';
 import 'ui/shell/archangel_shell.dart';
 import 'ui/theme.dart';
@@ -79,7 +78,7 @@ class _RootRouter extends StatelessWidget {
 
     if (!wg.isBootstrapped || !backend.isLoaded || !registry.isLoaded) {
       return Scaffold(
-        backgroundColor: AxColors.bg,
+        backgroundColor: context.ax.colors.bg,
         body: const Center(child: CircularProgressIndicator()),
       );
     }

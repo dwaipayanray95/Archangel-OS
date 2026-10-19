@@ -101,6 +101,7 @@ class SshCredentialsForm extends StatefulWidget {
     super.key,
     required this.controller,
     this.showHost = true,
+    this.showUsername = true,
     this.showKeyPassphrase = true,
     this.showRememberKey = true,
     this.restoreSavedOnStart = true,
@@ -111,6 +112,9 @@ class SshCredentialsForm extends StatefulWidget {
 
   final SshCredentialsController controller;
   final bool showHost;
+
+  /// Hide the username field when the caller already asked for it.
+  final bool showUsername;
 
   /// Ask for the passphrase of an encrypted private key. Off for forms that
   /// only store the key rather than use it.
@@ -221,18 +225,20 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
           ),
           gap,
         ],
-        _field(
-          context,
-          controller: ctl.username,
-          label: 'Username',
-          hint: 'ubuntu',
-          enabled: enabled,
-          help: const HelpTip(
-            title: 'Username',
-            message: 'The account you sign in to the server with over SSH. Most hosting providers use "ubuntu" or "root".',
+        if (widget.showUsername) ...[
+          _field(
+            context,
+            controller: ctl.username,
+            label: 'Username',
+            hint: 'ubuntu',
+            enabled: enabled,
+            help: const HelpTip(
+              title: 'Username',
+              message: 'The account you sign in to the server with over SSH. Most hosting providers use "ubuntu" or "root".',
+            ),
           ),
-        ),
-        gap,
+          gap,
+        ],
         _field(
           context,
           controller: ctl.privateKey,

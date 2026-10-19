@@ -4,14 +4,14 @@ import '../screens/overview_screen.dart' show evaluateHealth, HealthLevel;
 import '../services/containers_service.dart';
 import '../services/devops_service.dart';
 import '../services/monitoring_service.dart';
-import '../theme/tokens.dart';
+import '../ui/ui.dart';
 
 class _NotifItem {
   final String actor;
   final String text;
   final String detail;
-  final Color color;
-  const _NotifItem({required this.actor, required this.text, required this.detail, required this.color});
+  final AxStatus status;
+  const _NotifItem({required this.actor, required this.text, required this.detail, required this.status});
 }
 
 List<_NotifItem> _buildNotifItems(ContainersService contSvc, DevopsService devSvc) {
@@ -24,7 +24,7 @@ List<_NotifItem> _buildNotifItems(ContainersService contSvc, DevopsService devSv
       actor: c.name,
       text: c.running ? 'running' : 'stopped',
       detail: '${c.image} · ${c.uptime.isNotEmpty ? c.uptime : "idle"}',
-      color: c.running ? AxColors.accent : AxColors.warn,
+      status: c.running ? AxStatus.ok : AxStatus.warning,
     ));
   }
 
@@ -34,7 +34,7 @@ List<_NotifItem> _buildNotifItems(ContainersService contSvc, DevopsService devSv
       actor: s.name,
       text: s.status,
       detail: s.meta,
-      color: s.ok ? AxColors.accent : AxColors.bad,
+      status: s.ok ? AxStatus.ok : AxStatus.error,
     ));
   }
   return items;
@@ -56,96 +56,105 @@ class NotifPanel extends StatelessWidget {
     final items = _buildNotifItems(contSvc, devSvc);
     final health = evaluateHealth(connected: monSvc.isConnected, metrics: monSvc.metrics);
 
+    final ax = context.ax;
+    final c = ax.colors;
+
+    Color statusColor(AxStatus st) => switch (st) {
+          AxStatus.ok => c.success,
+          AxStatus.warning => c.warning,
+          AxStatus.error => c.danger,
+          AxStatus.info => c.info,
+          AxStatus.neutral => c.textMuted,
+        };
+
     return Positioned(
       top: 55,
       right: 10,
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0, end: 1),
-        duration: AxMotion.pop,
-        curve: AxMotion.easeOutSoft,
+        duration: const Duration(milliseconds: 230),
+        curve: Curves.easeOutCubic,
         builder: (context, t, child) => Opacity(
           opacity: t,
           child: Transform.translate(offset: Offset(0, (1 - t) * -12), child: child),
         ),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 310,
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AxColors.s2,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AxColors.line2),
-              boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 50, offset: Offset(0, 20))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 5, 8, 8),
-                  child: Row(
-                    children: [
-                      Text('NOTIFICATIONS', style: AxTextStyles.sans.copyWith(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1, color: AxColors.fg3)),
-                      const Spacer(),
-                      Text(
-                        items.isEmpty
-                            ? (health.isHealthy ? 'all nominal' : (monSvc.isConnected ? 'attention' : 'offline'))
-                            : '${items.length} active',
-                        style: AxTextStyles.mono.copyWith(fontSize: 10, color: AxColors.fg3),
-                      ),
-                    ],
-                  ),
-                ),
-                if (items.isEmpty)
+        child: Semantics(
+          container: true,
+          label: 'Notifications',
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 310,
+              padding: EdgeInsets.all(ax.space.sm),
+              decoration: BoxDecoration(
+                color: c.surfaceHigh,
+                borderRadius: BorderRadius.circular(ax.radii.lg),
+                border: Border.all(color: c.border),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
-                    child: Center(
-                      child: Text(
-                        health.isHealthy
-                            ? 'No active alerts · All systems nominal'
-                            : (health.level == HealthLevel.unreachable ? "Can't reach your server. ${health.hint}" : health.headline),
-                        textAlign: TextAlign.center,
-                        style: AxTextStyles.mono.copyWith(fontSize: 11, color: AxColors.fg3),
-                      ),
+                    padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.xs, ax.space.sm, ax.space.sm),
+                    child: Row(
+                      children: [
+                        Text('NOTIFICATIONS',
+                            style: ax.typo.caption.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1, color: c.textMuted)),
+                        const Spacer(),
+                        Text(
+                          items.isEmpty
+                              ? (health.isHealthy ? 'All good' : (monSvc.isConnected ? 'Needs attention' : 'Offline'))
+                              : '${items.length} active',
+                          style: ax.typo.caption.copyWith(color: c.textMuted),
+                        ),
+                      ],
                     ),
-                  )
-                else
-                  for (final n in items)
+                  ),
+                  if (items.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.symmetric(vertical: ax.space.lg, horizontal: ax.space.md),
+                      child: Center(
+                        child: Text(
+                          health.isHealthy
+                              ? 'No active alerts. Everything looks fine.'
+                              : (health.level == HealthLevel.unreachable ? "Can't reach your server. ${health.hint}" : health.headline),
+                          textAlign: TextAlign.center,
+                          style: ax.typo.caption.copyWith(color: c.textMuted),
+                        ),
+                      ),
+                    )
+                  else
+                    for (final n in items)
+                      Padding(
+                        padding: EdgeInsets.all(ax.space.sm),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 5),
-                              child: Container(width: 6, height: 6, decoration: BoxDecoration(color: n.color, shape: BoxShape.circle)),
-                            ),
-                            const SizedBox(width: 9),
+                            Icon(StatusBadge.defaultIcon(n.status), size: 16, color: statusColor(n.status)),
+                            SizedBox(width: ax.space.sm),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  RichText(
-                                    text: TextSpan(
-                                      style: AxTextStyles.sans.copyWith(fontSize: 12.5, height: 1.35),
+                                  Text.rich(
+                                    TextSpan(
+                                      style: ax.typo.body.copyWith(color: c.text),
                                       children: [
                                         TextSpan(text: '${n.actor} ', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                        TextSpan(text: n.text, style: const TextStyle(color: AxColors.fg2)),
+                                        TextSpan(text: n.text, style: TextStyle(color: c.textMuted)),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(n.detail, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  Text(n.detail, style: ax.typo.caption.copyWith(color: c.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

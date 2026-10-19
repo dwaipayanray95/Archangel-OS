@@ -583,6 +583,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
         SshCredentialsForm(
           controller: _ssh,
           showHost: false,
+          showUsername: false,
           restoreSavedOnStart: false,
           onPickKeyFile: _pickKeyFile,
         ),

@@ -30,7 +30,6 @@ Future<TerminalHarness> pumpWorkspace(
   Size size = const Size(390, 844),
   List<String> names = const ['main'],
 }) async {
-  ignoreFontDownloadErrors();
   final sessions = <TerminalSession>[];
   final channels = <FakeTerminalChannel>[];
   late final ArchangeldConnection backend;
@@ -261,7 +260,6 @@ void main() {
     }
 
     testWidgets('explains the consequence and only the danger button confirms', (tester) async {
-      ignoreFontDownloadErrors();
       bool? result;
       await open(tester, (r) => result = r);
       expect(find.text('End session "main"?'), findsOneWidget);
@@ -272,7 +270,6 @@ void main() {
     });
 
     testWidgets('Cancel does not end it', (tester) async {
-      ignoreFontDownloadErrors();
       bool? result;
       await open(tester, (r) => result = r);
       await tester.tap(find.text('Cancel'));

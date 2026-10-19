@@ -28,9 +28,9 @@ import 'package:archangel/ui/theme.dart';
 Future<AppState> pumpAppShell(
   WidgetTester tester, {
   Size size = const Size(1400, 900),
+  Brightness brightness = Brightness.dark,
   Future<void> Function(ServerRegistry registry)? seedRegistry,
 }) async {
-  ignoreFontDownloadErrors();
   final registry = ServerRegistry();
   // testWidgets runs in a FakeAsync zone; real file IO must go via runAsync.
   await tester.runAsync(() async {
@@ -60,7 +60,7 @@ Future<AppState> pumpAppShell(
       child: Consumer<AppState>(
         builder: (context, app, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.dark, app.accentChoice),
+          theme: buildTheme(brightness, app.accentChoice),
           home: const ArchangelShell(),
         ),
       ),
@@ -83,18 +83,4 @@ Future<Directory> useTempKvStore() async {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   });
   return dir;
-}
-
-/// google_fonts tries to download Manrope the first time a style is used; with
-/// no network (and real async via `runAsync`) that surfaces as a test failure
-/// even though rendering simply falls back to the default font. Swallow just
-/// those reports for the rest of the current test.
-void ignoreFontDownloadErrors() {
-  final original = FlutterError.onError;
-  FlutterError.onError = (details) {
-    final text = details.exception.toString();
-    if (text.contains('Failed to load font') || text.contains('google_fonts was unable to load font')) return;
-    original?.call(details);
-  };
-  addTearDown(() => FlutterError.onError = original);
 }
