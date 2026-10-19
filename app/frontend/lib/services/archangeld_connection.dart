@@ -17,6 +17,62 @@ final _store = LocalKvStore.instance;
 /// local_kv_store.dart's doc comment for why this isn't Keychain-backed)
 /// rather than plaintext prefs.
 class ArchangeldConnection extends ChangeNotifier {
+  ArchangeldConnection({http.Client? client}) : _client = client;
+
+  /// Injected in tests; null means the plain top-level `http` functions.
+  final http.Client? _client;
+
+  Future<http.Response> _get(Uri uri, Duration timeout) =>
+      (_client == null ? http.get(uri) : _client.get(uri)).timeout(timeout);
+
+  /// Result of the latest [checkReachable]: true = the server answered
+  /// /api/v1/health, false = it did not, null = not checked yet since the
+  /// pairing last changed.
+  bool? _reachable;
+  bool? get reachable => _reachable;
+
+  /// Consecutive failed [checkReachable] calls.
+  int _healthFailures = 0;
+  int get healthFailures => _healthFailures;
+
+  Future<void>? _healthInFlight;
+
+  /// Asks the server's unauthenticated /api/v1/health whether it is
+  /// reachable right now (through any tunnel - ours or the OS WireGuard
+  /// app's). Short timeout; never throws. Calls made while one is running
+  /// share its result.
+  Future<void> checkReachable({Duration timeout = const Duration(seconds: 3)}) {
+    if (!isPaired) return Future.value();
+    return _healthInFlight ??= _checkReachable(timeout).whenComplete(() => _healthInFlight = null);
+  }
+
+  Future<void> _checkReachable(Duration timeout) async {
+    final asked = _host;
+    bool ok = false;
+    try {
+      final res = await _get(healthHttpUri(), timeout);
+      ok = res.statusCode == 200;
+      if (ok) {
+        try {
+          final v = (jsonDecode(res.body) as Map<String, dynamic>)['version'];
+          if (v is String && v.isNotEmpty) _backendVersion = v;
+        } catch (_) {}
+      }
+    } catch (_) {
+      ok = false;
+    }
+    if (_host != asked) return; // re-paired while the request was in flight
+    final changed = _reachable != ok;
+    _reachable = ok;
+    _healthFailures = ok ? 0 : _healthFailures + 1;
+    if (changed || !ok) notifyListeners();
+  }
+
+  void _resetReachability() {
+    _reachable = null;
+    _healthFailures = 0;
+  }
+
   String? _host;
   String? get host => _host;
 
@@ -65,6 +121,7 @@ class ArchangeldConnection extends ChangeNotifier {
     await _store.write(kArchangeldTokenKey, cleanToken);
     _host = cleanHost;
     _token = cleanToken;
+    _resetReachability();
     notifyListeners();
     unawaited(refreshBackendVersion());
   }
@@ -75,6 +132,7 @@ class ArchangeldConnection extends ChangeNotifier {
     _host = null;
     _token = null;
     _backendVersion = null;
+    _resetReachability();
     notifyListeners();
   }
 
@@ -96,7 +154,7 @@ class ArchangeldConnection extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final res = await http.get(healthHttpUri()).timeout(const Duration(seconds: 4));
+      final res = await _get(healthHttpUri(), const Duration(seconds: 4));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         final v = data['version'] as String?;
@@ -352,6 +410,10 @@ class ArchangeldConnection extends ChangeNotifier {
     }
     return Uri.parse('http://$_host/api/v1/devices');
   }
+
+  /// `http://<host>/api/v1/devices` - POST `{"name": "..."}` creates a
+  /// device and returns its pairing bundle.
+  Uri devicesCreateHttpUri() => devicesHttpUri();
 
   /// `http://<host>/api/v1/devices/{name}` - DELETE revokes a device.
   Uri deviceHttpUri(String name, {bool self = false}) {
