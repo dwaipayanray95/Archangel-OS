@@ -11,6 +11,7 @@ import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/services/devops_service.dart';
 import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/services/server_registry.dart';
+import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/ui/shell/archangel_shell.dart';
 import 'package:archangel/ui/shell/more_page.dart';
 
@@ -87,7 +88,7 @@ void main() {
   });
 
   group('server switching', () {
-    testWidgets('choosing another server in More activates it and re-points the connection', (tester) async {
+    testWidgets('switching servers re-points the connection and resets the destinations', (tester) async {
       await pumpAppShell(tester, size: phone, seedRegistry: (registry) async {
         await registry.add(_profile('a', '10.0.0.1:8443'));
         await registry.add(_profile('b', '10.0.0.2:8443'));
@@ -95,20 +96,27 @@ void main() {
       });
       final registry = _read<ServerRegistry>(tester);
       final backend = _read<ArchangeldConnection>(tester);
-      await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
-      await _settle(tester);
+      final wg = _read<WireGuardController>(tester);
 
-      await tester.tap(find.byKey(const ValueKey('server-b')));
-      await tester.runAsync(() async {
-        while (backend.host == null || backend.backendChecking || registry.activeId != 'b') {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-      });
+      Future<void> switchTo(String id) => tester.runAsync(() async {
+            await switchToServer(id, registry: registry, wg: wg, backend: backend);
+            while (backend.backendChecking) {
+              await Future<void>.delayed(const Duration(milliseconds: 10));
+            }
+          });
+
+      await switchTo('a');
+      await _settle(tester);
+      expect(backend.host, '10.0.0.1:8443');
+      final before = tester.state(find.byType(OverviewScreen));
+
+      await switchTo('b');
       await _settle(tester);
       expect(registry.activeId, 'b');
       expect(backend.host, '10.0.0.2:8443');
       expect(backend.token, 'tb');
+      expect(tester.state(find.byType(OverviewScreen)), isNot(same(before)));
+      expect(find.text('Server b'), findsOneWidget); // status strip
     });
 
     testWidgets('desktop rail header opens the server sheet with Add a server', (tester) async {
@@ -226,7 +234,7 @@ void main() {
             while (backend.backendChecking) {
               await Future<void>.delayed(const Duration(milliseconds: 10));
             }
-          })!;
+          });
       await pair('10.0.0.1:8443', 'a');
       await _settle(tester);
       final before = tester.state(find.byType(OverviewScreen));

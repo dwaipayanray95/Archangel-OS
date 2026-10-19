@@ -122,3 +122,28 @@ wide and 1440 px wide.
 
 Each step: implemented by a Sonnet agent, reviewed by the orchestrator,
 `flutter analyze` clean and `flutter test` green before merge.
+
+## 6. Notes from step 1 (Foundation)
+
+- Theme mode defaults to **dark** (`kDefaultThemeMode` in `lib/data/app_state.dart`)
+  until every screen reads colours from `context.ax`; legacy screens still paint
+  with the dark-only `AxColors`. Flip the constant to `ThemeMode.system` in the
+  cleanup step. Mode and accent are stored in `AppState` (LocalKvStore keys
+  `appearance_theme_mode`, `appearance_accent`).
+- `SshCredentialsForm` shows "Load from file" only when given an `onPickKeyFile`
+  callback: no file-picker package exists and none may be added without updating
+  this document. The existing dialogs have no such button today.
+- Service polling: `MonitoringService`, `ContainersService`, `DevopsService` have
+  `setActive(bool)` and `reset()`; the shell activates only the visible
+  destination's services (Home = all three, monitoring at 5 s; Activity = 1 s).
+  Screens keep calling `init`/`start` in `initState`; those respect the flag.
+  `FilesService`, `DevicesService`, `AdminModeService` have `reset()` only.
+- Server switching: `ServerRegistry` stores profiles; `activateProfile`,
+  `pairNewServer`, `switchToServer`, `removeActiveServer` (in
+  `lib/services/server_registry.dart`) are the only way pairing flows touch
+  `WireGuardController`/`ArchangeldConnection`. The active profile is mirrored
+  into the legacy storage keys. The shell resets per-server state when
+  `ArchangeldConnection.host` changes.
+- Uninstall/update/sync dialogs still use hard-coded 8443/51820 and their own
+  SSH forms; moving them to the active profile and `SshCredentialsForm` is part
+  of step 2(e).

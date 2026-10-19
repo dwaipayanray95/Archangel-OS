@@ -27,7 +27,7 @@ class _Pair {
 
 /// Every foreground/background combination the design-system components
 /// draw. Text needs 4.5:1; icons and borders that convey meaning need 3:1.
-List<_Pair> pairsFor(AxPalette c) {
+List<_Pair> _pairsFor(AxPalette c) {
   const text = 4.5;
   const graphic = 3.0;
   final surfaces = {'bg': c.bg, 'surface': c.surface, 'surfaceAlt': c.surfaceAlt, 'surfaceHigh': c.surfaceHigh};
@@ -67,7 +67,7 @@ void main() {
       test('${brightness.name} theme, ${accent.name} accent: all token pairs meet WCAG', () {
         final palette = brightness == Brightness.dark ? AxPalette.dark(accent) : AxPalette.light(accent);
         final failures = <String>[];
-        for (final p in pairsFor(palette)) {
+        for (final p in _pairsFor(palette)) {
           final ratio = contrast(p.fg, p.bg);
           if (ratio < p.min) failures.add('${p.name}: ${ratio.toStringAsFixed(2)} < ${p.min}');
         }

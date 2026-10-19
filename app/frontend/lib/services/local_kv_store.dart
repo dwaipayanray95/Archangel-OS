@@ -40,14 +40,29 @@ class LocalKvStore {
   /// Test seam: drops the in-memory cache so the next access re-reads the
   /// backing file (or starts empty if the override directory changed).
   @visibleForTesting
-  void resetForTesting() => _cache = null;
+  void resetForTesting() {
+    _cache = null;
+    _loading = null;
+    _writeChain = Future.value();
+  }
 
   Future<File> _file() async {
     final dir = await (directoryOverride?.call() ?? getApplicationSupportDirectory());
     return File('${dir.path}/$_fileName');
   }
 
-  Future<Map<String, String>> _load() async {
+  Future<Map<String, String>>? _loading;
+
+  /// Concurrent first callers share one load: otherwise each would read the
+  /// file into its own map and the later one would silently drop the
+  /// earlier one's writes.
+  Future<Map<String, String>> _load() {
+    final cached = _cache;
+    if (cached != null) return Future.value(cached);
+    return _loading ??= _loadFromDisk().whenComplete(() => _loading = null);
+  }
+
+  Future<Map<String, String>> _loadFromDisk() async {
     if (_cache != null) return _cache!;
     final file = await _file();
     if (!await file.exists()) {
@@ -66,7 +81,17 @@ class LocalKvStore {
     return _cache!;
   }
 
-  Future<void> _persist() async {
+  Future<void> _writeChain = Future.value();
+
+  /// Writes are applied one at a time, each with the newest map, so two
+  /// overlapping [write]s can't interleave bytes in the file.
+  Future<void> _persist() {
+    final next = _writeChain.then((_) => _persistNow());
+    _writeChain = next.catchError((_) {});
+    return next;
+  }
+
+  Future<void> _persistNow() async {
     final file = await _file();
     await file.writeAsString(jsonEncode(_cache ?? {}), flush: true);
     // The file holds the auth token and WireGuard private key: restrict it
