@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 
+import 'build_config.dart';
 import 'pairing_bundle.dart';
 import 'ssh_transport.dart';
 
@@ -30,7 +31,7 @@ class VpsSetupConfig {
     this.wgSubnet = '10.10.0',
     this.wgPort = 51820,
     this.appPort = 8443,
-    this.githubRepoSlug = 'dwaipayanray95/Project-Archangel',
+    this.githubRepoSlug = kGithubRepoSlug,
   });
 }
 
@@ -68,8 +69,8 @@ class VpsSetupException implements Exception {
 /// for real incidents (empty-keyed WireGuard configs, the
 /// iptables-persistent/ufw conflict, etc. - see infra/README.md §8).
 /// NOTE: these are copies, not a shared file path (Flutter can't bundle
-/// assets from outside the package root) - if the scripts under
-/// infra/scripts/ change, re-copy them here too.
+/// assets from outside the package root) - infra/scripts/ is canonical;
+/// after changing anything there run scripts/sync_setup_assets.sh to re-copy.
 ///
 /// Every step is safe to re-run against a server that's already
 /// partially or fully set up: WireGuard setup is skipped if `wg0.conf`

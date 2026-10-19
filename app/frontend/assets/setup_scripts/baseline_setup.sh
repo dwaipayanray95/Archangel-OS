@@ -30,6 +30,13 @@ else
   echo "    Added ${SWAP_SIZE_GB}G swap at $SWAP_FILE."
 fi
 
+echo "==> dbus-user-session (systemd user manager for terminals)"
+if dpkg -s dbus-user-session > /dev/null 2>&1; then
+  echo "    dbus-user-session already installed - skipping."
+else
+  sudo apt install -y -qq dbus-user-session
+fi
+
 echo "==> tmux"
 if command -v tmux > /dev/null; then
   echo "    tmux already installed - skipping."

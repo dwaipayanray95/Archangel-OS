@@ -4,9 +4,10 @@ import 'package:http/http.dart' as http;
 
 import 'local_kv_store.dart';
 
-/// "owner/repo" this app checks releases against - matches
-/// VpsSetupConfig.githubRepoSlug's default (see vps_setup_service.dart).
-const kGithubRepoSlug = 'dwaipayanray95/Project-Archangel';
+import 'build_config.dart';
+
+export 'build_config.dart' show kGithubRepoSlug;
+
 const _kManifestAssetName = 'version-manifest.json';
 const _kCacheMaxAge = Duration(hours: 24);
 
