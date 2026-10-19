@@ -103,7 +103,7 @@ class DevicesService extends ChangeNotifier {
       final res = await _client.delete(
         backend.deviceHttpUri(device.name, self: self),
         headers: {'X-Archangel-Token': backend.token!},
-      );
+      ).timeout(const Duration(seconds: 15)); // a cut tunnel can hang rather than error
       if (res.statusCode == 200) {
         if (!self) await refresh();
         return ApiActionResult(success: true, message: serverMessage(res, 'Revoked ${device.name}'));

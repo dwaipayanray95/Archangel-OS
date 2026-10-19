@@ -221,14 +221,18 @@ sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
 sudo chown archangel:archangel /home/archangel
 sudo chown root:archangel /etc/archangel
 sudo chmod 750 /etc/archangel
+if sudo test -f /opt/archangel/archangeld; then
+$_sudoersRefreshScript
+else
 $_sudoersGrantScript
+fi
 ''';
     final prepResult = await _exec(prepScript);
     if (!prepResult.ok) {
       throw VpsSetupException('binary', 'Failed to prepare the archangel user and directories - exit ${prepResult.exitCode}: ${prepResult.stderr}');
     }
 
-    final downloadResult = await _exec('sudo curl -fsSL "$url" -o /tmp/archangeld');
+    final downloadResult = await _exec('sudo curl -fsSL "$url" -o /opt/archangel/archangeld.download');
     if (!downloadResult.ok) {
       throw VpsSetupException(
         'binary',
@@ -239,14 +243,14 @@ $_sudoersGrantScript
     final verified = await _verifyChecksum(
       sumsUrl: '$baseUrl/SHA256SUMS',
       arch: arch,
-      filePath: '/tmp/archangeld',
+      filePath: '/opt/archangel/archangeld.download',
       stage: 'binary',
     );
     yield verified ? _checksumOk : _checksumSkipped;
 
     final installResult = await _exec('''
 set -e
-sudo mv /tmp/archangeld /opt/archangel/archangeld
+sudo mv /opt/archangel/archangeld.download /opt/archangel/archangeld
 sudo chmod 755 /opt/archangel/archangeld
 sudo chown root:root /opt/archangel/archangeld
 ''');
@@ -434,13 +438,15 @@ bash $_remoteScriptDir/ensure_boot_fw_fixup.sh ${config.appPort} tcp
     yield SetupProgress('download', 'Downloading archangeld v$targetVersion...');
     final baseUrl = 'https://github.com/$githubRepoSlug/releases/download/$releaseTag';
     final url = '$baseUrl/archangeld-$arch';
-    // Downloaded to a temp path, checksum-verified and version-checked
+    // Downloaded to a staging path in root-owned /opt/archangel (not
+    // world-writable /tmp, so nothing else on the box can swap the file
+    // between verification and install), checksum-verified and version-checked
     // BEFORE it's moved into /opt/archangel/archangeld, so a bad/corrupt
     // download never overwrites the last-known-good binary in the first
     // place - the backup above is the second line of defense (a
     // restart-time failure the version check itself can't catch, e.g. the
     // binary runs fine standalone but crashes under real config/load).
-    final fetchResult = await _exec('sudo curl -fsSL "$url" -o /tmp/archangeld-new');
+    final fetchResult = await _exec('sudo curl -fsSL "$url" -o /opt/archangel/archangeld.new');
     if (!fetchResult.ok) {
       throw VpsSetupException(
         'download',
@@ -450,21 +456,21 @@ bash $_remoteScriptDir/ensure_boot_fw_fixup.sh ${config.appPort} tcp
     final verified = await _verifyChecksum(
       sumsUrl: '$baseUrl/SHA256SUMS',
       arch: arch,
-      filePath: '/tmp/archangeld-new',
+      filePath: '/opt/archangel/archangeld.new',
       stage: 'download',
     );
     yield verified ? _checksumOk : _checksumSkipped;
 
     final downloadScript = '''
 set -e
-sudo chmod 755 /tmp/archangeld-new
-sudo chown root:root /tmp/archangeld-new
-NEW_VERSION=\$(/tmp/archangeld-new version 2>/dev/null | awk '{print \$2}' | sed 's/^v//')
+sudo chmod 755 /opt/archangel/archangeld.new
+sudo chown root:root /opt/archangel/archangeld.new
+NEW_VERSION=\$(/opt/archangel/archangeld.new version 2>/dev/null | awk '{print \$2}' | sed 's/^v//')
 if [ "\$NEW_VERSION" != "$targetVersion" ]; then
   echo "downloaded binary reports version '\$NEW_VERSION', expected $targetVersion" >&2
   exit 1
 fi
-sudo mv /tmp/archangeld-new /opt/archangel/archangeld
+sudo mv /opt/archangel/archangeld.new /opt/archangel/archangeld
 ''';
     final downloadResult = await _exec(downloadScript);
     if (!downloadResult.ok) {

@@ -225,11 +225,11 @@ void main() {
       expect(ssh.commands.any((c) => c.contains('releases/latest/download/SHA256SUMS')), isTrue);
       final verify = ssh.commands.firstWhere((c) => c.contains('sha256sum -c -'));
       expect(verify, contains(r'grep " archangeld-amd64\$"'));
-      expect(verify, contains('/tmp/archangeld'));
+      expect(verify, contains('/opt/archangel/archangeld.download'));
       expect(events.any((e) => e.stage == 'verify' && e.message == 'Checksum verified.'), isTrue);
       // verification happens before the binary is moved into place
       final verifyAt = ssh.commands.indexWhere((c) => c.contains('sha256sum -c -'));
-      final moveAt = ssh.commands.indexWhere((c) => c.contains('mv /tmp/archangeld /opt/archangel/archangeld'));
+      final moveAt = ssh.commands.indexWhere((c) => c.contains('mv /opt/archangel/archangeld.download /opt/archangel/archangeld'));
       expect(verifyAt, lessThan(moveAt));
     });
 
@@ -245,13 +245,13 @@ void main() {
 
       expect(events.any((e) => e.message == 'Release has no checksums - skipped verification'), isTrue);
       expect(ssh.commands.any((c) => c.contains('sha256sum -c -')), isFalse);
-      expect(ssh.commands.any((c) => c.contains('mv /tmp/archangeld /opt/archangel/archangeld')), isTrue);
+      expect(ssh.commands.any((c) => c.contains('mv /opt/archangel/archangeld.download /opt/archangel/archangeld')), isTrue);
     });
 
     test('fails and never installs the binary on a checksum mismatch', () async {
       final ssh = FakeSshTransport(responses: [
         _sumsResponse('200'),
-        (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/tmp/archangeld: FAILED')),
+        (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/opt/archangel/archangeld.download: FAILED')),
         (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
         (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
       ]);
@@ -260,7 +260,7 @@ void main() {
         VpsSetupService(ssh).run(_config),
         emitsThrough(emitsError(isA<VpsSetupException>().having((e) => e.message, 'message', contains('Checksum verification failed')))),
       );
-      expect(ssh.commands.any((c) => c.contains('mv /tmp/archangeld /opt/archangel/archangeld')), isFalse);
+      expect(ssh.commands.any((c) => c.contains('mv /opt/archangel/archangeld.download /opt/archangel/archangeld')), isFalse);
     });
 
     test('fails (does not skip) when SHA256SUMS errors with something other than 404', () async {
@@ -286,8 +286,16 @@ void main() {
       ]);
       await VpsSetupService(ssh).run(_config).toList();
 
-      final grant = ssh.commands.firstWhere((c) => c.contains('NOPASSWD: ALL'));
-      expect(grant, isNot(contains('if sudo test -f /etc/sudoers.d/archangel')));
+      // A fresh server (no archangeld yet) gets the grant unconditionally; a
+      // re-run against an existing install only refreshes a grant that's
+      // already there, so it can't silently undo "Admin mode off".
+      final prep = ssh.commands.firstWhere((c) => c.contains('NOPASSWD: ALL'));
+      final freshBranch = prep.split('else').last;
+      expect(prep, contains('if sudo test -f /opt/archangel/archangeld; then'));
+      expect(freshBranch, contains('NOPASSWD: ALL'));
+      expect(freshBranch, isNot(contains('if sudo test -f /etc/sudoers.d/archangel')));
+      final existingBranch = prep.split('else').first;
+      expect(existingBranch, contains('if sudo test -f /etc/sudoers.d/archangel'));
     });
   });
 
@@ -389,10 +397,10 @@ void main() {
       expect(ssh.commands.any((c) => c.contains('releases/download/v0.3.0-b/SHA256SUMS')), isTrue);
       final verify = ssh.commands.firstWhere((c) => c.contains('sha256sum -c -'));
       expect(verify, contains(r'grep " archangeld-arm64\$"'));
-      expect(verify, contains('/tmp/archangeld-new'));
+      expect(verify, contains('/opt/archangel/archangeld.new'));
       expect(events.any((e) => e.stage == 'verify' && e.message == 'Checksum verified.'), isTrue);
       final verifyAt = ssh.commands.indexWhere((c) => c.contains('sha256sum -c -'));
-      final moveAt = ssh.commands.indexWhere((c) => c.contains('mv /tmp/archangeld-new /opt/archangel/archangeld'));
+      final moveAt = ssh.commands.indexWhere((c) => c.contains('mv /opt/archangel/archangeld.new /opt/archangel/archangeld'));
       expect(verifyAt, lessThan(moveAt));
     });
 
@@ -419,7 +427,7 @@ void main() {
     test('aborts before touching the live binary on a checksum mismatch', () async {
       final ssh = FakeSshTransport(responses: [
         _sumsResponse('200'),
-        (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/tmp/archangeld-new: FAILED')),
+        (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/opt/archangel/archangeld.new: FAILED')),
         (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
       ]);
 
@@ -433,7 +441,7 @@ void main() {
         ),
         emitsThrough(emitsError(isA<VpsSetupException>().having((e) => e.message, 'message', contains('Checksum verification failed')))),
       );
-      expect(ssh.commands.any((c) => c.contains('mv /tmp/archangeld-new')), isFalse);
+      expect(ssh.commands.any((c) => c.contains('mv /opt/archangel/archangeld.new')), isFalse);
       expect(ssh.commands.any((c) => c.contains('systemctl restart archangel')), isFalse);
     });
 
