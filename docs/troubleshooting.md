@@ -151,4 +151,4 @@ On your devices, you can also remove the app and, if you used the WireGuard app,
 
 ---
 
-Still stuck? Open an issue at <https://github.com/dwaipayanray95/Project-Archangel/issues> and include the "Technical details" text (remove any secrets first). For security problems, use [SECURITY.md](../SECURITY.md) instead.
+Still stuck? Open an issue at <https://github.com/dwaipayanray95/Archangel-OS/issues> and include the "Technical details" text (remove any secrets first). For security problems, use [SECURITY.md](../SECURITY.md) instead.

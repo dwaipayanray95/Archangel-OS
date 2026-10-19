@@ -1,10 +1,10 @@
 #!/bin/bash
-# Master setup entrypoint for a fresh Project Archangel instance (Ampere A1
+# Master setup entrypoint for a fresh Archangel OS instance (Ampere A1
 # or AMD Micro). Run this once on a brand-new box to get it from "just
 # launched" to "fully set up" in one command:
 #
-#   git clone https://github.com/dwaipayanray95/Project-Archangel.git
-#   cd Project-Archangel
+#   git clone https://github.com/dwaipayanray95/Archangel-OS.git
+#   cd Archangel-OS
 #   ./infra/scripts/install-archangel.sh
 #
 # This is a thin orchestrator, not a monolith - it calls the individual
@@ -25,7 +25,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "############################################"
-echo "# Project Archangel - full instance setup"
+echo "# Archangel OS - full instance setup"
 echo "############################################"
 echo ""
 

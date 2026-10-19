@@ -6,7 +6,7 @@ Please **do not open a public issue** for a security problem.
 
 Report it privately with GitHub's private vulnerability reporting:
 
-1. Go to <https://github.com/dwaipayanray95/Project-Archangel/security/advisories/new> (or the repository's **Security** tab → **Report a vulnerability**).
+1. Go to <https://github.com/dwaipayanray95/Archangel-OS/security/advisories/new> (or the repository's **Security** tab → **Report a vulnerability**).
 2. Describe what you found, how to reproduce it, and what you think the impact is.
 3. Don't include real secrets (tokens, private keys) from a live server.
 
