@@ -125,10 +125,9 @@ Each step: implemented by a Sonnet agent, reviewed by the orchestrator,
 
 ## 6. Notes from step 1 (Foundation)
 
-- Theme mode defaults to **dark** (`kDefaultThemeMode` in `lib/data/app_state.dart`)
-  until every screen reads colours from `context.ax`; legacy screens still paint
-  with the dark-only `AxColors`. Flip the constant to `ThemeMode.system` in the
-  cleanup step. Mode and accent are stored in `AppState` (LocalKvStore keys
+- Theme mode defaults to **follow the system** (`kDefaultThemeMode` in
+  `lib/data/app_state.dart` is `ThemeMode.system`; it was dark until every screen
+  moved to `context.ax`). Mode and accent are stored in `AppState` (LocalKvStore keys
   `appearance_theme_mode`, `appearance_accent`).
 - `SshCredentialsForm` shows "Load from file" only when given an `onPickKeyFile`
   callback: no file-picker package exists and none may be added without updating
@@ -147,3 +146,28 @@ Each step: implemented by a Sonnet agent, reviewed by the orchestrator,
 - Uninstall/update/sync dialogs still use hard-coded 8443/51820 and their own
   SSH forms; moving them to the active profile and `SshCredentialsForm` is part
   of step 2(e).
+
+## 7. Notes from step 3 (Cleanup)
+
+- Legacy design layer removed: `lib/theme/*`, `AxColors`/`AxTextStyles`/`AxRadius`/
+  `AxMotion`, `lib/widgets/ax_widgets.dart`, and the unused old shell widgets
+  (`sidebar.dart`, `top_bar.dart`, `archangel_mark.dart`). The command palette and
+  notification panel now use `context.ax`. No hard-coded colours remain outside
+  `lib/ui/theme.dart`, except the terminal palette (`terminal_palette.dart`) and
+  the QR quiet zone (white/black in `add_device_dialog.dart`), which are intentional.
+- Default theme is follow-the-system; tests that need a fixed theme pass
+  `brightness` to `pumpAppShell` (defaults to dark).
+- Packages added during step 2 (this document's "no new dependencies" rule was
+  relaxed for them): `qr_flutter` (pairing QR in Add a device), `xterm` (terminal
+  surface), `file_selector` (SSH key "Load from file"). `google_fonts` was
+  removed; Inter and IBM Plex Mono are bundled (`kUiFontFamily`/`kMonoFontFamily`).
+- The update/sync/uninstall/manage-key dialogs now use the active profile's ports
+  and SSH host and the shared `SshCredentialsForm` (supersedes the step 1 note above).
+- `SshCredentialsForm` has `showUsername` (default true); the setup wizard's SSH
+  step hides it because step 1 already asks for the username.
+- Accessibility: `test/ui/a11y_test.dart` runs Flutter's tap-target, labeled-tap-target
+  and text-contrast guidelines on every destination, More, the command palette and
+  the notification panel at 390x844 in light and dark. Fixes: Files "Show hidden
+  files" toggle is one 48 dp labelled control; Activity range chips and Apps table
+  rows meet the minimum target; the palette scrim no longer exposes an unlabeled tap.
+  The guidelines run against offline/empty states (no server in tests).

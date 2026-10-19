@@ -262,7 +262,9 @@ class _AppsTable extends StatelessWidget {
     final open = appUriFor(a, host);
     return InkWell(
       onTap: () => onOpen(a),
-      child: Padding(
+      child: Container(
+        constraints: BoxConstraints(minHeight: axMinTarget(context)),
+        alignment: Alignment.centerLeft,
         padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
         child: Row(
           children: [

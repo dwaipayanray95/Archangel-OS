@@ -54,7 +54,7 @@ class ScrollableSegments<T> extends StatelessWidget {
                     onTap: () => onSelect(v),
                     borderRadius: BorderRadius.circular(ax.radii.md),
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: target - 6, minWidth: 64),
+                      constraints: BoxConstraints(minHeight: target, minWidth: 64),
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
                         child: Row(

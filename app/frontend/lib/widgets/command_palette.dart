@@ -88,6 +88,7 @@ class _CommandPaletteState extends State<CommandPalette> {
     var flatIndex = 0;
 
     return GestureDetector(
+      excludeFromSemantics: true, // dismissed by Esc or the system back action
       onTap: app.closePalette,
       child: Container(
         color: c.scrim,
@@ -99,6 +100,7 @@ class _CommandPaletteState extends State<CommandPalette> {
           curve: Curves.easeOutCubic,
           builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
           child: GestureDetector(
+            excludeFromSemantics: true,
             onTap: () {}, // swallow taps so they don't close the palette
             child: Material(
               color: Colors.transparent,

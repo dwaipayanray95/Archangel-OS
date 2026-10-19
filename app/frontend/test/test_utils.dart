@@ -28,6 +28,7 @@ import 'package:archangel/ui/theme.dart';
 Future<AppState> pumpAppShell(
   WidgetTester tester, {
   Size size = const Size(1400, 900),
+  Brightness brightness = Brightness.dark,
   Future<void> Function(ServerRegistry registry)? seedRegistry,
 }) async {
   final registry = ServerRegistry();
@@ -59,7 +60,7 @@ Future<AppState> pumpAppShell(
       child: Consumer<AppState>(
         builder: (context, app, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.dark, app.accentChoice),
+          theme: buildTheme(brightness, app.accentChoice),
           home: const ArchangelShell(),
         ),
       ),

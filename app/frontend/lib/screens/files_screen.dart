@@ -142,16 +142,27 @@ class _FilesScreenState extends State<FilesScreen> {
                 onChanged: (v) => setState(() => _filter = v),
               ),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(value: files.showHidden, onChanged: (_) => files.toggleShowHidden()),
-                SizedBox(width: ax.space.sm),
-                GestureDetector(
-                  onTap: files.toggleShowHidden,
-                  child: Text('Show hidden files', style: ax.typo.body.copyWith(color: c.text)),
+            Semantics(
+              toggled: files.showHidden,
+              label: 'Show hidden files',
+              excludeSemantics: true,
+              onTap: files.toggleShowHidden,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(ax.radii.sm),
+                onTap: files.toggleShowHidden,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: axMinTarget(context)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IgnorePointer(child: Switch(value: files.showHidden, onChanged: (_) {})),
+                      SizedBox(width: ax.space.sm),
+                      Text('Show hidden files', style: ax.typo.body.copyWith(color: c.text)),
+                      SizedBox(width: ax.space.sm),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
           ],
         ),
