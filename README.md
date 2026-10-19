@@ -1,48 +1,83 @@
-# Project Archangel
+# Archangel
 
-Personal cloud infrastructure + the tools to control it — the umbrella project for everything Archangel needs. The goal: point the app at a fresh VPS and a private key, and have the app itself become the "operating system" for that server — setup, pairing, terminal, files, monitoring, and self-updating, all over a WireGuard tunnel, no manual SSH required after the initial handoff.
+**Archangel is the app that turns a rented server into your own private cloud.** Set it up, manage it, and use it from your phone or laptop. No Linux knowledge needed.
 
-This repo is a **monorepo**: each top-level folder is a self-contained piece, with its own README for depth. This file is just the map.
+You rent a small server (it can be free), give the app its address, and the app installs everything for you. After that you can run apps, browse files, open a terminal and watch your server's health, all over a private, encrypted connection that only your own devices can use.
+
+> **Source-available, not open source.** See [License](#license).
 
 ---
 
-## Structure
+## What you can do
 
-| Folder | What it is |
+| Screen | What it does, in plain words |
 |---|---|
-| [`infra/`](infra/README.md) | The Oracle Cloud (OCI) VPS setup and **recovery runbook** — account/region details, SSH access, OCI CLI setup, the capacity-scavenging retry system for Ampere A1 allocation, and the baseline/WireGuard shell scripts that both the manual runbook and the in-app setup wizard (below) actually execute. |
-| [`app/backend/`](app/backend/README.md) | `archangeld` — the Go control-plane API, single static binary, reachable only over WireGuard. Implements terminal, system monitoring, and a jailed file browser; versioned and released independently of the frontend. |
-| [`app/frontend/`](app/frontend/README.md) | The Flutter app (Android/Windows/macOS/Linux from one codebase) — the GUI for `archangeld`, and also the thing that *sets up* a fresh server via SSH so nobody has to. |
+| **Home** | One glance: is my server healthy? Shows CPU, memory and disk in plain words, and a "needs attention" list. |
+| **Apps** | Run, stop, restart and remove apps (they run in Docker containers). Read their logs. Choose whether an app is private or public. |
+| **Files** | Browse, preview and download files on your server. |
+| **Terminal** | A real command line on your server. Sessions keep running when you close the app, and you can come back to them. |
+| **Activity** | Live charts of CPU, memory, disk and network, plus the list of running programs. |
+| **Services** | The programs that run in the background, scheduled jobs, web addresses (Caddy) and your own scripts. |
+| **Settings** | Your devices, Admin mode, updates, appearance, saved SSH key, and removing Archangel. |
 
-## Current status
+Also:
 
-**Deployed and working end-to-end on real hardware:**
-- WireGuard tunnel (server + macOS peer verified for real; Android/Windows wired but unverified on real devices)
-- `archangeld` control plane: token-authed pairing (`archangeld pair`), a real PTY terminal over WebSocket, system monitoring (CPU/memory/disk/process list, with kill/renice), and a jailed file browser (list/preview/download, confined to a configured `files_root` both textually and through symlinks)
-- In-app VPS setup wizard: SSHes into a fresh Ubuntu/Debian server, runs the real `infra/scripts/*.sh`, installs the systemd service, and auto-pairs the app — no manual SSH needed for a first-time setup. Hardened per a `/code-review` pass (SSH host-key TOFU verification, no shell-injection paths, biometric/PIN gate on a remembered key)
-- In-app backend updates: tapping an "update available" badge in Settings re-SSHes in (reusing the wizard's connection/credentials) to download, verify, and install a new `archangeld` build, with automatic rollback if the new version doesn't come up healthy — `archangeld` itself runs unprivileged and deliberately can't self-update over HTTP
-- Version visibility + release automation: a shared root [`VERSION`](VERSION) file tracks the project/frontend/backend versions independently; one tag-triggered GitHub Actions pipeline ([`release.yml`](.github/workflows/release.yml)) builds and publishes whichever component(s) a tag's suffix names (`-b` backend, `-f` frontend, no suffix = both) to GitHub Releases, and the app checks that automatically to show "update available" per component
+- **Private, secure connection.** Your devices talk to the server through a [WireGuard](https://www.wireguard.com/) tunnel. The Archangel server is not exposed to the internet. ([How it works](docs/how-it-works.md))
+- **Multiple servers.** Add as many servers as you like and switch between them.
+- **Admin mode.** A switch that decides whether the app and terminal may run powerful "administrator" commands (`sudo`). On by default, and you can turn it off from the app. ([Details](docs/security.md))
+- **One-tap setup.** A setup wizard installs and configures everything over SSH. Updates are checksum-verified and roll back automatically if something goes wrong.
 
-**Still mock data / not started:**
-- Containers and DevOps screens (no backend routes exist yet)
-- Android and Windows real-device verification (code is written and `flutter analyze`-clean, never run on real hardware)
-- Second Ampere A1 instance — allocation retry automation is live, not yet landed
+## Screenshots
 
-**Known rough edges:** see each component's README (below) for specifics — nothing is silently broken, but not everything is verified against real hardware yet.
+<!-- TODO: add screenshots (Home, Apps, Terminal, setup wizard) to docs/images/ and show them here. -->
 
-## Where to go next
+Coming soon.
 
-- Setting up or recovering the VPS itself → [`infra/README.md`](infra/README.md)
-- Backend API, routes, auth, versioning/release scheme → [`app/backend/README.md`](app/backend/README.md)
-- Frontend architecture, what's real vs. mock, the setup wizard and update flow → [`app/frontend/README.md`](app/frontend/README.md) and [`app/frontend/WORKING.md`](app/frontend/WORKING.md)
-- WireGuard per-platform implementation details → [`app/frontend/WIREGUARD.md`](app/frontend/WIREGUARD.md)
+## Get started in 15 minutes
+
+You need a server running Ubuntu, an SSH key, and the app. The step-by-step guide is here:
+
+**[Getting started](docs/getting-started.md)**
+
+No server yet? Pick a provider guide:
+[Oracle Cloud (free)](docs/guides/oracle-cloud.md) ·
+[Hetzner](docs/guides/hetzner.md) ·
+[DigitalOcean](docs/guides/digitalocean.md)
+
+Something not working? See [Troubleshooting](docs/troubleshooting.md).
+
+## How it's built
+
+- **The app** is written in Flutter (Dart). One codebase for macOS, Windows and Android.
+- **The server program**, `archangeld`, is written in Go. It is one small file with nothing else to install, and it only listens on the private tunnel address.
+- **Setup scripts** (shell) prepare a fresh Ubuntu server: updates, firewall, Docker, Caddy, tmux and WireGuard.
+
+More in [How it works](docs/how-it-works.md).
+
+## Project layout
+
+| Folder | What is in it |
+|---|---|
+| [`app/frontend/`](app/frontend/README.md) | The Flutter app. |
+| [`app/backend/`](app/backend/README.md) | `archangeld`, the Go server program (API, terminal, files, Docker, services). |
+| [`infra/`](infra/README.md) | Server setup scripts and the manual recovery runbook (Oracle Cloud notes included). |
+| [`docs/`](docs/getting-started.md) | User guides, provider guides, troubleshooting and security. |
+| [`scripts/`](scripts/sync_setup_assets.sh) | Repo helper scripts. |
+| [`.github/workflows/`](.github/workflows) | CI checks and the release pipeline. |
+| `VERSION` | The version numbers for the project, the app and the server program. |
+
+## Contributing and security
+
+- Want to help? Read [CONTRIBUTING.md](CONTRIBUTING.md).
+- Found a security problem? Please report it privately. See [SECURITY.md](SECURITY.md).
+- How Archangel protects you (and where the trade-offs are): [Security model](docs/security.md).
 
 ## License
 
-This project is licensed under [The Awesome License v1 (TALv1)](LICENSE) — free
-for personal/non-profit use; commercial use requires either open-sourcing your
-project or a commercial agreement with the author. This is a **source-available**
-license, not OSI-approved open source.
+Archangel uses **The Awesome License v1 (TALv1)**. Read the full text in [LICENSE](LICENSE). In short:
 
----
-*Last updated: 2026-09-08*
+- **Free** for personal, educational and open-source projects where no revenue is made.
+- **Commercial use** (a revenue-generating project, or use inside or on behalf of a for-profit company) needs one of two things: release your whole project under an OSI-approved open source license, or agree on a commercial license with the author first.
+- You must **credit** the original author.
+
+TALv1 is a **source-available** license. It is **not** an OSI-approved open source license. If you are unsure whether your use counts as commercial, read [LICENSE](LICENSE) or contact the author (see the file).

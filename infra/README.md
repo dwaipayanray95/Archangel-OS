@@ -4,6 +4,11 @@ Personal Oracle Cloud (OCI) Always-Free VPS setup — vibecoding box, dev sandbo
 
 This is the **recovery runbook**. If a server dies, gets deleted, or a fresh account is needed, everything required to rebuild it from scratch lives here.
 
+> Just want to use Archangel? You don't need this page. Start with the
+> [user guide](../docs/getting-started.md) and the provider guides in
+> [`docs/guides/`](../docs/guides/oracle-cloud.md). This page is the deep
+> reference for what the setup scripts do.
+
 **There is now a faster path for the WireGuard + backend half of this**:
 the Flutter app's in-app setup wizard runs the exact scripts below over
 SSH for you, no manual steps 1 and 3 required - see
@@ -132,7 +137,10 @@ No automated retry is set up for this repo. If chasing this capacity again, eith
 
 Applied to `Archangel-Mk1` (AMD Micro) on 2026-09-01. **Run this same sequence on the Ampere A1 instance once it's allocated.**
 
-**Scripted** (does steps 3-7 below): [`infra/scripts/baseline_setup.sh`](scripts/baseline_setup.sh) — safe to re-run any time, every step checks whether it's already done first.
+**Scripted**: [`infra/scripts/baseline_setup.sh`](scripts/baseline_setup.sh) — safe to re-run any time, every step checks whether it's already done first. It now does more than the manual steps below: besides the system update, 2 GB swap, `tmux` and `ufw` (SSH plus 80/tcp and 443/tcp), it also installs:
+- `dbus-user-session` (so `archangeld` can start persistent terminal sessions under the `archangel` user's systemd user manager)
+- **Docker Engine** (official `get.docker.com` script), adds the `archangel` user to the `docker` group if it exists, and orders `docker.service` after `wg-quick@wg0` so containers published on the tunnel address can bind at boot
+- **Caddy** (official apt repo), with `/etc/caddy` made group-writable by `archangel` so the Services screen can manage web addresses
 ```bash
 git clone https://github.com/dwaipayanray95/Project-Archangel.git && cd Project-Archangel
 ./infra/scripts/baseline_setup.sh
@@ -173,7 +181,7 @@ Manual steps (what the script above actually does, kept here as reference/fallba
    free -h && sudo ufw status
    ```
 
-Not yet done on any instance (deferred until the `app/` backend exists): installing dev tooling like Claude Code/git, deploying the Go backend itself.
+Not done by this script: installing dev tooling like Claude Code/git. The backend is installed by the in-app setup wizard, or by [`app/backend/deploy.sh`](../app/backend/deploy.sh). Its systemd unit is [`infra/scripts/archangel.service`](scripts/archangel.service) (the app bundles a synced copy; see [`scripts/sync_setup_assets.sh`](../scripts/sync_setup_assets.sh)).
 
 ## 8. WireGuard VPN Setup
 
@@ -221,7 +229,7 @@ It's meant to keep growing as new milestones land — deploying `app/backend`'s 
 
 ## 10. Related / Future Projects
 
-- **Archangel control app** — decided: a **Go backend** (single static binary, SSH bridge + resource watchdog + file browser, holds real SSH credentials server-side) plus a **Flutter frontend** (Android-first, one Dart codebase with iOS/web reach later). The app authenticates to the Go API with its own token — it never touches the SSH key directly. Lives in `app/` at the repo root once work starts (see the root [`README.md`](../README.md)); not yet started.
+- **Archangel control app** — decided: a **Go backend** (single static binary, SSH bridge + resource watchdog + file browser, holds real SSH credentials server-side) plus a **Flutter frontend** (Android-first, one Dart codebase with iOS/web reach later). The app authenticates to the Go API with its own token — it never touches the SSH key directly. Lives in `app/` at the repo root (see the root [`README.md`](../README.md)) and is built and working.
 - Possible future use cases for the VPS(es): self-hosted WireGuard VPN, backend/staging host for other personal app projects, personal automation projects (finance tracking, uptime monitoring, morning dashboard, etc.)
 
 ---

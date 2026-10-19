@@ -1,189 +1,156 @@
-# Archangel Backend
+# Archangel Backend (`archangeld`)
 
-The Go control-plane server: a single static binary (`archangeld`) exposing
-terminal, system-monitoring, and file-browser controls to the Flutter app —
-reachable only over a WireGuard tunnel, never the public internet.
+The Go control-plane server: one static binary that gives the Flutter app a terminal, files, system stats, Docker control, systemd services, and device management. It listens only on the WireGuard tunnel address, never the public internet.
 
-## Status
+New to Archangel? Start with the [user docs](../../docs/getting-started.md). This page is for people working on the backend.
 
-Implemented and deployed:
-- `/api/v1/health` — unauthenticated liveness check, also returns the
-  running binary's version (see [Versioning](#versioning) below)
-- `/ws/terminal` — real interactive PTY shell over WebSocket, token-authed
-- `/api/v1/system/metrics`, `/api/v1/system/processes`
-  (+ `/{pid}/kill`, `/{pid}/renice`), `/ws/stats` — CPU/memory/disk
-  metrics and process list/control, real `/proc` data
-- `/api/v1/files/{list,read,download}` — a file browser jailed to a
-  configured `files_root`, both textually and through symlinks (a
-  symlink inside the root pointing outside it is treated as broken, not
-  followed) — see `internal/files/service.go`'s `resolvePath`. Fails
-  closed: an unset `files_root` rejects every request rather than
-  defaulting to the whole filesystem
-- Per-device token auth (`X-Archangel-Token` header or `?token=` query
-  param for the WS handshake) plus a legacy single shared-token fallback
-- `archangeld pair <device-name> [--qr] [--raw]` — one-command pairing:
-  generates a WireGuard keypair, live-adds it as a peer, generates a
-  per-device token, and prints one bundle (or QR code, or bare bundle
-  line with `--raw` for the in-app setup wizard) the app parses to
-  configure both the tunnel and the connection in one step
-- `archangeld version` — prints the running build's version (see below)
+## What it does
 
-Not yet implemented: Docker/container control, OCI instance control,
-DevOps automation — the Containers/DevOps screens in the frontend are
-still 100% mock data with no backend routes behind them.
+- **Auth:** per-device tokens (SHA-256 hashes in `tokens.json`), plus an optional legacy shared token.
+- **Terminal:** a real PTY over WebSocket, backed by persistent tmux sessions.
+- **System:** CPU/memory/disk/network metrics, process list with kill/renice, live stats stream, reboot.
+- **Files:** a browser jailed to `files_root` (read-only: list, preview, download).
+- **Docker:** list, run, start/stop/restart/remove containers, live logs. Ports are private by default.
+- **DevOps (Services):** an allowlist of systemd services, timers, Caddy web addresses, deploy scripts.
+- **Devices:** list, create (pair) and revoke paired devices.
+- **Admin mode:** whether the `archangel` user has passwordless sudo.
+
+Everything is real (no mock data).
 
 ## Versioning
 
-The backend's version comes from the root [`VERSION`](../../VERSION)
-file's `BACKEND` line, baked in at build time via `-ldflags` (see
-`Makefile`'s `build-linux-amd64`/`build-linux-arm64` targets and
-`internal/version`). It is:
-- printed by `archangeld version` / `archangeld -v` / `archangeld --version`
-- returned by `/api/v1/health`'s `version` field (unauthenticated - this
-  is how the Flutter app shows "Backend version" in Settings and detects
-  when a redeploy is needed)
+The version comes from the `BACKEND` line in the root [`VERSION`](../../VERSION) file, baked in at build time with `-ldflags` (see `Makefile` and `internal/version`). It is shown by `archangeld version` and returned by `/api/v1/health`. The app uses it to show "Backend version" and to detect when an update is available.
 
-The root `VERSION` file also carries `FRONTEND` and `ARCHANGEL`
-(project-wide) version lines, each versioned and released
-independently - see [Releases](#releases).
+## API
+
+All routes except `/api/v1/health` need a token: header `X-Archangel-Token`, or `?token=` on WebSocket handshakes. Routes live in [`internal/api/router.go`](internal/api/router.go).
+
+| Route | What it does |
+|---|---|
+| `GET /api/v1/health` | Liveness check, no auth. Returns `{"status":"ok","version":"..."}`. |
+| `GET /ws/terminal?session=<name>` | Interactive shell over WebSocket (JSON frames, see `internal/wsproto`). Default session `main`. |
+| `GET /api/v1/terminal/sessions` | List tmux sessions. |
+| `DELETE /api/v1/terminal/sessions/{name}` | End a tmux session. |
+| `GET /api/v1/devices` | List paired devices (names, dates, tunnel IPs; never token hashes). The caller is flagged `current`. |
+| `POST /api/v1/devices` | Pair a new device (`{"name": "..."}`). Returns the one-time pairing bundle. Needs Admin mode. |
+| `DELETE /api/v1/devices/{name}` | Revoke a device (token + WireGuard peer). Needs Admin mode. |
+| `GET /api/v1/system/admin-mode` | Whether Admin mode is on. |
+| `POST /api/v1/system/admin-mode` | Only `{"enabled": false}` works. `true` returns 409 by design. |
+| `GET /api/v1/system/metrics` | CPU, memory, disk, network, uptime. |
+| `GET /api/v1/system/processes` | Process list. |
+| `POST /api/v1/system/processes/{pid}/kill` | Kill a process. |
+| `POST /api/v1/system/processes/{pid}/renice` | Change a process's priority. |
+| `POST /api/v1/system/reboot` | Reboot the server. Needs Admin mode. |
+| `GET /ws/stats` | Live metrics stream (interval chosen by the client). |
+| `GET /api/v1/files/list?path=` | List a directory inside `files_root`. |
+| `GET /api/v1/files/read?path=&lines=` | Preview a text file. |
+| `GET /api/v1/files/download?path=` | Download a file. |
+| `GET /api/v1/docker/containers` | List containers. |
+| `POST /api/v1/docker/containers/run` | Create and start a container. |
+| `POST /api/v1/docker/containers/{id}/{action}` | `start`, `stop`, `restart`, or `remove`. |
+| `GET /ws/docker/containers/{id}/logs` | Live container logs. |
+| `GET /api/v1/devops/services` | List allowlisted systemd services. |
+| `POST /api/v1/devops/services/{name}/{action}` | `start`, `stop`, `restart` (needs Admin mode). SSH, WireGuard and archangel itself can't be stopped. |
+| `GET /api/v1/devops/scheduled` | List systemd timers. |
+| `POST /api/v1/devops/scheduled/{name}/run` | Run a timer's job now. |
+| `GET /api/v1/devops/proxy` | List Caddy web addresses. |
+| `POST /api/v1/devops/proxy/{domain}/test` | Check a web address. |
+| `GET /api/v1/devops/deployments` | List deploy scripts. |
+| `POST /api/v1/devops/deployments` | Create or update a script. |
+| `GET /api/v1/devops/deployments/{name}/content` | Read a script. |
+| `DELETE /api/v1/devops/deployments/{name}` | Delete a script. |
+| `POST /api/v1/devops/deployments/{name}/run` | Run a script. |
+
+## Command line
+
+```bash
+archangeld                      # run the server (default: -config /etc/archangel/config.yaml)
+archangeld version              # also -v, --version
+archangeld gen-token            # print a new token + the token_hash line (legacy single-token setup)
+sudo archangeld pair <name> [--qr] [--raw]
+archangeld devices              # list paired devices
+sudo archangeld unpair <name>   # revoke a device
+```
+
+| Command | Notes |
+|---|---|
+| `pair` | Needs root and `public_endpoint` in the config. Picks the next free tunnel IP, makes a WireGuard keypair, adds the peer live and in `wg0.conf`, makes a token, and prints one base64 bundle the app can use. `--qr` also prints a QR (needs `qrencode`). `--raw` prints only the bundle (what the setup wizard parses). The name must be unused. |
+| `devices` | Reads `tokens.json`. |
+| `unpair` | Needs root. Deletes the token first (closes the API door), then the WireGuard peer. |
+| `gen-token` | Does not write the config; you paste the `token_hash` line yourself. |
+
+## Config
+
+See [`config.example.yaml`](config.example.yaml). The important fields:
+
+| Field | Meaning |
+|---|---|
+| `bind_addr` | Must be the WireGuard IP (e.g. `10.10.0.1`). `0.0.0.0` or empty is rejected. `127.0.0.1` is fine for local dev. |
+| `port` | Default 8443. |
+| `files_root` | Folder the Files tab is limited to. Empty means every Files request is rejected. The server falls back to `/home/archangel` if that exists. |
+| `token_store_path` | Default `/etc/archangel/tokens.json`. |
+| `public_endpoint` | `host:port` of the server's WireGuard, for `pair`. |
+| `terminal_socket` | tmux socket path. Default `/home/archangel/.archangel/tmux.sock`. |
+
+## Admin mode and the sandbox
+
+`archangeld` runs as the unprivileged `archangel` user under [`infra/scripts/archangel.service`](../../infra/scripts/archangel.service) with these relevant settings:
+
+- `NoNewPrivileges=false` (so `sudo` works)
+- `ProtectSystem=full`, `PrivateTmp=true`
+- `ReadWritePaths=/home/archangel /opt/archangel -/srv/deploy`, `ReadOnlyPaths=/etc/archangel`
+- resource caps: `MemoryMax=150M`, `MemoryHigh=120M`, `CPUQuota=50%`, `TasksMax=100`
+
+**Admin mode** is a sudoers drop-in, `/etc/sudoers.d/archangel`, containing `archangel ALL=(ALL) NOPASSWD: ALL`. The setup wizard writes it. All code that needs root goes through `internal/adminmode` (`Run`), which always uses `sudo -n` (never prompts) and returns one clear error, "Admin mode is off - this action needs it", when sudo refuses.
+
+**Sandbox escape.** `sudo` alone isn't enough: children of the service inherit its mount namespace, where `/etc` is read-only even for root. So `adminmode.Run` wraps the command in `systemd-run --quiet --wait --pipe --collect --service-type=exec -- <cmd>`. PID 1 then runs it as a transient unit outside the sandbox. (Without `systemd-run`, e.g. a non-systemd dev box, it runs the bare command.)
+
+**The API can only turn Admin mode off.** `POST /api/v1/system/admin-mode` with `enabled: true` returns 409. Turning it on needs the owner's SSH key; the app does it over SSH. So a leaked token can drop privileges but never regain them. When Admin mode is on, a token is effectively root. See [docs/security.md](../../docs/security.md).
+
+## Terminal design (tmux)
+
+The shell used to be a child of `archangeld`, so it died on every service restart and inherited the sandbox. Now:
+
+- Shells live in a **tmux server** started with `systemd-run --user --unit=archangel-tmux` under the `archangel` user's systemd user manager (a different cgroup and mount namespace than the service). This needs `tmux` and `dbus-user-session`, and lingering (`loginctl enable-linger archangel`, done by the unit's `ExecStartPre`).
+- The WebSocket PTY just runs a tmux **client** (`tmux -S <socket> new-session -A -s <name>`). Closing it or restarting `archangeld` leaves the shells alive.
+- The socket path is explicit (`terminal_socket`) because `PrivateTmp=true` would hide a `/tmp` socket.
+- Session names: 1 to 32 characters of `A-Z a-z 0-9 _ -`. Max 3 concurrent connections. Idle connections close after 10 minutes.
+- If tmux can't start, the handler sends an `error` frame ("Persistent sessions unavailable ..., using a temporary shell") and falls back to a plain login shell that dies with the connection.
 
 ## Local development
 
 ```bash
 cp config.example.yaml config.yaml
-go run ./cmd/archangeld gen-token   # prints a token + the token_hash line to paste into config.yaml
+go run ./cmd/archangeld gen-token   # token + token_hash line to paste into config.yaml
 make run
 ```
 
-`bind_addr` in `config.yaml` should stay `127.0.0.1` for local dev — it only
-becomes the WireGuard interface IP once actually deployed to the server.
-`files_root` must be set to something for the file-browser routes to work
-at all (see `config.example.yaml`'s comment on it).
+`bind_addr` stays `127.0.0.1` for local dev. Set `files_root` to something for the Files routes to work. Tests: `go vet ./...` and `go test ./...` (also `make vet`, `make test`).
 
-## Pairing a new device
-
-Once WireGuard is set up (`infra/scripts/wireguard_setup.sh`) and
-`public_endpoint` is set in `config.yaml`, pair a new device in one step:
-
-```bash
-sudo /opt/archangel/archangeld pair my-phone --qr   # --qr only useful on Android
-```
-
-This picks the next free tunnel address, generates a fresh WireGuard
-keypair, adds it as a live peer (persisted to `wg0.conf` too, so it
-survives a reboot), generates a fresh per-device archangeld token, and
-prints one base64 bundle (and, with `--qr`, the same bundle as an ASCII QR
-code) containing everything the app needs — WireGuard config and
-archangeld host/token together. Paste it (or scan it, Android only) into
-Archangel's pairing screen. Nothing in the bundle is stored in plaintext
-on the server after this — same discipline as `gen-token`. `--raw` prints
-only the bare bundle line (no human-readable preamble) - what the in-app
-setup wizard parses.
-
-## Deploying to a server
-
-**Three ways to get a binary onto a server, in order of how "hands-off" they are:**
-
-1. **In-app setup wizard** (new servers, or updating an existing one) —
-   from the Flutter app itself: "Set up a new server" on first launch
-   bootstraps a fresh Ubuntu/Debian VPS entirely over SSH (baseline,
-   WireGuard, binary, systemd service, pairing - no manual steps). Once
-   a server is already set up, Settings' "Backend version" row shows an
-   "update available" badge when a newer release exists; tapping it
-   re-SSHes in (reusing a remembered key, or asking for one) to back up
-   the current binary, download and version-verify the new one, restart
-   the service, and auto-rollback if it doesn't come up healthy within
-   ~20s. See `app/frontend/lib/services/vps_setup_service.dart`
-   (`run()` for first-time setup, `updateBackend()` for updates) - this
-   is deliberately SSH-based rather than a self-update HTTP endpoint,
-   because `archangeld` runs as an **unprivileged** systemd user
-   (`NoNewPrivileges=true`, `ProtectSystem=strict` in `archangel.service`)
-   specifically so a compromised/leaked app token can't rewrite the
-   binary it's running - it truly cannot update itself.
-2. **`deploy.sh`** — the original scripted manual path, run from your own
-   machine (Mac, etc.), not the server itself:
-   ```bash
-   ./deploy.sh
-   # or override defaults:
-   SERVER_HOST=1.2.3.4 SERVER_USER=ubuntu SSH_KEY=~/path/to/key ./deploy.sh
-   ```
-   Builds the binary locally, creates the `archangel` system user +
-   directories on the server if they don't exist yet, copies and
-   installs the binary, generates a fresh auth token **only if
-   `/etc/archangel/config.yaml` doesn't already exist**, installs/updates
-   the systemd service, and verifies it started. Safe to re-run any time.
-3. **A pushed release tag** — see [Releases](#releases) below; downloads
-   a prebuilt binary from GitHub rather than building locally.
-
-**Manual equivalent** (what both scripted paths actually do, kept here
-for reference): build with `make build-linux-amd64` or
-`build-linux-arm64`, create a system `archangel` user, copy the binary to
-`/opt/archangel/archangeld`, `archangel.service` to
-`/etc/systemd/system/`, and a real `config.yaml` to
-`/etc/archangel/config.yaml` with `bind_addr` set to the WireGuard
-interface IP — never `0.0.0.0` or the box's public IP.
-
-## Uninstalling
-
-`infra/scripts/uninstall.sh [app_port] [wg_port]` reverses the WireGuard
-+ archangeld install: stops and removes the `archangel` systemd service,
-the binary and `/etc/archangel` (config + token store), and tears down
-WireGuard entirely (interface, `wg0.conf`, generated keys, the firewall
-ports opened for both) — the server stops being reachable over the
-tunnel at all. It deliberately does **not** touch what
-`baseline_setup.sh` did (installed packages, the swapfile, general ufw/
-SSH posture) — reverting OS-level baseline changes safely is out of
-scope. Safe to re-run; every removal tolerates the thing it's removing
-already being gone.
-
-In-app: Settings' "Danger zone" section (visible once paired) has an
-"Uninstall backend" button that runs this same script over SSH — same
-connection machinery as the setup wizard and backend update flow
-(`VpsSetupService.uninstall()`), gated behind an explicit typed
-confirmation since it's irreversible from the app. On success the app
-also forgets its own pairing/WireGuard state for that server, since it
-no longer exists.
-
-## Releases
-
-One tag-triggered GitHub Actions workflow,
-[`.github/workflows/release.yml`](../../.github/workflows/release.yml),
-builds and publishes to GitHub Releases. The tag's suffix decides scope
-(the leading version number is always the release-event label, matching
-`VERSION`'s `ARCHANGEL` line on a clean tag - the actual per-component
-version always comes from `VERSION`'s own `BACKEND`/`FRONTEND` lines,
-never from the tag number itself):
-
-| Tag shape | Builds |
-|---|---|
-| `vX.Y.Z-b` | backend only (`archangeld-amd64`, `archangeld-arm64`) |
-| `vX.Y.Z-f` | frontend only (macOS, Windows, Android) |
-| `vX.Y.Z` | both |
-
-```bash
-git tag v0.3.6 && git push origin v0.3.6
-```
-
-Every run also generates and publishes `version-manifest.json` - the
-file `UpdateCheckService` (frontend) fetches to know the latest
-version of each component and whether the currently-running
-app/backend are behind. Its freeze logic matters: a `-b`-only release
-freezes the frontend's reported version at whatever the *previous*
-release actually shipped (not just whatever `VERSION`'s `FRONTEND` line
-happens to say in the working tree), so a backend-only release never
-makes the app think the frontend needs updating, and vice versa for
-`-f`. See the workflow's `plan` job for the exact freeze rules, and
-`backend_tag`/`frontend_tag` in the manifest for which release's assets
-actually carry each component's binary (the version number can stay
-frozen across several releases in a row, so the binary itself may live
-on an older release than "latest").
-
-## Testing the terminal endpoint manually
-
-`curl` can't drive a full WebSocket session. Recommended: `websocat` (`brew install websocat`) —
+Manual WebSocket test (`curl` can't do WebSockets): `brew install websocat`, then
 ```bash
 websocat "ws://10.10.0.1:8443/ws/terminal?token=<your-token>"
 ```
-then send `{"type":"resize","cols":100,"rows":30}` followed by
-`{"type":"stdin","data":"<base64 of your command + \n>"}`, and confirm you
-get `stdout` frames back and an `exit` frame when the shell exits.
+and send `{"type":"resize","cols":100,"rows":30}`, then `{"type":"stdin","data":"<base64 of command + \n>"}`. You get `stdout` frames back and an `exit` frame when the shell ends.
+
+## Getting a binary onto a server
+
+1. **The in-app setup wizard** (new servers, and updates). It SSHes in, runs the setup scripts, downloads `archangeld` from the latest GitHub release, verifies its SHA-256 against the release's `SHA256SUMS`, installs the systemd unit, and pairs. For updates it backs up the old binary, installs the new one, restarts, waits for the new version to answer `/api/v1/health`, and rolls back automatically if it doesn't. See `app/frontend/lib/services/vps_setup_service.dart`. Updates go over SSH on purpose: the service user can't write its own binary (`/opt/archangel/archangeld` is owned by root), so a leaked token can't replace it.
+2. **`deploy.sh`**: builds locally and copies the binary over (`SERVER_HOST=... SERVER_USER=... SSH_KEY=... ./deploy.sh`). Safe to re-run; it won't regenerate an existing config.
+3. **A release tag**: see below.
+
+## Uninstalling
+
+[`infra/scripts/uninstall.sh [app_port] [wg_port]`](../../infra/scripts/uninstall.sh) stops and removes the `archangel` service, the binary, `/etc/archangel`, WireGuard (interface, keys, config), the firewall rules for both ports, and the `archangel` user. It leaves what `baseline_setup.sh` installed (packages, swap, Docker, Caddy, tmux, ufw basics). Safe to re-run. In the app: Settings, Danger zone, "Uninstall backend".
+
+## Releases
+
+One workflow, [`.github/workflows/release.yml`](../../.github/workflows/release.yml), picks scope from the tag:
+
+| Tag | Builds |
+|---|---|
+| `vX.Y.Z-b` | backend only (`archangeld-amd64`, `archangeld-arm64`, `SHA256SUMS`) |
+| `vX.Y.Z-f` | app only |
+| `vX.Y.Z` | both |
+
+It can also be started manually from the Actions tab. Every run publishes `version-manifest.json`, which the app reads to show "update available". A backend-only release keeps the app's reported version frozen, and vice versa. See [CONTRIBUTING.md](../../CONTRIBUTING.md#releases).
