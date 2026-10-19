@@ -358,8 +358,24 @@ Future<void> switchToServer(
 }) async {
   final profile = registry.byId(id);
   if (profile == null) return;
+  final previous = registry.active;
   await registry.setActive(id);
-  await activateProfile(profile, wg: wg, backend: backend);
+  try {
+    await activateProfile(profile, wg: wg, backend: backend);
+  } catch (_) {
+    // Bringing the new server up failed: go back to the one that was
+    // working rather than leaving the registry pointing at a server the
+    // app isn't actually connected to.
+    if (previous != null && previous.id != id) {
+      await registry.setActive(previous.id);
+      try {
+        await activateProfile(previous, wg: wg, backend: backend);
+      } catch (_) {
+        // Best effort; the original failure is what the caller needs.
+      }
+    }
+    rethrow;
+  }
 }
 
 /// Forgets the active server on this device ("Unpair"). If another profile

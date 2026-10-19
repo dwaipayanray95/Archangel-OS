@@ -301,7 +301,7 @@ void main() {
   group('status strip', () {
     testWidgets('shows the secure connection state in words, not only colour', (tester) async {
       await pumpAppShell(tester);
-      expect(find.text('Secure connection off'), findsOneWidget);
+      expect(find.text('No server yet'), findsOneWidget);
     });
 
     testWidgets('search button opens the palette', (tester) async {

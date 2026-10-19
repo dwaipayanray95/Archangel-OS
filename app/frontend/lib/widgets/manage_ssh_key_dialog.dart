@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../services/server_registry.dart';
 import '../services/ssh_credentials.dart';
-import '../theme/tokens.dart';
+import '../ui/screens/settings/ssh_dialog_helpers.dart';
+import '../ui/ui.dart';
 import 'passphrase_prompt_dialog.dart';
 
 /// Lets the user view/replace/forget the SSH key "Remember this key"
-/// saved (from the setup wizard or BackendUpdateDialog), without having
-/// to go through an actual update/uninstall flow just to rotate it.
-/// Doesn't connect over SSH at all - purely local secure-storage
-/// management, same as setup_wizard_screen.dart's _restoreSavedKey but
-/// editable instead of read-only.
+/// saved (from the setup wizard or an update), without having to go through
+/// an actual update/uninstall flow just to rotate it. Doesn't connect over
+/// SSH at all - purely local secure-storage management.
 Future<void> showManageSshKeyDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
@@ -25,51 +26,49 @@ class ManageSshKeyDialog extends StatefulWidget {
 }
 
 class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
-  final _hostController = TextEditingController();
-  final _usernameController = TextEditingController(text: 'ubuntu');
-  final _privateKeyController = TextEditingController();
+  final _creds = SshCredentialsController(rememberKey: true);
 
-  bool _loading = true;
   bool _hadSavedKey = false;
+  bool _checking = true;
   bool _saving = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    prefillFromProfile(_creds, context.read<ServerRegistry>().active);
+    _creds.addListener(_rebuild);
+    _checkSaved();
   }
 
-  Future<void> _load() async {
-    final creds = await unlockSavedSshCredentials(context);
+  Future<void> _checkSaved() async {
+    final has = await hasSavedSshCredentials();
     if (!mounted) return;
     setState(() {
-      if (creds != null) {
-        _hostController.text = creds.host;
-        _usernameController.text = creds.username;
-        _privateKeyController.text = creds.privateKeyPem;
-        _hadSavedKey = true;
-      }
-      _loading = false;
+      _hadSavedKey = has;
+      _checking = false;
     });
+  }
+
+  void _rebuild() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _hostController.dispose();
-    _usernameController.dispose();
-    _privateKeyController.dispose();
+    _creds.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    final host = _hostController.text.trim();
-    final username = _usernameController.text.trim();
-    final privateKey = _privateKeyController.text.trim();
-    if (host.isEmpty || username.isEmpty || privateKey.isEmpty) {
-      setState(() => _error = 'Host, SSH username, and private key are all required.');
+    final problem = _creds.validate();
+    if (problem != null) {
+      setState(() => _error = problem);
       return;
     }
+    final host = _creds.hostText;
+    final username = _creds.usernameText;
+    final privateKey = _creds.privateKeyText;
 
     final passphrase = await promptForPassphrase(
       context,
@@ -90,6 +89,14 @@ class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
   }
 
   Future<void> _forget() async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Forget the saved SSH key?',
+      message: 'The key is deleted from this device. The next time you update or repair your server you will have to enter it again. Your server is not changed.',
+      confirmLabel: 'Forget key',
+      danger: true,
+    );
+    if (!ok) return;
     await clearSavedSshCredentials();
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -97,84 +104,50 @@ class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
     return AlertDialog(
-      backgroundColor: AxColors.s2,
-      title: Text('Manage SSH key', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
-      content: SizedBox(
-        width: 460,
-        child: _loading
-            ? const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: Center(child: _MiniSpinner()))
-            : SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _hadSavedKey
-                          ? 'This key is used to skip re-entering credentials for backend updates and uninstall. Edit it below, or forget it entirely.'
-                          : 'No key is currently saved. Paste one below to skip re-entering credentials next time you update or uninstall the backend.',
-                      style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.5),
-                    ),
-                    const SizedBox(height: 14),
-                    _label('Server public IP or hostname'),
-                    _textField(_hostController, hint: '203.0.113.5'),
-                    const SizedBox(height: 10),
-                    _label('SSH username'),
-                    _textField(_usernameController, hint: 'ubuntu'),
-                    const SizedBox(height: 10),
-                    _label('SSH private key'),
-                    _textField(_privateKeyController, hint: '-----BEGIN OPENSSH PRIVATE KEY-----', maxLines: 4, monospace: true),
-                    if (_error != null) ...[
-                      const SizedBox(height: 10),
-                      Text(_error!, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: AxColors.bad)),
-                    ],
-                  ],
-                ),
+      scrollable: true,
+      title: Text('Saved SSH key', style: ax.typo.title.copyWith(color: c.text)),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460),
+        child: _checking
+            ? Padding(
+                padding: EdgeInsets.symmetric(vertical: ax.space.xl),
+                child: const Center(child: CircularProgressIndicator()),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _hadSavedKey
+                        ? 'A key is saved on this device (protected by your passphrase) so you don\'t have to enter it for updates. '
+                            'Unlock it below to replace it, or forget it entirely.'
+                        : 'No key is saved yet. Add one below so you don\'t have to enter it every time you update or repair your server.',
+                    style: ax.typo.body.copyWith(color: c.textMuted),
+                  ),
+                  SizedBox(height: ax.space.lg),
+                  SshCredentialsForm(
+                    controller: _creds,
+                    // Unlocking asks for the passphrase, so only do it when a key exists.
+                    restoreSavedOnStart: _hadSavedKey,
+                    showKeyPassphrase: false,
+                    showRememberKey: false,
+                    enabled: !_saving,
+                    errorText: _error,
+                    onPickKeyFile: () => pickSshKeyFile(context),
+                  ),
+                ],
               ),
       ),
-      actions: _loading
+      actions: _checking
           ? null
           : [
-              if (_hadSavedKey)
-                TextButton(
-                  onPressed: _saving ? null : _forget,
-                  style: TextButton.styleFrom(foregroundColor: AxColors.bad),
-                  child: const Text('Forget saved key'),
-                ),
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-              FilledButton(
-                onPressed: _saving ? null : _save,
-                child: _saving ? const _MiniSpinner() : const Text('Save'),
-              ),
+              if (_hadSavedKey) AxButton.ghost(label: 'Forget saved key', onPressed: _saving ? null : _forget),
+              AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+              AxButton(label: 'Save', loading: _saving, onPressed: _creds.restoring ? null : _save),
             ],
     );
   }
-
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(text, style: AxTextStyles.sans.copyWith(fontSize: 11, color: AxColors.fg3)),
-      );
-
-  Widget _textField(TextEditingController controller, {String? hint, int maxLines = 1, bool monospace = false}) {
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      style: monospace ? AxTextStyles.mono.copyWith(fontSize: 12) : AxTextStyles.sans.copyWith(fontSize: 13),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg3),
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        filled: true,
-        fillColor: AxColors.s1,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AxColors.line)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AxColors.line)),
-      ),
-    );
-  }
-}
-
-class _MiniSpinner extends StatelessWidget {
-  const _MiniSpinner();
-  @override
-  Widget build(BuildContext context) => const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2));
 }
