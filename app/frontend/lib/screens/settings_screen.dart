@@ -413,7 +413,7 @@ class _DevicesCard extends StatelessWidget {
       await backend.unpair();
       await wg.unpair();
     }
-    _snack(messenger, device.current ? 'This device was revoked and unpaired.' : 'Revoked ${device.name}.');
+    _snack(messenger, device.current ? result.message : 'Revoked ${device.name}.');
   }
 
   @override

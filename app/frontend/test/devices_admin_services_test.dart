@@ -126,6 +126,22 @@ void main() {
       r = await svc.revoke(const PairedDevice(name: 'ghost'));
       expect(r.message, 'no such device');
     });
+
+    test('a dropped connection counts as success only for self-revoke', () async {
+      final conn = await _pairedConnection();
+      final svc = DevicesService(client: MockClient((req) async {
+        if (req.method == 'DELETE') throw http.ClientException('connection reset');
+        return _json(<Object>[]);
+      }));
+      svc.init(conn);
+      await pumpEventQueue();
+
+      final self = await svc.revoke(const PairedDevice(name: 'macbook', current: true), self: true);
+      expect(self.success, isTrue);
+
+      final other = await svc.revoke(const PairedDevice(name: 'pixel'));
+      expect(other.success, isFalse);
+    });
   });
 
   group('AdminModeService', () {

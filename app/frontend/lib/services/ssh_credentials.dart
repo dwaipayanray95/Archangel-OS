@@ -67,7 +67,11 @@ Future<SavedSshCredentials?> loadSavedSshCredentials(String passphrase) async {
 Future<void> saveSshCredentials(String passphrase, SavedSshCredentials creds) async {
   final bytes = await encryptJson(passphrase, creds.toJson());
   final file = await _credentialsFile();
-  await file.writeAsBytes(bytes, flush: true);
+  // Write-then-rename: this file is the only copy of the saved key, so a
+  // crash mid-write must never leave it truncated.
+  final tmp = File('${file.path}.tmp');
+  await tmp.writeAsBytes(bytes, flush: true);
+  await tmp.rename(file.path);
   _cachedCreds = creds;
 }
 

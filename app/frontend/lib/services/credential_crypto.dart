@@ -69,8 +69,15 @@ class _Envelope {
       nonce: base64Decode(map['nonce'] as String),
       cipherText: base64Decode(map['cipherText'] as String),
       mac: base64Decode(map['mac'] as String),
-      iterations: (map['iterations'] as num?)?.toInt() ?? _legacyPbkdf2Iterations,
+      iterations: _checkedIterations((map['iterations'] as num?)?.toInt() ?? _legacyPbkdf2Iterations),
     );
+  }
+
+  /// A damaged or tampered file could claim an absurd iteration count and
+  /// hang the app deriving a key - treat that as an unreadable envelope.
+  static int _checkedIterations(int n) {
+    if (n < 1 || n > 10000000) throw const FormatException('implausible PBKDF2 iteration count');
+    return n;
   }
 }
 

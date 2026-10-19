@@ -111,6 +111,16 @@ class DevicesService extends ChangeNotifier {
       return ApiActionResult(success: false, message: serverMessage(res, 'Could not revoke ${device.name} (HTTP ${res.statusCode})'));
     } catch (e) {
       debugPrint('Error revoking device: $e');
+      if (self) {
+        // Revoking this device removes its WireGuard peer while the request
+        // is still in flight, so the server's reply usually can't make it
+        // back. A dropped connection here almost always means it worked.
+        return const ApiActionResult(
+          success: true,
+          message: 'The connection dropped while revoking this device - the server most likely removed it. '
+              'This device has forgotten the pairing.',
+        );
+      }
       return ApiActionResult(success: false, message: 'Could not reach the backend: $e');
     }
   }
