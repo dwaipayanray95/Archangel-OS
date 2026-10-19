@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:archangel/screens/setup/setup_landing_screen.dart';
-import 'package:archangel/theme/app_theme.dart';
+import 'package:archangel/ui/theme.dart';
 
 // Tests SetupLandingScreen directly rather than through the full
 // ArchangelApp -> _RootRouter path: that path depends on
@@ -16,14 +16,14 @@ void main() {
   testWidgets('shows both setup options', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildAppTheme(),
+        theme: buildTheme(Brightness.dark),
         home: const SetupLandingScreen(),
       ),
     );
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Set up a new server'), findsOneWidget);
-    expect(find.text('I already have a pairing code'), findsOneWidget);
+    expect(find.text('Yes, set it up for me'), findsOneWidget);
+    expect(find.text('I have a pairing code'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

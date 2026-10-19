@@ -108,7 +108,7 @@ func startServerArgs(sock string) []string {
 		"-p", "Type=forking",
 		"-E", "HOME=" + homeDir(),
 		"--",
-		"tmux", "-S", sock, "new-session", "-d", "-s", defaultSession,
+		"tmux", "-S", sock, "new-session", "-d", "-s", defaultSession, ";", "set-option", "-g", "status", "off",
 	}
 }
 
@@ -124,8 +124,10 @@ func userManagerEnv(uid int) []string {
 
 // clientArgs: the tmux client the PTY runs. -A attaches if the session
 // exists, creates it otherwise.
+// The trailing set-option hides tmux's status bar - the app shows session
+// tabs itself - and also applies to servers started before this existed.
 func clientArgs(sock, session string) []string {
-	return []string{"-S", sock, "new-session", "-A", "-s", session}
+	return []string{"-S", sock, "new-session", "-A", "-s", session, ";", "set-option", "-g", "status", "off"}
 }
 
 const listFormat = "#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_created}"

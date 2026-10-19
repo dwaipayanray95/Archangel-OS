@@ -36,15 +36,46 @@ class ContainersService extends ChangeNotifier {
   WebSocketChannel? _logWs;
   StreamSubscription? _logSub;
 
+  bool _active = true;
+  bool get active => _active;
+
+  /// Pauses or resumes polling; the app shell keeps this on only while a
+  /// destination that shows containers is visible.
+  void setActive(bool value) {
+    if (_active == value) return;
+    _active = value;
+    if (!value) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    } else if (_backend != null) {
+      _startPolling();
+    }
+  }
+
   void init(ArchangeldConnection backend) {
     _backend = backend;
-    fetchContainers();
+    if (_active) _startPolling();
+  }
 
+  void _startPolling() {
+    fetchContainers();
     // Poll periodically (every 4s)
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) {
       fetchContainers();
     });
+  }
+
+  /// Drops everything loaded from the previous server (server switch).
+  void reset() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _closeLogsStream();
+    _overview = null;
+    _error = null;
+    _loading = false;
+    _lastActionMessage = null;
+    notifyListeners();
   }
 
   @override

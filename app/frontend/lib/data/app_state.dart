@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
-import '../theme/tokens.dart';
+import '../services/local_kv_store.dart';
+import '../ui/theme.dart';
 
-enum AxSection { overview, monitoring, files, containers, devops, terminal, settings }
+const _kThemeModeKey = 'appearance_theme_mode';
+const _kAccentKey = 'appearance_accent';
+
+/// The app's destinations, in navigation order. On phones the last three
+/// live behind the "More" tab.
+enum AxSection { home, apps, files, terminal, activity, services, settings }
 
 const axSectionLabels = <AxSection, String>{
-  AxSection.overview: 'Overview',
-  AxSection.monitoring: 'Monitoring',
+  AxSection.home: 'Home',
+  AxSection.apps: 'Apps',
   AxSection.files: 'Files',
-  AxSection.containers: 'Containers',
-  AxSection.devops: 'DevOps',
   AxSection.terminal: 'Terminal',
+  AxSection.activity: 'Activity',
+  AxSection.services: 'Services',
   AxSection.settings: 'Settings',
 };
+
+/// Destinations shown under "More" on phones.
+const axMoreSections = <AxSection>[AxSection.activity, AxSection.services, AxSection.settings];
+
+/// The default theme mode: follow the operating system's light/dark setting.
+const kDefaultThemeMode = ThemeMode.system;
 
 /// Root app state: active section, accent color, palette/notif overlays.
 /// Kept deliberately simple (ChangeNotifier) — this is a single-user app
 /// with no need for a heavier state management layer yet.
 class AppState extends ChangeNotifier {
-  AxSection _section = AxSection.overview;
+  AxSection _section = AxSection.home;
   AxSection get section => _section;
   set section(AxSection s) {
     if (_section == s) return;
@@ -25,11 +37,51 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Color _accent = AxColors.accent;
-  Color get accent => _accent;
-  set accent(Color c) {
-    _accent = c;
+  AxAccent _accentChoice = AxAccent.green;
+  AxAccent get accentChoice => _accentChoice;
+  set accentChoice(AxAccent a) {
+    if (_accentChoice == a) return;
+    _accentChoice = a;
     notifyListeners();
+    _save(_kAccentKey, a.name);
+  }
+
+  /// Accent as a plain colour (dark-palette variant) for legacy screens.
+  Color get accent => _accentChoice.dark;
+  set accent(Color c) {
+    final match = AxAccent.values.where((a) => a.dark == c || a.light == c);
+    if (match.isNotEmpty) {
+      accentChoice = match.first;
+    }
+  }
+
+  ThemeMode _themeMode = kDefaultThemeMode;
+  ThemeMode get themeMode => _themeMode;
+  set themeMode(ThemeMode m) {
+    if (_themeMode == m) return;
+    _themeMode = m;
+    notifyListeners();
+    _save(_kThemeModeKey, m.name);
+  }
+
+  /// Restores the saved theme mode and accent (call once at startup).
+  Future<void> loadAppearance() async {
+    try {
+      final store = LocalKvStore.instance;
+      final mode = await store.read(_kThemeModeKey);
+      final accent = await store.read(_kAccentKey);
+      if (mode != null) {
+        _themeMode = ThemeMode.values.firstWhere((m) => m.name == mode, orElse: () => kDefaultThemeMode);
+      }
+      if (accent != null) _accentChoice = AxAccent.fromName(accent);
+      notifyListeners();
+    } catch (_) {
+      // Appearance is a convenience; defaults are fine if storage fails.
+    }
+  }
+
+  void _save(String key, String value) {
+    LocalKvStore.instance.write(key, value).catchError((_) {});
   }
 
   bool _paletteOpen = false;

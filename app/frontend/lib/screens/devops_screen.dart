@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../data/app_state.dart';
 import '../models/devops_model.dart';
 import '../services/archangeld_connection.dart';
 import '../services/devops_service.dart';
-import '../theme/tokens.dart';
-import '../widgets/ax_widgets.dart';
+import '../ui/screens/services/script_editor_page.dart';
+import '../ui/screens/services/services_logic.dart';
+import '../ui/screens/services/services_widgets.dart';
+import '../ui/ui.dart';
 
-enum _DevTab { services, scheduled, proxy, deployments }
-
+/// Services: background services, scheduled tasks, web addresses and scripts
+/// on the server, in plain words.
 class DevopsScreen extends StatefulWidget {
   const DevopsScreen({super.key});
 
@@ -17,623 +20,396 @@ class DevopsScreen extends StatefulWidget {
 }
 
 class _DevopsScreenState extends State<DevopsScreen> {
-  _DevTab _tab = _DevTab.services;
+  ServicesTab _tab = ServicesTab.services;
+
+  // Server refusal being shown prominently (null = none).
+  String? _refusal;
+  bool _refusalIsAdmin = false;
+
+  // Names of rows with an action in flight, and web-address test results.
+  final _busy = <String>{};
+  final _testing = <String>{};
+  final _testResults = <String, String?>{};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final backend = context.read<ArchangeldConnection>();
-      context.read<DevopsService>().init(backend);
+      if (!mounted) return;
+      context.read<DevopsService>().init(context.read<ArchangeldConnection>());
     });
   }
 
-  void _handleAction(BuildContext context, DevRowModel row, String action) async {
-    final svc = context.read<DevopsService>();
-    final app = context.read<AppState>();
-
-    if (action == 'Logs') {
-      // Deep-link to Terminal with journalctl command
-      app.openTerminalWithCommand('journalctl -u ${row.name} -n 50 --no-pager');
-      return;
-    }
-
-    if (action == 'Test') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Testing reachability for ${row.name}...')),
-      );
-      final res = await svc.testProxy(row.name);
-      if (context.mounted && res != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${row.name}: $res')),
-        );
-      }
-      return;
-    }
-
-    if (_tab == _DevTab.services) {
-      final ok = await svc.triggerServiceAction(row.name, action);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ok ? 'Service ${row.name} $action triggered.' : (svc.lastActionMessage ?? 'Failed to $action ${row.name}.'))),
-        );
-      }
-    } else if (_tab == _DevTab.scheduled) {
-      final ok = await svc.triggerScheduled(row.name);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ok ? 'Timer ${row.name} triggered.' : (svc.lastActionMessage ?? 'Failed to trigger ${row.name}.'))),
-        );
-      }
-    } else if (_tab == _DevTab.deployments) {
-      if (action == 'Edit') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Loading ${row.name}...')),
-        );
-        final content = await svc.getDeploymentContent(row.name);
-        if (context.mounted) {
-          _openScriptEditor(context, row.name, initialContent: content ?? '');
-        }
-        return;
-      }
-
-      if (action == 'Delete') {
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AxColors.s1,
-            title: Text('Delete Script?', style: AxTextStyles.h2),
-            content: Text('Are you sure you want to delete ${row.name}?', style: AxTextStyles.sans),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(false),
-                child: Text('Cancel', style: AxTextStyles.sans.copyWith(color: AxColors.fg3)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(true),
-                child: Text('Delete', style: AxTextStyles.sans.copyWith(color: AxColors.danger, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        );
-        if (confirm == true) {
-          final ok = await svc.deleteDeployment(row.name);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(ok ? 'Script ${row.name} deleted.' : 'Failed to delete ${row.name}.')),
-            );
-          }
-        }
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Executing ${row.name}...')),
-      );
-      final res = await svc.runDeployment(row.name);
-      if (context.mounted && res != null) {
-        final msg = res['message'] ?? '';
-        final out = res['output'] ?? '';
-        if (out.isNotEmpty) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              backgroundColor: AxColors.s1,
-              title: Text('Deployment: ${row.name}', style: AxTextStyles.h2),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(msg, style: AxTextStyles.sans.copyWith(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF070807),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AxColors.line),
-                      ),
-                      child: SelectableText(out, style: AxTextStyles.mono.copyWith(fontSize: 11)),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Close'),
-                ),
-              ],
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${row.name}: $msg')),
-          );
-        }
-      }
-    }
+  void _toast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _openScriptEditor(BuildContext context, String? scriptName, {String? initialContent}) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _ScriptEditorDialog(
-        service: context.read<DevopsService>(),
-        scriptName: scriptName,
-        initialContent: initialContent,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final wide = MediaQuery.of(context).size.width >= 620;
-    final backend = context.watch<ArchangeldConnection>();
-    final svc = context.watch<DevopsService>();
-
-    final rows = switch (_tab) {
-      _DevTab.services => svc.services,
-      _DevTab.scheduled => svc.scheduled,
-      _DevTab.proxy => svc.proxy,
-      _DevTab.deployments => svc.deployments,
-    };
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text('DevOps', style: AxTextStyles.h1),
-                      if (svc.loading) ...[
-                        const SizedBox(width: 8),
-                        const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AxColors.accent),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  Text('systemd · cron · caddy · deploy hooks', style: AxTextStyles.mutedMono),
-                ],
-               ),
-              ),
-              InkWell(
-                borderRadius: BorderRadius.circular(AxRadius.pill),
-                onTap: () => svc.fetchAll(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AxColors.wash,
-                    borderRadius: BorderRadius.circular(AxRadius.pill),
-                    border: Border.all(color: AxColors.accent.withValues(alpha: 0.22)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.refresh_rounded, size: 12, color: AxColors.accent),
-                      const SizedBox(width: 6),
-                      Text('Refresh', style: AxTextStyles.sans.copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, color: AxColors.accent)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              AxSegmented<_DevTab>(
-                values: _DevTab.values,
-                selected: _tab,
-                label: (t) => switch (t) {
-                  _DevTab.services => 'Services',
-                  _DevTab.scheduled => 'Scheduled',
-                  _DevTab.proxy => 'Reverse proxy',
-                  _DevTab.deployments => 'Deployments',
-                },
-                onSelect: (t) => setState(() => _tab = t),
-              ),
-              if (_tab == _DevTab.deployments)
-                InkWell(
-                  borderRadius: BorderRadius.circular(AxRadius.pill),
-                  onTap: () => _openScriptEditor(context, null),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AxColors.accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AxRadius.pill),
-                      border: Border.all(color: AxColors.accent.withValues(alpha: 0.35)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.add_rounded, size: 14, color: AxColors.accent),
-                        const SizedBox(width: 5),
-                        Text('New Script', style: AxTextStyles.sans.copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, color: AxColors.accent)),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (backend.isPaired && svc.error != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-              decoration: BoxDecoration(
-                color: AxColors.bad.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(AxRadius.md),
-                border: Border.all(color: AxColors.bad.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline_rounded, size: 14, color: AxColors.bad),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(svc.error!, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: AxColors.bad)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          if (!backend.isPaired)
-            Container(
-              padding: const EdgeInsets.all(32),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AxColors.s1,
-                borderRadius: BorderRadius.circular(AxRadius.xl),
-                border: Border.all(color: AxColors.line),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.link_off_rounded, size: 32, color: AxColors.fg3),
-                  const SizedBox(height: 12),
-                  Text('Host Not Paired', style: AxTextStyles.mono.copyWith(fontSize: 14, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text('Pair with archangeld to inspect systemd services, cron, and Caddy.', style: AxTextStyles.mutedMono, textAlign: TextAlign.center),
-                ],
-              ),
-            )
-          else if (rows.isEmpty && !svc.loading)
-            Container(
-              padding: const EdgeInsets.all(32),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AxColors.s1,
-                borderRadius: BorderRadius.circular(AxRadius.xl),
-                border: Border.all(color: AxColors.line),
-              ),
-              child: Column(
-                children: [
-                  const Icon(Icons.inbox_rounded, size: 28, color: AxColors.fg3),
-                  const SizedBox(height: 10),
-                  Text('No items found in ${_tab.name}', style: AxTextStyles.mono.copyWith(fontSize: 13, color: AxColors.fg2)),
-                  const SizedBox(height: 4),
-                  Text('Host does not have configured entries for this section.', style: AxTextStyles.mutedMono),
-                ],
-              ),
-            )
-          else
-            Container(
-              decoration: BoxDecoration(
-                color: AxColors.s1,
-                borderRadius: BorderRadius.circular(AxRadius.xl),
-                border: Border.all(color: AxColors.line),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final r in rows)
-                    _DevRowTile(
-                      row: r,
-                      wide: wide,
-                      onAction: (act) => _handleAction(context, r, act),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DevRowTile extends StatelessWidget {
-  final DevRowModel row;
-  final bool wide;
-  final ValueChanged<String> onAction;
-
-  const _DevRowTile({
-    required this.row,
-    required this.wide,
-    required this.onAction,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final dot = row.ok ? AxColors.accent : AxColors.fg3;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0x0BE8F0E6)))),
-      child: Row(
-        children: [
-          Container(width: 7, height: 7, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(row.name, style: AxTextStyles.mono.copyWith(fontSize: 12, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 2),
-                Text(row.meta, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3), overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          AxPill(text: row.status, color: dot),
-          if (wide) ...[
-            const SizedBox(width: 8),
-            Row(
-              children: [
-                for (final a in row.actions)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 5),
-                    child: AxGhostButton(
-                      label: a,
-                      onTap: () => onAction(a),
-                    ),
-                  ),
-              ],
-            ),
-          ] else ...[
-            const SizedBox(width: 4),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded, size: 16, color: AxColors.fg3),
-              color: AxColors.s2,
-              onSelected: onAction,
-              itemBuilder: (ctx) => [
-                for (final a in row.actions)
-                  PopupMenuItem(
-                    value: a,
-                    child: Text(a, style: AxTextStyles.sans.copyWith(fontSize: 12, color: a == 'Delete' ? AxColors.danger : AxColors.fg)),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ScriptEditorDialog extends StatefulWidget {
-  final DevopsService service;
-  final String? scriptName;
-  final String? initialContent;
-
-  const _ScriptEditorDialog({
-    required this.service,
-    this.scriptName,
-    this.initialContent,
-  });
-
-  @override
-  State<_ScriptEditorDialog> createState() => _ScriptEditorDialogState();
-}
-
-class _ScriptEditorDialogState extends State<_ScriptEditorDialog> {
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _contentCtrl;
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameCtrl = TextEditingController(text: widget.scriptName ?? 'deploy-app.sh');
-    _contentCtrl = TextEditingController(
-      text: widget.initialContent ??
-          '#!/bin/sh\nset -e\n\necho "Starting deployment..."\n# docker compose pull && docker compose up -d\n',
-    );
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _contentCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save({bool runAfter = false}) async {
-    var name = _nameCtrl.text.trim();
-    if (name.isEmpty) {
-      setState(() => _error = 'Script name is required');
-      return;
-    }
-    if (!name.endsWith('.sh')) {
-      name += '.sh';
-    }
-
+  void _showRefusal(DevopsService svc, String fallback) {
+    final msg = svc.lastActionMessage ?? fallback;
     setState(() {
-      _saving = true;
-      _error = null;
+      _refusal = msg;
+      _refusalIsAdmin = isAdminModeRefusal(msg, svc.lastActionStatus);
     });
+  }
 
-    final res = await widget.service.saveDeployment(name, _contentCtrl.text);
-    if (!mounted) return;
-    setState(() => _saving = false);
-
-    final ok = res['success'] == true;
-    if (ok) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deployment script $name saved.')),
-      );
-      if (runAfter) {
-        final runRes = await widget.service.runDeployment(name);
-        if (mounted && runRes != null) {
-          final msg = runRes['message'] ?? '';
-          final out = runRes['output'] ?? '';
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              backgroundColor: AxColors.s1,
-              title: Text('Deployment: $name', style: AxTextStyles.h2),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(msg, style: AxTextStyles.sans.copyWith(fontWeight: FontWeight.w600)),
-                    if (out.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF070807),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AxColors.line),
-                        ),
-                        child: SelectableText(out, style: AxTextStyles.mono.copyWith(fontSize: 11)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
-              ],
-            ),
-          );
-        }
-      }
-    } else {
-      final errorMsg = res['message'] as String? ?? 'Failed to save deployment script. Check permissions on host.';
-      setState(() => _error = errorMsg);
+  Future<void> _guard(String key, Future<void> Function() job) async {
+    if (_busy.contains(key)) return;
+    setState(() => _busy.add(key));
+    try {
+      await job();
+    } finally {
+      if (mounted) setState(() => _busy.remove(key));
     }
   }
 
+  Future<void> _serviceAction(DevRowModel row, String action) async {
+    final svc = context.read<DevopsService>();
+    if (action == 'Stop') {
+      final yes = await showConfirmDialog(
+        context,
+        title: 'Stop ${row.name}?',
+        message: 'Anything that depends on this service stops working until you start it again.',
+        confirmLabel: 'Stop service',
+      );
+      if (!yes || !mounted) return;
+    } else if (action == 'Restart') {
+      final yes = await showConfirmDialog(
+        context,
+        title: 'Restart ${row.name}?',
+        message: 'The service is briefly unavailable while it restarts.',
+        confirmLabel: 'Restart service',
+      );
+      if (!yes || !mounted) return;
+    }
+    await _guard('svc:${row.name}', () async {
+      final ok = await svc.triggerServiceAction(row.name, action);
+      if (!mounted) return;
+      if (ok) {
+        setState(() => _refusal = null);
+        final past = switch (action) { 'Start' => 'started', 'Stop' => 'stopped', _ => 'restarted' };
+        _toast('${row.name} $past.');
+      } else {
+        _showRefusal(svc, 'Could not ${action.toLowerCase()} ${row.name}.');
+      }
+    });
+  }
+
+  Future<void> _runTimer(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    await _guard('timer:${row.name}', () async {
+      final ok = await svc.triggerScheduled(row.name);
+      if (!mounted) return;
+      if (ok) {
+        setState(() => _refusal = null);
+        _toast('${row.name} is running now.');
+      } else {
+        _showRefusal(svc, 'Could not run ${row.name}.');
+      }
+    });
+  }
+
+  Future<void> _testAddress(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    setState(() {
+      _testing.add(row.name);
+      _testResults.remove(row.name);
+    });
+    final res = await svc.testProxy(row.name);
+    if (!mounted) return;
+    setState(() {
+      _testing.remove(row.name);
+      _testResults[row.name] = res;
+    });
+  }
+
+  Future<void> _runScript(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    final yes = await showConfirmDialog(
+      context,
+      title: 'Run ${row.name}?',
+      message: 'This runs the script on your server as the archangel user.',
+      confirmLabel: 'Run script',
+    );
+    if (!yes || !mounted) return;
+    Map<String, String>? res;
+    await _guard('script:${row.name}', () async {
+      res = await svc.runDeployment(row.name);
+    });
+    final result = res;
+    if (!mounted || result == null) return;
+    final ok = result['ok'] == 'true';
+    final message = result['message'] ?? '';
+    if (!ok && (result['output'] ?? '').isEmpty && isAdminModeRefusal(message, null)) {
+      setState(() {
+        _refusal = message;
+        _refusalIsAdmin = true;
+      });
+      return;
+    }
+    setState(() => _refusal = null);
+    await showRunOutputSheet(context, scriptName: row.name, ok: ok, message: message, output: result['output'] ?? '');
+  }
+
+  Future<void> _editScript(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    await _guard('script:${row.name}', () async {
+      final content = await svc.getDeploymentContent(row.name);
+      if (!mounted) return;
+      if (content == null) {
+        _toast('Could not open ${row.name}. Check your connection and try again.');
+        return;
+      }
+      final saved = await ScriptEditorPage.open(context, svc, scriptName: row.name, initialContent: content);
+      if (saved && mounted) _toast('${row.name} saved.');
+    });
+  }
+
+  Future<void> _newScript() async {
+    final svc = context.read<DevopsService>();
+    final saved = await ScriptEditorPage.open(context, svc);
+    if (saved && mounted) _toast('Script saved.');
+  }
+
+  Future<void> _deleteScript(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    final yes = await showConfirmDialog(
+      context,
+      title: 'Delete ${row.name}?',
+      message: 'The script is removed from your server. This can’t be undone.',
+      confirmLabel: 'Delete script',
+      danger: true,
+    );
+    if (!yes || !mounted) return;
+    await _guard('script:${row.name}', () async {
+      final ok = await svc.deleteDeployment(row.name);
+      if (!mounted) return;
+      if (ok) {
+        setState(() => _refusal = null);
+        _toast('${row.name} was deleted.');
+      } else {
+        _showRefusal(svc, 'Could not delete ${row.name}.');
+      }
+    });
+  }
+
+  void _openLogs(DevRowModel row) {
+    context.read<AppState>().openTerminalWithCommand('journalctl -u ${row.name} -n 50 --no-pager');
+  }
+
+  List<DevRowModel> _rowsFor(DevopsService svc) => switch (_tab) {
+        ServicesTab.services => svc.services,
+        ServicesTab.timers => svc.scheduled,
+        ServicesTab.web => svc.proxy,
+        ServicesTab.scripts => svc.deployments,
+      };
+
+  List<RowAction> _actionsFor(DevRowModel row) {
+    switch (_tab) {
+      case ServicesTab.services:
+        final busy = _busy.contains('svc:${row.name}');
+        return [
+          if (!row.ok)
+            RowAction(
+              label: 'Start',
+              icon: Icons.play_arrow_rounded,
+              kind: AxButtonKind.primary,
+              loading: busy,
+              onPressed: () => _serviceAction(row, 'Start'),
+            ),
+          RowAction(label: 'Restart', icon: Icons.restart_alt_rounded, onPressed: busy ? null : () => _serviceAction(row, 'Restart')),
+          if (row.ok) RowAction(label: 'Stop', icon: Icons.stop_rounded, onPressed: busy ? null : () => _serviceAction(row, 'Stop')),
+          RowAction(label: 'Logs', icon: Icons.notes_rounded, onPressed: () => _openLogs(row)),
+        ];
+      case ServicesTab.timers:
+        return [
+          RowAction(
+            label: 'Run now',
+            icon: Icons.play_arrow_rounded,
+            loading: _busy.contains('timer:${row.name}'),
+            onPressed: () => _runTimer(row),
+          ),
+        ];
+      case ServicesTab.web:
+        return [
+          RowAction(
+            label: 'Test',
+            icon: Icons.network_check_rounded,
+            loading: _testing.contains(row.name),
+            onPressed: () => _testAddress(row),
+          ),
+        ];
+      case ServicesTab.scripts:
+        final busy = _busy.contains('script:${row.name}');
+        return [
+          RowAction(label: 'Run', icon: Icons.play_arrow_rounded, kind: AxButtonKind.primary, loading: busy, onPressed: busy ? null : () => _runScript(row)),
+          RowAction(label: 'Edit', icon: Icons.edit_outlined, onPressed: busy ? null : () => _editScript(row)),
+          RowAction(label: 'Delete', icon: Icons.delete_outline_rounded, onPressed: busy ? null : () => _deleteScript(row)),
+        ];
+    }
+  }
+
+  Widget _intro() {
+    switch (_tab) {
+      case ServicesTab.services:
+        return const TabIntro(
+          text: 'Programs that keep running on your server, like your web server.',
+          helpTitle: 'Background services',
+          helpText: 'A background service is a program that starts with your server and keeps running without anyone '
+              'logged in. Linux calls them “systemd services”. Stopping one switches that program off until you start it again.',
+        );
+      case ServicesTab.timers:
+        return const TabIntro(
+          text: 'Jobs your server runs on a schedule, like a nightly backup.',
+          helpTitle: 'Scheduled tasks',
+          helpText: 'A scheduled task runs by itself at set times, for example every night. Linux calls these “systemd timers”. '
+              '“Run now” starts the job straight away without changing its schedule.',
+        );
+      case ServicesTab.web:
+        return const TabIntro(
+          text: 'Website names that point to apps on your server.',
+          helpTitle: 'Web addresses',
+          helpText: 'A web address (like notes.example.com) is sent to the right app on your server by a helper called Caddy, '
+              'a “reverse proxy”. “Test” checks that the address answers.',
+        );
+      case ServicesTab.scripts:
+        return const TabIntro(
+          text: 'Saved sets of commands you can run on your server with one tap.',
+          helpTitle: 'Scripts',
+          helpText: 'A script is a text file of commands, for example to update an app. Scripts run on your server as the '
+              '“archangel” user, so only run ones you trust.',
+        );
+    }
+  }
+
+  ({IconData icon, String title, String message}) _emptyText() => switch (_tab) {
+        ServicesTab.services => (
+            icon: Icons.settings_suggest_outlined,
+            title: 'No background services found',
+            message: 'Programs that run in the background on your server will show up here.',
+          ),
+        ServicesTab.timers => (
+            icon: Icons.schedule_rounded,
+            title: 'No scheduled tasks',
+            message: 'Jobs that run on a schedule on your server will show up here.',
+          ),
+        ServicesTab.web => (
+            icon: Icons.language_rounded,
+            title: 'No web addresses yet',
+            message: 'When an app on your server is given a website name, it will show up here.',
+          ),
+        ServicesTab.scripts => (
+            icon: Icons.terminal_rounded,
+            title: 'No scripts yet',
+            message: 'Save a set of commands as a script and run it whenever you like.',
+          ),
+      };
+
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.scriptName != null;
-    return Dialog(
-      backgroundColor: AxColors.s1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AxRadius.xl), side: const BorderSide(color: AxColors.line)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(isEditing ? 'Edit Deployment Script' : 'New Deployment Script', style: AxTextStyles.h2),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18, color: AxColors.fg3),
-                    onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text('Script Filename', style: AxTextStyles.label),
-              const SizedBox(height: 5),
-              TextField(
-                controller: _nameCtrl,
-                enabled: !isEditing,
-                style: AxTextStyles.mono.copyWith(fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'deploy-prod.sh',
-                  hintStyle: AxTextStyles.mono.copyWith(fontSize: 13, color: AxColors.fg3),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  filled: true,
-                  fillColor: AxColors.s2,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AxColors.line)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AxColors.line)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AxColors.accent)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text('Shell Script Content', style: AxTextStyles.label),
-              const SizedBox(height: 5),
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0A0C0A),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AxColors.line),
-                ),
-                child: TextField(
-                  controller: _contentCtrl,
-                  maxLines: 12,
-                  minLines: 8,
-                  style: AxTextStyles.mono.copyWith(fontSize: 12, height: 1.4),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.all(12),
-                    hintText: '#!/bin/sh\n\n# Your deployment commands here...',
-                  ),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 10),
-                Text(_error!, style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.danger)),
-              ],
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                    child: Text('Cancel', style: AxTextStyles.sans.copyWith(color: AxColors.fg3)),
-                  ),
-                  const SizedBox(width: 10),
-                  AxGhostButton(
-                    label: 'Save & Run',
-                    onTap: _saving ? null : () => _save(runAfter: true),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: _saving ? null : () => _save(runAfter: false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AxColors.accent,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AxRadius.pill)),
-                    ),
-                    child: _saving
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                        : Text('Save Script', style: AxTextStyles.sans.copyWith(fontWeight: FontWeight.w700, color: Colors.black)),
-                  ),
-                ],
-              ),
-            ],
+    final svc = context.watch<DevopsService>();
+    final conn = context.watch<ArchangeldConnection>();
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final ax = context.ax;
+
+    final actions = [
+      if (_tab == ServicesTab.scripts && conn.isPaired)
+        AxButton(label: 'New script', icon: Icons.add_rounded, onPressed: _newScript),
+    ];
+
+    final Widget body;
+    var scroll = true;
+    final rows = _rowsFor(svc);
+    if (!conn.isPaired) {
+      scroll = false;
+      body = EmptyState(
+        icon: Icons.link_off_rounded,
+        title: 'Not connected to a server',
+        message: 'Connect this device to your server to see and manage its services.',
+        actionLabel: 'Open Settings',
+        onAction: () => context.read<AppState>().go(AxSection.settings),
+      );
+    } else if (!svc.hasLoaded) {
+      scroll = false;
+      body = LoadingState(message: 'Loading your services...', onRetry: svc.fetchAll);
+    } else {
+      final children = <Widget>[
+        ServicesTabBar(selected: _tab, onSelected: (t) => setState(() => _tab = t)),
+        SizedBox(height: ax.space.md),
+        _intro(),
+        SizedBox(height: ax.space.md),
+        if (_refusal != null) ...[
+          RefusalBanner(
+            title: _refusalIsAdmin ? 'Admin mode is off' : 'That wasn’t allowed',
+            message: _refusal!,
+            onDismiss: () => setState(() => _refusal = null),
+            onOpenSettings: _refusalIsAdmin ? () => context.read<AppState>().go(AxSection.settings) : null,
           ),
+          SizedBox(height: ax.space.md),
+        ],
+        if (svc.error != null && rows.isNotEmpty) ...[
+          InfoBanner(message: 'Could not refresh everything. What you see may be out of date.'),
+          SizedBox(height: ax.space.md),
+        ],
+      ];
+      if (rows.isEmpty && svc.error != null) {
+        children.add(ErrorState(
+          title: 'Could not load this list',
+          message: 'Your server did not answer. Check that the secure connection is on, then try again.',
+          onRetry: svc.fetchAll,
+        ));
+      } else if (rows.isEmpty) {
+        final e = _emptyText();
+        children.add(EmptyState(
+          icon: e.icon,
+          title: e.title,
+          message: e.message,
+          actionLabel: _tab == ServicesTab.scripts ? 'New script' : null,
+          onAction: _tab == ServicesTab.scripts ? _newScript : null,
+        ));
+      } else {
+        children.add(_list(rows, wide));
+      }
+      body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+    }
+
+    return AxPage(
+      title: 'Services',
+      subtitle: 'What is running on your server',
+      scrollable: scroll,
+      actions: actions,
+      child: body,
+    );
+  }
+
+  Widget _list(List<DevRowModel> rows, bool wide) {
+    final ax = context.ax;
+    final c = ax.colors;
+    Widget row(DevRowModel r) => ServiceRow(
+          key: ValueKey('${_tab.name}:${r.name}'),
+          name: r.name,
+          details: rowDetails(r),
+          badge: rowBadge(_tab, r),
+          actions: _actionsFor(r),
+          wide: wide,
+          footer: _tab == ServicesTab.web && (_testing.contains(r.name) || _testResults.containsKey(r.name))
+              ? TestResultLine(testing: _testing.contains(r.name), result: _testResults[r.name])
+              : null,
+        );
+    if (wide) {
+      return AxCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: [
+            ServiceTableHeader(detailsLabel: _tab == ServicesTab.web ? 'Goes to' : 'Details'),
+            for (final r in rows) ...[Divider(height: 1, color: c.border), row(r)],
+          ],
         ),
-      ),
+      );
+    }
+    return Column(
+      children: [
+        for (final r in rows) Padding(padding: EdgeInsets.only(bottom: ax.space.md), child: row(r)),
+      ],
     );
   }
 }

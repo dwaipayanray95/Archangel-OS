@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/credential_crypto.dart' show kMinPassphraseLength;
-import '../theme/tokens.dart';
+import '../ui/ui.dart';
 
 /// Prompts for the passphrase that protects the saved SSH key (see
 /// credential_crypto.dart / ssh_credentials.dart) - replaces the old
@@ -47,20 +47,9 @@ String? _validateNewPassphrase(String value, String confirmation) {
   return null;
 }
 
-InputDecoration _fieldDecoration(String hint) {
-  return InputDecoration(
-    hintText: hint,
-    hintStyle: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg3),
-    isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-    filled: true,
-    fillColor: AxColors.s1,
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AxColors.line)),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: AxColors.line)),
-  );
-}
-
-Widget _passphraseField(TextEditingController controller, {required String hint, bool autofocus = false, VoidCallback? onSubmit}) {
+Widget _passphraseField(BuildContext context, TextEditingController controller,
+    {required String label, bool autofocus = false, VoidCallback? onSubmit}) {
+  final ax = context.ax;
   return TextField(
     controller: controller,
     autofocus: autofocus,
@@ -68,8 +57,26 @@ Widget _passphraseField(TextEditingController controller, {required String hint,
     enableSuggestions: false,
     autocorrect: false,
     onSubmitted: onSubmit == null ? null : (_) => onSubmit(),
-    style: AxTextStyles.sans.copyWith(fontSize: 13),
-    decoration: _fieldDecoration(hint),
+    style: ax.typo.body.copyWith(color: ax.colors.text),
+    decoration: InputDecoration(labelText: label),
+  );
+}
+
+Widget _errorLine(BuildContext context, String message) {
+  final ax = context.ax;
+  return Padding(
+    padding: EdgeInsets.only(top: ax.space.md),
+    child: Semantics(
+      liveRegion: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, size: 18, color: ax.colors.danger),
+          SizedBox(width: ax.space.sm),
+          Expanded(child: Text(message, style: ax.typo.body.copyWith(color: ax.colors.danger))),
+        ],
+      ),
+    ),
   );
 }
 
@@ -112,32 +119,31 @@ class _PassphrasePromptDialogState extends State<_PassphrasePromptDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
     return AlertDialog(
-      backgroundColor: AxColors.s2,
-      title: Text(widget.title, style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
-      content: SizedBox(
-        width: 360,
+      scrollable: true,
+      title: Text(widget.title, style: ax.typo.title.copyWith(color: c.text)),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(widget.message, style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.5)),
-            const SizedBox(height: 14),
-            _passphraseField(_passphraseController, hint: 'Passphrase', autofocus: true, onSubmit: _submit),
+            Text(widget.message, style: ax.typo.body.copyWith(color: c.textMuted)),
+            SizedBox(height: ax.space.lg),
+            _passphraseField(context, _passphraseController, label: 'Passphrase', autofocus: true, onSubmit: _submit),
             if (widget.confirm) ...[
-              const SizedBox(height: 10),
-              _passphraseField(_confirmController, hint: 'Confirm passphrase', onSubmit: _submit),
+              SizedBox(height: ax.space.md),
+              _passphraseField(context, _confirmController, label: 'Confirm passphrase', onSubmit: _submit),
             ],
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(_error!, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: AxColors.bad)),
-            ],
+            if (_error != null) _errorLine(context, _error!),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _submit, child: const Text('Continue')),
+        AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+        AxButton(label: 'Continue', onPressed: _submit),
       ],
     );
   }
@@ -179,35 +185,34 @@ class _ChangePassphraseDialogState extends State<_ChangePassphraseDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
     return AlertDialog(
-      backgroundColor: AxColors.s2,
-      title: Text('Change passphrase', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
-      content: SizedBox(
-        width: 360,
+      scrollable: true,
+      title: Text('Change passphrase', style: ax.typo.title.copyWith(color: c.text)),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Re-encrypts your saved SSH key under a new passphrase (at least $kMinPassphraseLength characters).',
-              style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.5),
+              'Re-locks your saved SSH key under a new passphrase (at least $kMinPassphraseLength characters).',
+              style: ax.typo.body.copyWith(color: c.textMuted),
             ),
-            const SizedBox(height: 14),
-            _passphraseField(_currentController, hint: 'Current passphrase', autofocus: true),
-            const SizedBox(height: 10),
-            _passphraseField(_newController, hint: 'New passphrase'),
-            const SizedBox(height: 10),
-            _passphraseField(_confirmController, hint: 'Confirm new passphrase', onSubmit: _submit),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(_error!, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: AxColors.bad)),
-            ],
+            SizedBox(height: ax.space.lg),
+            _passphraseField(context, _currentController, label: 'Current passphrase', autofocus: true),
+            SizedBox(height: ax.space.md),
+            _passphraseField(context, _newController, label: 'New passphrase'),
+            SizedBox(height: ax.space.md),
+            _passphraseField(context, _confirmController, label: 'Confirm new passphrase', onSubmit: _submit),
+            if (_error != null) _errorLine(context, _error!),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-        FilledButton(onPressed: _submit, child: const Text('Change passphrase')),
+        AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+        AxButton(label: 'Change passphrase', onPressed: _submit),
       ],
     );
   }

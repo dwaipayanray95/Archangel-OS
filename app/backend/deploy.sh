@@ -137,7 +137,8 @@ set -e
 sudo mv /tmp/archangeld /opt/archangel/archangeld
 sudo chmod 755 /opt/archangel/archangeld
 sudo chown root:root /opt/archangel/archangeld
-echo "    Installed to /opt/archangel/archangeld"
+sudo ln -sf /opt/archangel/archangeld /usr/local/bin/archangeld
+echo "    Installed to /opt/archangel/archangeld (also on PATH as archangeld)"
 REMOTE
 echo ""
 

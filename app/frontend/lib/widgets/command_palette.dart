@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../services/containers_service.dart';
-import '../theme/tokens.dart';
+import '../ui/theme.dart';
 
 /// "⌘K" on Apple platforms, "Ctrl K" elsewhere.
 String paletteShortcutLabel() =>
@@ -18,8 +18,8 @@ class _PaletteItem {
   const _PaletteItem({required this.label, required this.sub, required this.icon, required this.go});
 }
 
-/// Global command-palette overlay (⌘K / Ctrl K) — the second non-negotiable "OS-like" element besides
-/// the top bar: jump to any section or entity from anywhere in the app.
+/// Global command-palette overlay (⌘K / Ctrl K): jump to any section or app
+/// from anywhere.
 class CommandPalette extends StatefulWidget {
   const CommandPalette({super.key});
 
@@ -62,6 +62,8 @@ class _CommandPaletteState extends State<CommandPalette> {
   Widget build(BuildContext context) {
     final app = context.read<AppState>();
     final contSvc = context.watch<ContainersService>();
+    final ax = context.ax;
+    final c = ax.colors;
 
     final sections = <_PaletteItem>[
       for (final s in AxSection.values)
@@ -69,8 +71,8 @@ class _CommandPaletteState extends State<CommandPalette> {
     ];
     final liveContainers = contSvc.overview?.containers ?? [];
     final containerItems = <_PaletteItem>[
-      for (final c in liveContainers.take(4))
-        _PaletteItem(label: c.name, sub: c.image, icon: Icons.view_in_ar_outlined, go: () => app.go(AxSection.containers)),
+      for (final ct in liveContainers.take(4))
+        _PaletteItem(label: ct.name, sub: ct.image, icon: Icons.view_in_ar_outlined, go: () => app.go(AxSection.apps)),
     ];
 
     final query = _controller.text.trim().toLowerCase();
@@ -79,71 +81,74 @@ class _CommandPaletteState extends State<CommandPalette> {
 
     final groups = <String, List<_PaletteItem>>{
       'Sections': filter(sections),
-      'Containers': filter(containerItems),
+      'Apps': filter(containerItems),
     }..removeWhere((_, v) => v.isEmpty);
     _flat = [for (final g in groups.values) ...g];
     if (_selected >= _flat.length) _selected = _flat.isEmpty ? 0 : _flat.length - 1;
     var flatIndex = 0;
 
     return GestureDetector(
+      excludeFromSemantics: true, // dismissed by Esc or the system back action
       onTap: app.closePalette,
       child: Container(
-        color: const Color(0x9E040504),
+        color: c.scrim,
         alignment: const Alignment(0, -0.55),
-        padding: const EdgeInsets.only(top: 0),
+        padding: EdgeInsets.all(ax.space.lg),
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0.975, end: 1),
-          duration: AxMotion.pop,
-          curve: AxMotion.easeOutSoft,
+          duration: const Duration(milliseconds: 230),
+          curve: Curves.easeOutCubic,
           builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
           child: GestureDetector(
+            excludeFromSemantics: true,
             onTap: () {}, // swallow taps so they don't close the palette
             child: Material(
               color: Colors.transparent,
               child: Container(
-                width: 560,
                 constraints: const BoxConstraints(maxWidth: 560),
                 decoration: BoxDecoration(
-                  color: AxColors.s2,
-                  borderRadius: BorderRadius.circular(17),
-                  border: Border.all(color: AxColors.line2),
-                  boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 80, offset: Offset(0, 32))],
+                  color: c.surfaceHigh,
+                  borderRadius: BorderRadius.circular(ax.radii.lg),
+                  border: Border.all(color: c.border),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-                      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AxColors.line))),
+                      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
+                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
                       child: Row(
                         children: [
-                          const Icon(Icons.search, size: 15, color: AxColors.accent),
-                          const SizedBox(width: 11),
+                          Icon(Icons.search, size: 20, color: c.accent),
+                          SizedBox(width: ax.space.md),
                           Expanded(
                             child: Focus(
                               onKeyEvent: _onKey,
                               child: TextField(
-                              controller: _controller,
-                              autofocus: true,
-                              onChanged: (_) => setState(() => _selected = 0),
-                              onSubmitted: (_) {
-                                if (_flat.isNotEmpty) _flat[_selected.clamp(0, _flat.length - 1)].go();
-                              },
-                              style: AxTextStyles.sans.copyWith(fontSize: 15),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                hintText: 'Search sections and containers…',
-                                hintStyle: AxTextStyles.sans.copyWith(fontSize: 15, color: AxColors.fg3),
+                                controller: _controller,
+                                autofocus: true,
+                                onChanged: (_) => setState(() => _selected = 0),
+                                onSubmitted: (_) {
+                                  if (_flat.isNotEmpty) _flat[_selected.clamp(0, _flat.length - 1)].go();
+                                },
+                                style: ax.typo.body.copyWith(color: c.text),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Search sections and apps…',
+                                  hintStyle: ax.typo.body.copyWith(color: c.textMuted),
+                                ),
                               ),
-                            ),
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                            decoration: BoxDecoration(color: AxColors.bg, borderRadius: BorderRadius.circular(6), border: Border.all(color: AxColors.line)),
-                            child: Text('ESC', style: AxTextStyles.mono.copyWith(fontSize: 9.5, color: AxColors.fg3)),
+                            padding: EdgeInsets.symmetric(horizontal: ax.space.sm, vertical: ax.space.xs),
+                            decoration: BoxDecoration(
+                              color: c.bg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: c.border),
+                            ),
+                            child: Text('ESC', style: ax.typo.mono.copyWith(fontSize: 12, color: c.textMuted)),
                           ),
                         ],
                       ),
@@ -151,22 +156,25 @@ class _CommandPaletteState extends State<CommandPalette> {
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 360),
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(7),
+                        padding: EdgeInsets.all(ax.space.sm),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             if (groups.isEmpty)
                               Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 32),
+                                padding: EdgeInsets.symmetric(vertical: ax.space.xxl),
                                 child: Center(
-                                  child: Text('no match for "$query"', style: AxTextStyles.mono.copyWith(fontSize: 12, color: AxColors.fg3)),
+                                  child: Text('No match for "$query"', style: ax.typo.body.copyWith(color: c.textMuted)),
                                 ),
                               )
                             else
                               for (final entry in groups.entries) ...[
                                 Padding(
-                                  padding: const EdgeInsets.fromLTRB(9, 7, 9, 5),
-                                  child: Text(entry.key.toUpperCase(), style: AxTextStyles.mono.copyWith(fontSize: 9.5, fontWeight: FontWeight.w500, letterSpacing: 1.2, color: AxColors.fg3)),
+                                  padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.sm, ax.space.sm, ax.space.xs),
+                                  child: Text(
+                                    entry.key.toUpperCase(),
+                                    style: ax.typo.caption.copyWith(fontWeight: FontWeight.w600, letterSpacing: 1, color: c.textMuted),
+                                  ),
                                 ),
                                 for (final item in entry.value)
                                   _PaletteRow(item: item, selected: flatIndex++ == _selected),
@@ -176,15 +184,15 @@ class _CommandPaletteState extends State<CommandPalette> {
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: const BoxDecoration(color: AxColors.s1, border: Border(top: BorderSide(color: AxColors.line))),
-                      child: Row(
+                      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
+                      decoration: BoxDecoration(color: c.surface, border: Border(top: BorderSide(color: c.border))),
+                      child: Wrap(
+                        spacing: ax.space.lg,
+                        runSpacing: ax.space.xs,
                         children: [
-                          _hint('↑↓', 'navigate'),
-                          const SizedBox(width: 14),
-                          _hint('↵', 'open'),
-                          const SizedBox(width: 14),
-                          _hint('esc', 'close'),
+                          _hint(ax, '↑↓', 'navigate'),
+                          _hint(ax, '↵', 'open'),
+                          _hint(ax, 'esc', 'close'),
                         ],
                       ),
                     ),
@@ -198,17 +206,18 @@ class _CommandPaletteState extends State<CommandPalette> {
     );
   }
 
-  Widget _hint(String key, String label) {
+  Widget _hint(ArchangelTheme ax, String key, String label) {
+    final c = ax.colors;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: BoxDecoration(color: AxColors.s3, borderRadius: BorderRadius.circular(5)),
-          child: Text(key, style: AxTextStyles.mono.copyWith(fontSize: 9, color: AxColors.fg2)),
+          padding: EdgeInsets.symmetric(horizontal: ax.space.xs + 1, vertical: 2),
+          decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(5)),
+          child: Text(key, style: ax.typo.mono.copyWith(fontSize: 12, color: c.textMuted)),
         ),
-        const SizedBox(width: 5),
-        Text(label, style: AxTextStyles.sans.copyWith(fontSize: 10.5, color: AxColors.fg3)),
+        SizedBox(width: ax.space.xs + 1),
+        Text(label, style: ax.typo.caption.copyWith(color: c.textMuted)),
       ],
     );
   }
@@ -238,35 +247,50 @@ class _PaletteRowState extends State<_PaletteRow> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        onTap: widget.item.go,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-          margin: const EdgeInsets.symmetric(vertical: 1),
-          decoration: BoxDecoration(color: (_hover || widget.selected) ? AxColors.s3 : Colors.transparent, borderRadius: BorderRadius.circular(10)),
-          child: Row(
-            children: [
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(color: AxColors.wash, borderRadius: BorderRadius.circular(8)),
-                child: Icon(widget.item.icon, size: 14, color: AxColors.accent),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(widget.item.label, style: AxTextStyles.sans.copyWith(fontSize: 13, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
-                    Text(widget.item.sub, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3), overflow: TextOverflow.ellipsis),
-                  ],
+    final ax = context.ax;
+    final c = ax.colors;
+    final item = widget.item;
+    return Semantics(
+      button: true,
+      selected: widget.selected,
+      label: '${item.label}, ${item.sub}',
+      excludeSemantics: true,
+      onTap: item.go,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hover = true),
+        onExit: (_) => setState(() => _hover = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: item.go,
+          child: Container(
+            constraints: BoxConstraints(minHeight: axMinTarget(context)),
+            padding: EdgeInsets.symmetric(horizontal: ax.space.sm, vertical: ax.space.sm),
+            margin: const EdgeInsets.symmetric(vertical: 1),
+            decoration: BoxDecoration(
+              color: (_hover || widget.selected) ? c.surfaceAlt : Colors.transparent,
+              borderRadius: BorderRadius.circular(ax.radii.md),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(color: c.accentWash, borderRadius: BorderRadius.circular(ax.radii.sm)),
+                  child: Icon(item.icon, size: 18, color: c.accent),
                 ),
-              ),
-            ],
+                SizedBox(width: ax.space.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(item.label, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
+                      Text(item.sub, style: ax.typo.caption.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -11,9 +11,9 @@ import 'services/files_service.dart';
 import 'services/monitoring_service.dart';
 import 'services/update_check_service.dart';
 import 'services/wireguard_controller.dart';
-import 'theme/app_theme.dart';
-import 'theme/tokens.dart';
-import 'widgets/app_shell.dart';
+import 'services/server_registry.dart';
+import 'ui/shell/archangel_shell.dart';
+import 'ui/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +34,8 @@ class ArchangelApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AppState()),
+        ChangeNotifierProvider(create: (_) => AppState()..loadAppearance()),
+        ChangeNotifierProvider(create: (_) => ServerRegistry()..load()),
         ChangeNotifierProvider(create: (_) => WireGuardController()..bootstrap()),
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()..load()),
         ChangeNotifierProvider(create: (_) => MonitoringService()),
@@ -49,7 +50,9 @@ class ArchangelApp extends StatelessWidget {
         builder: (context, app, _) => MaterialApp(
           title: 'Archangel',
           debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(accent: app.accent),
+          theme: buildTheme(Brightness.light, app.accentChoice),
+          darkTheme: buildTheme(Brightness.dark, app.accentChoice),
+          themeMode: app.themeMode,
           scrollBehavior: _NoOverscrollBehavior(),
           home: const _RootRouter(),
         ),
@@ -71,18 +74,19 @@ class _RootRouter extends StatelessWidget {
   Widget build(BuildContext context) {
     final wg = context.watch<WireGuardController>();
     final backend = context.watch<ArchangeldConnection>();
+    final registry = context.watch<ServerRegistry>();
 
-    if (!wg.isBootstrapped || !backend.isLoaded) {
+    if (!wg.isBootstrapped || !backend.isLoaded || !registry.isLoaded) {
       return Scaffold(
-        backgroundColor: AxColors.bg,
+        backgroundColor: context.ax.colors.bg,
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (!wg.isPaired && !backend.isPaired) {
+    if (registry.isEmpty && !wg.isPaired && !backend.isPaired) {
       return const SetupLandingScreen();
     }
 
-    return const AppShell();
+    return const ArchangelShell();
   }
 }

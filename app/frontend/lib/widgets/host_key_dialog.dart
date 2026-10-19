@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/tokens.dart';
+import '../ui/ui.dart';
 
 /// Trust-on-first-use host key confirmation dialog, shared between the
 /// setup wizard and BackendUpdateDialog - both SSH into a server and
@@ -17,58 +17,68 @@ Future<bool> showHostKeyConfirmDialog(
   final accepted = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      backgroundColor: AxColors.s2,
-      title: Text(
-        isMismatch ? 'Server key changed!' : 'Verify server identity',
-        style: AxTextStyles.sans.copyWith(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: isMismatch ? AxColors.bad : null,
+    builder: (context) {
+      final ax = context.ax;
+      final c = ax.colors;
+      return AlertDialog(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ax.radii.lg),
+          side: BorderSide(color: isMismatch ? c.danger : c.border),
         ),
-      ),
-      content: SizedBox(
-        width: 420,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            if (isMismatch)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(
-                  'This host previously presented a different key. This could mean the '
-                  'server was rebuilt - or that something is intercepting this connection. '
-                  'Only continue if you\'re certain.',
-                  style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.bad, height: 1.5),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(
-                  'First connection to $host - verify this fingerprint matches what your '
-                  'cloud provider shows for this server before continuing.',
-                  style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.fg2, height: 1.5),
-                ),
+            Icon(isMismatch ? Icons.warning_amber_rounded : Icons.verified_user_outlined, color: isMismatch ? c.danger : c.accent),
+            SizedBox(width: ax.space.sm),
+            Expanded(
+              child: Text(
+                isMismatch ? 'Server identity changed' : 'Check this is your server',
+                style: ax.typo.title.copyWith(color: isMismatch ? c.danger : c.text),
               ),
-            Text('$keyType key fingerprint', style: AxTextStyles.sans.copyWith(fontSize: 11, color: AxColors.fg3)),
-            const SizedBox(height: 4),
-            SelectableText(fingerprint, style: AxTextStyles.mono.copyWith(fontSize: 12.5)),
+            ),
           ],
         ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(
-            isMismatch ? 'Trust anyway' : 'Trust this server',
-            style: TextStyle(color: isMismatch ? AxColors.bad : null),
+        content: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isMismatch
+                      ? 'This address previously showed a different identity. That can happen if the server was '
+                          'rebuilt, but it can also mean someone is intercepting the connection. Only continue if you are certain.'
+                      : 'This is the first time connecting to $host. Check that the fingerprint below matches the one '
+                          'your cloud provider shows for this server (if it shows one) before continuing.',
+                  style: ax.typo.body.copyWith(color: isMismatch ? c.danger : c.textMuted),
+                ),
+                SizedBox(height: ax.space.md),
+                Text('$keyType fingerprint', style: ax.typo.caption.copyWith(color: c.textMuted)),
+                SizedBox(height: ax.space.xs),
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(ax.space.md),
+                  decoration: BoxDecoration(
+                    color: c.surfaceAlt,
+                    borderRadius: BorderRadius.circular(ax.radii.sm),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: SelectableText(fingerprint, style: ax.typo.mono.copyWith(color: c.text)),
+                ),
+              ],
+            ),
           ),
         ),
-      ],
-    ),
+        actionsOverflowButtonSpacing: ax.space.sm,
+        actions: [
+          AxButton.secondary(label: 'Cancel', onPressed: () => Navigator.of(context).pop(false)),
+          isMismatch
+              ? AxButton.danger(label: 'Trust anyway', onPressed: () => Navigator.of(context).pop(true))
+              : AxButton(label: 'Trust this server', onPressed: () => Navigator.of(context).pop(true)),
+        ],
+      );
+    },
   );
   return accepted ?? false;
 }

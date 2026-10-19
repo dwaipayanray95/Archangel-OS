@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../models/file_entry.dart';
+import 'api_error.dart';
 import 'archangeld_connection.dart';
 
 /// Returns [name] if free, else "name (1).ext", "name (2).ext", ... so a
@@ -75,6 +76,15 @@ class FilesService extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  // The folder the last load was *trying* to show. Differs from
+  // [currentPath] after a failed load, so Retry re-asks for the place that
+  // failed rather than the place the user is still standing.
+  String _attemptedPath = '';
+  String get attemptedPath => _attemptedPath;
+
+  /// Tries the last attempted folder again (the Retry button on errors).
+  Future<void> retry() => loadDirectory(_attemptedPath, forceRefresh: true);
+
   DirectoryListingModel? _listing;
   DirectoryListingModel? get listing => _listing;
 
@@ -98,7 +108,24 @@ class FilesService extends ChangeNotifier {
     loadDirectory(_currentPath);
   }
 
+  /// Forgets the previous server's folder, listing, caches and preview
+  /// (server switch) - paths on one server mean nothing on another.
+  void reset() {
+    _currentPath = '';
+    _attemptedPath = '';
+    _rootPath = null;
+    _listing = null;
+    _dirCache.clear();
+    _activePreviewPath = null;
+    _previewLoading = false;
+    _fileContent = null;
+    _loading = false;
+    _error = null;
+    notifyListeners();
+  }
+
   Future<void> loadDirectory(String path, {bool forceRefresh = false}) async {
+    _attemptedPath = path;
     // Instant UI render from cache if available - a cache hit is a
     // successful load (of a path we've already been to), so it does
     // commit _currentPath.
@@ -149,11 +176,9 @@ class FilesService extends ChangeNotifier {
         // _currentPath (and therefore breadcrumbs/sidebar selection)
         // at the last successfully loaded directory. _error alone
         // carries this failure to the content pane.
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final failedListing = DirectoryListingModel.fromJson(data);
-        _error = failedListing.error ?? 'Permission denied';
+        _error = serverMessage(res, 'Permission denied');
       } else {
-        _error = 'Failed to load directory (HTTP ${res.statusCode})';
+        _error = serverMessage(res, 'Failed to load directory (HTTP ${res.statusCode})');
       }
     } catch (e) {
       debugPrint('Error listing directory $path: $e');

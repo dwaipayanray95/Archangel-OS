@@ -13,7 +13,7 @@ import 'tunnel_config.dart';
 enum TunnelStatus { disconnected, connecting, connected, disconnecting, error, unsupported }
 
 const _kInterfaceName = 'archangel';
-const _kStorageKey = 'wg_tunnel_config';
+const kWgConfigStorageKey = 'wg_tunnel_config';
 
 /// Same bundle identifier the iOS Packet Tunnel Provider extension must be
 /// registered under in Xcode, if that platform is ever added. Unused on
@@ -129,7 +129,7 @@ class WireGuardController extends ChangeNotifier {
 
   Future<void> _loadSavedConfig() async {
     try {
-      final raw = await _store.read(_kStorageKey);
+      final raw = await _store.read(kWgConfigStorageKey);
       if (raw != null) _config = TunnelConfig.parse(raw);
     } catch (e) {
       _lastError = 'Saved tunnel config could not be read: $e';
@@ -140,7 +140,7 @@ class WireGuardController extends ChangeNotifier {
   /// [wgQuickText] as the paired config. Does not connect automatically.
   Future<void> pair(String wgQuickText) async {
     final parsed = TunnelConfig.parse(wgQuickText); // throws FormatException on bad input
-    await _store.write(_kStorageKey, wgQuickText);
+    await _store.write(kWgConfigStorageKey, wgQuickText);
     _config = parsed;
     notifyListeners();
   }
@@ -149,7 +149,7 @@ class WireGuardController extends ChangeNotifier {
     if (_status == TunnelStatus.connected || _status == TunnelStatus.connecting) {
       await disconnect();
     }
-    await _store.delete(_kStorageKey);
+    await _store.delete(kWgConfigStorageKey);
     _config = null;
     notifyListeners();
   }

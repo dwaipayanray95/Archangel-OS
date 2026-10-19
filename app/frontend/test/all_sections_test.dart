@@ -25,7 +25,7 @@ void main() {
     }
   });
 
-  testWidgets('phone width shows bottom tabs and no overflow', (tester) async {
+  testWidgets('phone width shows the bottom bar (with More) and no overflow', (tester) async {
     final app = await pumpAppShell(tester, size: const Size(390, 844));
     expect(tester.takeException(), isNull);
 

@@ -27,6 +27,17 @@ class PairedDevice {
   }
 }
 
+/// Outcome of [DevicesService.create].
+class DeviceCreateResult {
+  final bool success;
+  final String message;
+  final String? name;
+
+  /// Base64 pairing code for the new device; only present on success.
+  final String? bundle;
+  const DeviceCreateResult({required this.success, required this.message, this.name, this.bundle});
+}
+
 /// Lists and revokes the devices paired with the backend (the real data
 /// behind Settings' device list). Revoking needs Admin mode on server-side;
 /// when it's off the backend's 403 message is returned verbatim.
@@ -53,6 +64,15 @@ class DevicesService extends ChangeNotifier {
   void init(ArchangeldConnection backend) {
     _backend = backend;
     refresh();
+  }
+
+  /// Drops state from the previous server (server switch).
+  void reset() {
+    _devices = [];
+    _loaded = false;
+    _error = null;
+    _loading = false;
+    notifyListeners();
   }
 
   Future<void> refresh() async {
@@ -88,6 +108,61 @@ class DevicesService extends ChangeNotifier {
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  static final _nameRule = RegExp(r'^[A-Za-z0-9][A-Za-z0-9 _.-]{0,31}$');
+
+  /// Whether [name] is acceptable as a new device name (the backend's rule).
+  static bool isValidDeviceName(String name) => _nameRule.hasMatch(name);
+
+  /// Plain-language problem with [name], or null when it is fine.
+  static String? validateDeviceName(String name) {
+    final n = name.trim();
+    if (n.isEmpty) return 'Give the new device a name, like "Maria\'s phone".';
+    if (!isValidDeviceName(n)) {
+      return 'Use up to 32 letters, numbers, spaces, dots, dashes or underscores, starting with a letter or number.';
+    }
+    return null;
+  }
+
+  /// Creates a pairing code for a new device called [name]. The returned
+  /// [DeviceCreateResult.bundle] is shown once - the server doesn't keep it.
+  /// Needs Admin mode on the server (403 otherwise, message returned
+  /// verbatim); 409 means the name is taken.
+  Future<DeviceCreateResult> create(String name) async {
+    final backend = _backend;
+    if (backend == null || !backend.isPaired || backend.token == null) {
+      return const DeviceCreateResult(success: false, message: 'Not connected to your server.');
+    }
+    final clean = name.trim();
+    final problem = validateDeviceName(clean);
+    if (problem != null) return DeviceCreateResult(success: false, message: problem);
+    try {
+      final res = await _client
+          .post(
+            backend.devicesCreateHttpUri(),
+            headers: {'X-Archangel-Token': backend.token!, 'Content-Type': 'application/json'},
+            body: jsonEncode({'name': clean}),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (res.statusCode == 200) {
+        final decoded = jsonDecode(res.body);
+        final bundle = decoded is Map ? decoded['bundle'] : null;
+        if (bundle is String && bundle.isNotEmpty) {
+          final given = decoded is Map && decoded['name'] is String ? decoded['name'] as String : clean;
+          return DeviceCreateResult(success: true, message: 'Created $given.', name: given, bundle: bundle);
+        }
+        return const DeviceCreateResult(success: false, message: 'The server did not return a pairing code.');
+      }
+      if (res.statusCode == 409) {
+        return DeviceCreateResult(
+            success: false, message: serverMessage(res, 'A device called "$clean" already exists. Pick another name.'));
+      }
+      return DeviceCreateResult(success: false, message: serverMessage(res, 'Could not add the device (HTTP ${res.statusCode})'));
+    } catch (e) {
+      debugPrint('Error creating device: $e');
+      return DeviceCreateResult(success: false, message: 'Could not reach your server: $e');
     }
   }
 

@@ -269,6 +269,7 @@ fi
     final installResult = await _exec('''
 set -e
 sudo mv /opt/archangel/archangeld.download /opt/archangel/archangeld
+sudo ln -sf /opt/archangel/archangeld /usr/local/bin/archangeld
 sudo chmod 755 /opt/archangel/archangeld
 sudo chown root:root /opt/archangel/archangeld
 ''');
@@ -489,6 +490,7 @@ if [ "\$NEW_VERSION" != "$targetVersion" ]; then
   exit 1
 fi
 sudo mv /opt/archangel/archangeld.new /opt/archangel/archangeld
+sudo ln -sf /opt/archangel/archangeld /usr/local/bin/archangeld
 ''';
     final downloadResult = await _exec(downloadScript);
     if (!downloadResult.ok) {

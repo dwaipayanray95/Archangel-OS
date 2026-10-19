@@ -1,101 +1,135 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/tokens.dart';
-import '../../widgets/archangel_mark.dart';
-import '../../widgets/ax_widgets.dart';
+import '../../ui/screens/setup/get_server_screen.dart';
+import '../../ui/screens/setup/setup_widgets.dart';
+import '../../ui/ui.dart';
 import '../../widgets/pairing_dialog.dart';
 import 'setup_wizard_screen.dart';
 
 /// First screen shown when neither the WireGuard tunnel nor the backend
-/// connection is paired: choose between bootstrapping a brand-new VPS
-/// (the setup wizard) or pairing this device to a server that's already
-/// running (the existing paste/QR dialog, unchanged) - so pairing a
-/// *second* device isn't forced through the wizard.
+/// connection is paired: "Do you have a server?" with three ways forward -
+/// set up a server from scratch (the wizard), pair with a code from an
+/// already-running server (also how a second device joins), or learn how to
+/// get a server.
 class SetupLandingScreen extends StatelessWidget {
-  const SetupLandingScreen({super.key});
+  const SetupLandingScreen({super.key, this.canCancel = false});
+
+  /// True when opened from the server switcher ("Add a server") on top of
+  /// the running app, so it can be closed again.
+  final bool canCancel;
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
     return Scaffold(
-      backgroundColor: AxColors.bg,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
+      backgroundColor: c.bg,
+      appBar: canCancel
+          ? AppBar(
+              backgroundColor: c.bg,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              title: Text('Add a server', style: ax.typo.title.copyWith(color: c.text)),
+            )
+          : null,
+      body: SafeArea(
+        child: SetupFrame(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(height: canCancel ? 0 : ax.space.xl),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: EdgeInsets.all(ax.space.md),
+                  decoration: BoxDecoration(color: c.accentWash, borderRadius: BorderRadius.circular(ax.radii.md)),
+                  child: Icon(Icons.shield_outlined, size: 32, color: c.accent, semanticLabel: 'Archangel'),
+                ),
+              ),
+              SizedBox(height: ax.space.lg),
+              Text('Welcome to Archangel', style: ax.typo.headline.copyWith(color: c.text)),
+              SizedBox(height: ax.space.sm),
+              Text(
+                'Archangel lets you run and manage your own private server from your phone or computer.',
+                style: ax.typo.body.copyWith(color: c.textMuted),
+              ),
+              SizedBox(height: ax.space.xl),
+              Semantics(
+                header: true,
+                child: Text('Do you have a server?', style: ax.typo.title.copyWith(color: c.text)),
+              ),
+              SizedBox(height: ax.space.md),
+              _Option(
+                icon: Icons.auto_fix_high_outlined,
+                title: 'Yes, set it up for me',
+                body: 'Give Archangel your server\'s address and SSH key. It installs everything and connects this device.',
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen())),
+              ),
+              SizedBox(height: ax.space.md),
+              _Option(
+                icon: Icons.qr_code_2,
+                title: 'I have a pairing code',
+                body: 'Your server is already running Archangel and you have a code from it. Also use this to add another device.',
+                onTap: () async {
+                  final paired = await showPairingDialog(context);
+                  if (paired && canCancel && context.mounted) Navigator.of(context).pop();
+                },
+              ),
+              SizedBox(height: ax.space.md),
+              _Option(
+                icon: Icons.cloud_outlined,
+                title: 'Not yet — show me how to get one',
+                body: 'What a server is, what it costs, and guides for getting one in a few minutes.',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (ctx) => GetServerScreen(
+                      onHaveServer: () => Navigator.of(ctx).pushReplacement(
+                        MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen()),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Option extends StatelessWidget {
+  const _Option({required this.icon, required this.title, required this.body, required this.onTap});
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    return AxCard(
+      onTap: onTap,
+      semanticsLabel: title,
+      child: Row(
+        children: [
+          Icon(icon, color: c.accent, size: 28),
+          SizedBox(width: ax.space.lg),
+          Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Align(alignment: Alignment.centerLeft, child: ArchangelMark(size: 34, tile: true)),
-                const SizedBox(height: 16),
-                Text(
-                  'Archangel',
-                  style: AxTextStyles.sans.copyWith(fontSize: 28, fontWeight: FontWeight.w700, color: AxColors.fg),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Get your server connected.',
-                  style: AxTextStyles.sans.copyWith(fontSize: 14, color: AxColors.fg2),
-                ),
-                const SizedBox(height: 32),
-                AxCard(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SetupWizardScreen()),
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Icon(Icons.dns_outlined, color: AxColors.accent, size: 28),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Set up a new server', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Point Archangel at a fresh VPS and an SSH key - it installs and pairs everything for you.',
-                              style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.fg2, height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.chevron_right, color: AxColors.fg3),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                AxCard(
-                  onTap: () => showPairingDialog(context),
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      Icon(Icons.qr_code_2, color: AxColors.fg2, size: 28),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('I already have a pairing code', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'From `archangeld pair` on a server that\'s already set up.',
-                              style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.fg2, height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.chevron_right, color: AxColors.fg3),
-                    ],
-                  ),
-                ),
+                Text(title, style: ax.typo.title.copyWith(color: c.text)),
+                SizedBox(height: ax.space.xs),
+                Text(body, style: ax.typo.body.copyWith(color: c.textMuted)),
               ],
             ),
           ),
-        ),
+          SizedBox(width: ax.space.sm),
+          Icon(Icons.chevron_right, color: c.textMuted),
+        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,22 +72,89 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, buildList(store.Entries(), auth.DeviceName(r.Context())))
 }
 
-// unpair runs the privileged revoke. A var so tests don't need sudo.
-var unpair = func(name string) error {
+// runSelf runs `sudo -n <this binary> <sub> [--config <path>] <name>` via
+// adminmode (outside the service sandbox) and returns its stdout.
+func runSelf(sub, name string, extra ...string) ([]byte, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	mu.RLock()
 	cfg := configPath
 	mu.RUnlock()
-	args := []string{exe, "unpair"}
+	args := []string{exe, sub}
 	if cfg != "" {
 		args = append(args, "--config", cfg)
 	}
+	args = append(args, extra...)
 	args = append(args, name)
-	_, err = adminmode.Run(30*time.Second, args...)
+	return adminmode.Run(30*time.Second, args...)
+}
+
+// unpair runs the privileged revoke. A var so tests don't need sudo.
+var unpair = func(name string) error {
+	_, err := runSelf("unpair", name)
 	return err
+}
+
+// pair runs `archangeld pair <name> --raw` and returns the bundle string.
+// A var so tests don't need sudo.
+var pair = func(name string) (string, error) {
+	out, err := runSelf("pair", name, "--raw")
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
+type createRequest struct {
+	Name string `json:"name"`
+}
+
+// CreateHandler handles POST /api/v1/devices {"name": "..."}: pairs a new
+// device and returns {"name","bundle"} - the same base64 pairing bundle
+// `archangeld pair` prints, for the app to show as a QR code / copyable
+// code on the already-paired device. The bundle contains the new device's
+// WireGuard private key and token, so it is only ever returned once.
+func CreateHandler(w http.ResponseWriter, r *http.Request) {
+	var req createRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "message": `expected {"name": "..."}`})
+		return
+	}
+	req.Name = strings.TrimSpace(req.Name)
+	if err := tokenstore.ValidateDeviceName(req.Name); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"success": false, "message": err.Error()})
+		return
+	}
+
+	mu.RLock()
+	path := storePath
+	mu.RUnlock()
+	if store, err := tokenstore.Load(path); err == nil {
+		if _, exists := store.Find(req.Name); exists {
+			writeJSON(w, http.StatusConflict, map[string]any{"success": false, "message": "a device called " + req.Name + " is already paired - pick another name"})
+			return
+		}
+	}
+
+	slog.Warn("pairing new device via API", "device", req.Name, "by", auth.DeviceName(r.Context()))
+	bundle, err := pair(req.Name)
+	bundle = strings.TrimSpace(bundle)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err == adminmode.ErrOff {
+			status = http.StatusForbidden
+		}
+		writeJSON(w, status, map[string]any{"success": false, "message": err.Error()})
+		return
+	}
+	if bundle == "" {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"success": false, "message": "pairing produced no bundle"})
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "name": req.Name, "bundle": bundle})
 }
 
 // DeleteHandler handles DELETE /api/v1/devices/{name}[?self=true]
