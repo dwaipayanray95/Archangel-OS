@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:xterm/xterm.dart';
 
 import '../../../services/terminal_session.dart';
@@ -61,9 +60,8 @@ class TerminalPane extends StatelessWidget {
                   textStyle: TerminalStyle(
                     fontSize: fontSize,
                     height: 1.25,
-                    fontFamily: _monoFamily(),
+                    fontFamily: kMonoFontFamily,
                     fontFamilyFallback: const [
-                      'JetBrains Mono',
                       'Menlo',
                       'Consolas',
                       'Liberation Mono',
@@ -85,14 +83,6 @@ class TerminalPane extends StatelessWidget {
         );
       },
     );
-  }
-
-  static String _monoFamily() {
-    try {
-      return GoogleFonts.jetBrainsMono().fontFamily ?? 'monospace';
-    } catch (_) {
-      return 'monospace';
-    }
   }
 }
 
