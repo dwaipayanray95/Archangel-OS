@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../screens/overview_screen.dart' show evaluateHealth, HealthLevel;
 import '../services/containers_service.dart';
 import '../services/devops_service.dart';
 import '../services/monitoring_service.dart';
@@ -13,6 +14,36 @@ class _NotifItem {
   const _NotifItem({required this.actor, required this.text, required this.detail, required this.color});
 }
 
+List<_NotifItem> _buildNotifItems(ContainersService contSvc, DevopsService devSvc) {
+  final items = <_NotifItem>[];
+
+  // Surface any warnings or active status from live containers
+  final containers = contSvc.overview?.containers ?? [];
+  for (final c in containers.take(3)) {
+    items.add(_NotifItem(
+      actor: c.name,
+      text: c.running ? 'running' : 'stopped',
+      detail: '${c.image} · ${c.uptime.isNotEmpty ? c.uptime : "idle"}',
+      color: c.running ? AxColors.accent : AxColors.warn,
+    ));
+  }
+
+  // Surface systemd services / deployments
+  for (final s in devSvc.services.take(2)) {
+    items.add(_NotifItem(
+      actor: s.name,
+      text: s.status,
+      detail: s.meta,
+      color: s.ok ? AxColors.accent : AxColors.bad,
+    ));
+  }
+  return items;
+}
+
+/// True when the panel has something to list - drives the bell's accent dot.
+bool hasNotifications(ContainersService contSvc, DevopsService devSvc) =>
+    _buildNotifItems(contSvc, devSvc).isNotEmpty;
+
 class NotifPanel extends StatelessWidget {
   const NotifPanel({super.key});
 
@@ -22,28 +53,8 @@ class NotifPanel extends StatelessWidget {
     final devSvc = context.watch<DevopsService>();
     final monSvc = context.watch<MonitoringService>();
 
-    final items = <_NotifItem>[];
-
-    // Surface any warnings or active status from live containers
-    final containers = contSvc.overview?.containers ?? [];
-    for (final c in containers.take(3)) {
-      items.add(_NotifItem(
-        actor: c.name,
-        text: c.running ? 'running' : 'stopped',
-        detail: '${c.image} · ${c.uptime.isNotEmpty ? c.uptime : "idle"}',
-        color: c.running ? AxColors.accent : AxColors.warn,
-      ));
-    }
-
-    // Surface systemd services / deployments
-    for (final s in devSvc.services.take(2)) {
-      items.add(_NotifItem(
-        actor: s.name,
-        text: s.status,
-        detail: s.meta,
-        color: s.ok ? AxColors.accent : AxColors.bad,
-      ));
-    }
+    final items = _buildNotifItems(contSvc, devSvc);
+    final health = evaluateHealth(connected: monSvc.isConnected, metrics: monSvc.metrics);
 
     return Positioned(
       top: 55,
@@ -78,7 +89,7 @@ class NotifPanel extends StatelessWidget {
                       const Spacer(),
                       Text(
                         items.isEmpty
-                            ? (monSvc.isConnected ? 'all nominal' : 'offline')
+                            ? (health.isHealthy ? 'all nominal' : (monSvc.isConnected ? 'attention' : 'offline'))
                             : '${items.length} active',
                         style: AxTextStyles.mono.copyWith(fontSize: 10, color: AxColors.fg3),
                       ),
@@ -90,7 +101,9 @@ class NotifPanel extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
                     child: Center(
                       child: Text(
-                        monSvc.isConnected ? 'No active alerts · All systems nominal' : 'Waiting for connection to archangeld...',
+                        health.isHealthy
+                            ? 'No active alerts · All systems nominal'
+                            : (health.level == HealthLevel.unreachable ? "Can't reach your server. ${health.hint}" : health.headline),
                         textAlign: TextAlign.center,
                         style: AxTextStyles.mono.copyWith(fontSize: 11, color: AxColors.fg3),
                       ),

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/devops_model.dart';
+import 'api_error.dart';
 import 'archangeld_connection.dart';
 
 class DevopsService extends ChangeNotifier {
@@ -23,6 +24,12 @@ class DevopsService extends ChangeNotifier {
 
   String? _error;
   String? get error => _error;
+
+  /// Why the last [triggerServiceAction] / [triggerScheduled] failed, in the
+  /// server's own words when it gave any (e.g. "Admin mode is off - this
+  /// action needs it"). Null after a success.
+  String? _lastActionMessage;
+  String? get lastActionMessage => _lastActionMessage;
 
   Timer? _pollTimer;
   ArchangeldConnection? _backend;
@@ -133,9 +140,11 @@ class DevopsService extends ChangeNotifier {
         headers: {'X-Archangel-Token': backend.token!},
       );
       fetchAll();
+      _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to $action $name.');
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('Error triggering service action: $e');
+      _lastActionMessage = 'Could not reach the backend: $e';
       return false;
     }
   }
@@ -150,9 +159,11 @@ class DevopsService extends ChangeNotifier {
         headers: {'X-Archangel-Token': backend.token!},
       );
       fetchAll();
+      _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to trigger $name.');
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('Error triggering scheduled timer: $e');
+      _lastActionMessage = 'Could not reach the backend: $e';
       return false;
     }
   }

@@ -1,8 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../services/containers_service.dart';
 import '../theme/tokens.dart';
+
+/// "⌘K" on Apple platforms, "Ctrl K" elsewhere.
+String paletteShortcutLabel() =>
+    (defaultTargetPlatform == TargetPlatform.macOS || defaultTargetPlatform == TargetPlatform.iOS) ? '⌘K' : 'Ctrl K';
 
 class _PaletteItem {
   final String label;
@@ -12,7 +18,7 @@ class _PaletteItem {
   const _PaletteItem({required this.label, required this.sub, required this.icon, required this.go});
 }
 
-/// Global ⌘K overlay — the second non-negotiable "OS-like" element besides
+/// Global command-palette overlay (⌘K / Ctrl K) — the second non-negotiable "OS-like" element besides
 /// the top bar: jump to any section or entity from anywhere in the app.
 class CommandPalette extends StatefulWidget {
   const CommandPalette({super.key});
@@ -23,11 +29,33 @@ class CommandPalette extends StatefulWidget {
 
 class _CommandPaletteState extends State<CommandPalette> {
   final _controller = TextEditingController();
+  int _selected = 0;
+  List<_PaletteItem> _flat = const [];
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.escape) {
+      context.read<AppState>().closePalette();
+      return KeyEventResult.handled;
+    }
+    if (_flat.isEmpty) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.arrowDown) {
+      setState(() => _selected = (_selected + 1) % _flat.length);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      setState(() => _selected = (_selected - 1 + _flat.length) % _flat.length);
+      return KeyEventResult.handled;
+    }
+    // Enter is handled by the field's onSubmitted (also covers soft keyboards).
+    return KeyEventResult.ignored;
   }
 
   @override
@@ -53,6 +81,9 @@ class _CommandPaletteState extends State<CommandPalette> {
       'Sections': filter(sections),
       'Containers': filter(containerItems),
     }..removeWhere((_, v) => v.isEmpty);
+    _flat = [for (final g in groups.values) ...g];
+    if (_selected >= _flat.length) _selected = _flat.isEmpty ? 0 : _flat.length - 1;
+    var flatIndex = 0;
 
     return GestureDetector(
       onTap: app.closePalette,
@@ -90,17 +121,23 @@ class _CommandPaletteState extends State<CommandPalette> {
                           const Icon(Icons.search, size: 15, color: AxColors.accent),
                           const SizedBox(width: 11),
                           Expanded(
-                            child: TextField(
+                            child: Focus(
+                              onKeyEvent: _onKey,
+                              child: TextField(
                               controller: _controller,
                               autofocus: true,
-                              onChanged: (_) => setState(() {}),
+                              onChanged: (_) => setState(() => _selected = 0),
+                              onSubmitted: (_) {
+                                if (_flat.isNotEmpty) _flat[_selected.clamp(0, _flat.length - 1)].go();
+                              },
                               style: AxTextStyles.sans.copyWith(fontSize: 15),
                               decoration: InputDecoration(
                                 border: InputBorder.none,
                                 isDense: true,
-                                hintText: 'Search sections, containers, services, files…',
+                                hintText: 'Search sections and containers…',
                                 hintStyle: AxTextStyles.sans.copyWith(fontSize: 15, color: AxColors.fg3),
                               ),
+                            ),
                             ),
                           ),
                           Container(
@@ -131,7 +168,8 @@ class _CommandPaletteState extends State<CommandPalette> {
                                   padding: const EdgeInsets.fromLTRB(9, 7, 9, 5),
                                   child: Text(entry.key.toUpperCase(), style: AxTextStyles.mono.copyWith(fontSize: 9.5, fontWeight: FontWeight.w500, letterSpacing: 1.2, color: AxColors.fg3)),
                                 ),
-                                for (final item in entry.value) _PaletteRow(item: item),
+                                for (final item in entry.value)
+                                  _PaletteRow(item: item, selected: flatIndex++ == _selected),
                               ],
                           ],
                         ),
@@ -144,7 +182,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                         children: [
                           _hint('↑↓', 'navigate'),
                           const SizedBox(width: 14),
-                          _hint('↵', 'select'),
+                          _hint('↵', 'open'),
                           const SizedBox(width: 14),
                           _hint('esc', 'close'),
                         ],
@@ -178,7 +216,8 @@ class _CommandPaletteState extends State<CommandPalette> {
 
 class _PaletteRow extends StatefulWidget {
   final _PaletteItem item;
-  const _PaletteRow({required this.item});
+  final bool selected;
+  const _PaletteRow({required this.item, required this.selected});
 
   @override
   State<_PaletteRow> createState() => _PaletteRowState();
@@ -186,6 +225,16 @@ class _PaletteRow extends StatefulWidget {
 
 class _PaletteRowState extends State<_PaletteRow> {
   bool _hover = false;
+
+  @override
+  void didUpdateWidget(_PaletteRow old) {
+    super.didUpdateWidget(old);
+    if (widget.selected && !old.selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Scrollable.ensureVisible(context, duration: const Duration(milliseconds: 80));
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +246,7 @@ class _PaletteRowState extends State<_PaletteRow> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
           margin: const EdgeInsets.symmetric(vertical: 1),
-          decoration: BoxDecoration(color: _hover ? AxColors.s3 : Colors.transparent, borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: (_hover || widget.selected) ? AxColors.s3 : Colors.transparent, borderRadius: BorderRadius.circular(10)),
           child: Row(
             children: [
               Container(

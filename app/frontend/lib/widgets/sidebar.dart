@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
+import '../services/monitoring_service.dart';
 import '../theme/tokens.dart';
 import 'ax_widgets.dart';
 
@@ -14,6 +15,19 @@ const _navIcons = <AxSection, IconData>{
   AxSection.settings: Icons.tune_rounded,
 };
 
+/// Title and subtitle for the sidebar's host card, from live metrics only.
+(String, String) hostSummary(MonitoringService mon) {
+  final m = mon.metrics;
+  if (m == null) {
+    return mon.status == MonitoringStatus.connecting ? ('Connecting…', '') : ('Not connected', '');
+  }
+  final parts = <String>[
+    if (m.host.os.isNotEmpty) m.host.os,
+    if (m.cpu.cores.isNotEmpty) '${m.cpu.cores.length} vCPU',
+  ];
+  return (m.host.hostname.isNotEmpty ? m.host.hostname : 'Connected', parts.join(' · '));
+}
+
 /// Left rail app-switcher shown at desktop widths — the second half of the
 /// "OS-like" shell alongside the persistent top bar.
 class Sidebar extends StatelessWidget {
@@ -22,6 +36,8 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final mon = context.watch<MonitoringService>();
+    final (title, subtitle) = hostSummary(mon);
     return Container(
       width: 206,
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 11),
@@ -44,15 +60,19 @@ class Sidebar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                StatusDot(color: app.accent, size: 7, pulse: true),
+                StatusDot(
+                  color: mon.isConnected ? app.accent : (mon.status == MonitoringStatus.connecting ? AxColors.warn : AxColors.fg3),
+                  size: 7,
+                  pulse: mon.isConnected,
+                ),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Archangel-MK1', style: AxTextStyles.mono.copyWith(fontSize: 11.5, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                      Text('Ubuntu 24.04 · 8 vCPU', style: AxTextStyles.sans.copyWith(fontSize: 10.5, color: AxColors.fg3)),
+                      Text(title, style: AxTextStyles.mono.copyWith(fontSize: 11.5, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                      Text(subtitle, style: AxTextStyles.sans.copyWith(fontSize: 10.5, color: AxColors.fg3), overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
