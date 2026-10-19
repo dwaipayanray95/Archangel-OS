@@ -146,7 +146,8 @@ class _FilesScreenState extends State<FilesScreen> {
           ),
           child: Row(
             children: [
-              Container(
+              Flexible(
+               child: Container(
                 constraints: const BoxConstraints(maxWidth: 240),
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
                 decoration: BoxDecoration(
@@ -171,6 +172,7 @@ class _FilesScreenState extends State<FilesScreen> {
                     ),
                   ],
                 ),
+               ),
               ),
               const SizedBox(width: 10),
               // Hidden files toggle

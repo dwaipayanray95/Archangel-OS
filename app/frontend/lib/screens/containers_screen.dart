@@ -84,8 +84,10 @@ class _ContainersScreenState extends State<ContainersScreen> {
                   ),
                 ],
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   AxSegmented<_View>(
                     values: _View.values,
@@ -93,7 +95,6 @@ class _ContainersScreenState extends State<ContainersScreen> {
                     label: (v) => v == _View.cards ? 'Cards' : 'Table',
                     onSelect: (v) => setState(() => _view = v),
                   ),
-                  const SizedBox(width: 8),
                   InkWell(
                     borderRadius: BorderRadius.circular(AxRadius.pill),
                     onTap: () => _showCreateContainerDialog(context, svc),
@@ -114,7 +115,6 @@ class _ContainersScreenState extends State<ContainersScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   InkWell(
                     borderRadius: BorderRadius.circular(AxRadius.pill),
                     onTap: () => svc.fetchContainers(),

@@ -189,7 +189,8 @@ class _DevopsScreenState extends State<DevopsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Column(
+              Flexible(
+               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -208,6 +209,7 @@ class _DevopsScreenState extends State<DevopsScreen> {
                   const SizedBox(height: 3),
                   Text('systemd · cron · caddy · deploy hooks', style: AxTextStyles.mutedMono),
                 ],
+               ),
               ),
               InkWell(
                 borderRadius: BorderRadius.circular(AxRadius.pill),

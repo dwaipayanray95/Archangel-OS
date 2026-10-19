@@ -23,7 +23,8 @@ import 'package:archangel/widgets/app_shell.dart';
 /// about AppShell's own rendering, not first-run routing, so they don't
 /// need a real paired state.
 Future<AppState> pumpAppShell(WidgetTester tester, {Size size = const Size(1400, 900)}) async {
-  await useTempKvStore();
+  // testWidgets runs in a FakeAsync zone; real file IO must go via runAsync.
+  await tester.runAsync(useTempKvStore);
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -61,10 +62,10 @@ Future<Directory> useTempKvStore() async {
   final dir = await Directory.systemTemp.createTemp('archangel_kv_test');
   LocalKvStore.directoryOverride = () async => dir;
   LocalKvStore.instance.resetForTesting();
-  addTearDown(() async {
+  addTearDown(() {
     LocalKvStore.directoryOverride = null;
     LocalKvStore.instance.resetForTesting();
-    if (await dir.exists()) await dir.delete(recursive: true);
+    if (dir.existsSync()) dir.deleteSync(recursive: true);
   });
   return dir;
 }
