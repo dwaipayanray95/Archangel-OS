@@ -183,7 +183,7 @@ class _ContainersScreenState extends State<ContainersScreen> {
                 final success = await svc.triggerAction(c.id, action);
                 if (context.mounted && !success) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to $action container ${c.name}')),
+                    SnackBar(content: Text(svc.lastActionMessage ?? 'Failed to $action container ${c.name}')),
                   );
                 }
               },

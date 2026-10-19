@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data/app_state.dart';
 import 'screens/setup/setup_landing_screen.dart';
+import 'services/admin_mode_service.dart';
 import 'services/archangeld_connection.dart';
 import 'services/containers_service.dart';
+import 'services/devices_service.dart';
 import 'services/devops_service.dart';
 import 'services/files_service.dart';
 import 'services/monitoring_service.dart';
@@ -39,6 +41,8 @@ class ArchangelApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FilesService()),
         ChangeNotifierProvider(create: (_) => ContainersService()),
         ChangeNotifierProvider(create: (_) => DevopsService()),
+        ChangeNotifierProvider(create: (_) => DevicesService()),
+        ChangeNotifierProvider(create: (_) => AdminModeService()),
         ChangeNotifierProvider(create: (_) => UpdateCheckService()..loadCache()),
       ],
       child: Consumer<AppState>(

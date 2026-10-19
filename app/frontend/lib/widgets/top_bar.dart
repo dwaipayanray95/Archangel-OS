@@ -3,11 +3,15 @@ import 'package:provider/provider.dart';
 import '../data/app_state.dart';
 import '../services/containers_service.dart';
 import '../services/devops_service.dart';
+import '../services/containers_service.dart';
+import '../services/devops_service.dart';
 import '../services/monitoring_service.dart';
 import '../services/wireguard_controller.dart';
 import '../theme/tokens.dart';
 import 'archangel_mark.dart';
 import 'ax_widgets.dart';
+import 'command_palette.dart' show paletteShortcutLabel;
+import 'notif_panel.dart' show hasNotifications;
 import 'command_palette.dart' show paletteShortcutLabel;
 import 'notif_panel.dart' show hasNotifications;
 

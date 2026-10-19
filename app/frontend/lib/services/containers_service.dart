@@ -168,12 +168,17 @@ class ContainersService extends ChangeNotifier {
         body: jsonEncode(payload),
       );
 
+      // Error bodies (e.g. 503 "Docker is not running") may not carry the
+      // full success/message shape, so don't assume it.
+      Map<String, dynamic> data = {};
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) data = decoded;
+      } catch (_) {}
       fetchContainers();
       return {
-        'success': res.statusCode == 200 && _decodeSuccess(res.body),
-        'message': res.statusCode == 200
-            ? (_decodeMessage(res.body) ?? 'Container created')
-            : serverMessage(res, 'Failed to create container'),
+        'success': data['success'] == true,
+        'message': data['message'] ?? serverMessage(res, res.statusCode == 200 ? 'Container created' : 'Failed to create container'),
       };
     } catch (e) {
       debugPrint('Error creating container: $e');

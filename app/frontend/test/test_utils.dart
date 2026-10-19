@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:archangel/data/app_state.dart';
+import 'package:archangel/services/admin_mode_service.dart';
 import 'package:archangel/services/archangeld_connection.dart';
 import 'package:archangel/services/containers_service.dart';
+import 'package:archangel/services/devices_service.dart';
 import 'package:archangel/services/devops_service.dart';
 import 'package:archangel/services/files_service.dart';
 import 'package:archangel/services/local_kv_store.dart';
@@ -40,6 +42,8 @@ Future<AppState> pumpAppShell(WidgetTester tester, {Size size = const Size(1400,
         ChangeNotifierProvider(create: (_) => FilesService()),
         ChangeNotifierProvider(create: (_) => ContainersService()),
         ChangeNotifierProvider(create: (_) => DevopsService()),
+        ChangeNotifierProvider(create: (_) => DevicesService()),
+        ChangeNotifierProvider(create: (_) => AdminModeService()),
         ChangeNotifierProvider(create: (_) => UpdateCheckService()),
       ],
       child: Consumer<AppState>(
