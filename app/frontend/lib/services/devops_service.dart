@@ -31,6 +31,16 @@ class DevopsService extends ChangeNotifier {
   String? _lastActionMessage;
   String? get lastActionMessage => _lastActionMessage;
 
+  /// HTTP status of the last failed action (403 = admin mode off, 409/400 =
+  /// the server's stop guard, ...). Null after a success or no response.
+  int? _lastActionStatus;
+  int? get lastActionStatus => _lastActionStatus;
+
+  /// True once the first fetch has finished (successfully or not), so the UI
+  /// can tell "still loading" from "nothing here".
+  bool _loaded = false;
+  bool get hasLoaded => _loaded;
+
   Timer? _pollTimer;
   ArchangeldConnection? _backend;
 
@@ -72,8 +82,10 @@ class DevopsService extends ChangeNotifier {
     _proxy = [];
     _deployments = [];
     _loading = false;
+    _loaded = false;
     _error = null;
     _lastActionMessage = null;
+    _lastActionStatus = null;
     notifyListeners();
   }
 
@@ -91,6 +103,7 @@ class DevopsService extends ChangeNotifier {
       _proxy = [];
       _deployments = [];
       _loading = false;
+      _loaded = true;
       notifyListeners();
       return;
     }
@@ -159,6 +172,7 @@ class DevopsService extends ChangeNotifier {
       _error = e.toString();
     } finally {
       _loading = false;
+      _loaded = true;
       notifyListeners();
     }
   }
@@ -174,10 +188,12 @@ class DevopsService extends ChangeNotifier {
       );
       fetchAll();
       _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to $action $name.');
+      _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('Error triggering service action: $e');
       _lastActionMessage = 'Could not reach the backend: $e';
+      _lastActionStatus = null;
       return false;
     }
   }
@@ -193,10 +209,12 @@ class DevopsService extends ChangeNotifier {
       );
       fetchAll();
       _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to trigger $name.');
+      _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('Error triggering scheduled timer: $e');
       _lastActionMessage = 'Could not reach the backend: $e';
+      _lastActionStatus = null;
       return false;
     }
   }
@@ -229,15 +247,21 @@ class DevopsService extends ChangeNotifier {
         backend.devopsDeploymentRunHttpUri(name),
         headers: {'X-Archangel-Token': backend.token!},
       );
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      Map<String, dynamic> data;
+      try {
+        data = jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {
+        data = {'message': serverMessage(res, 'The script could not be run.')};
+      }
       fetchAll();
       return {
+        'ok': res.statusCode == 200 ? 'true' : 'false',
         'message': data['message'] as String? ?? (res.statusCode == 200 ? 'Success' : 'Failed'),
         'output': data['output'] as String? ?? '',
       };
     } catch (e) {
       debugPrint('Error running deployment: $e');
-      return {'message': 'Error: $e', 'output': ''};
+      return {'ok': 'false', 'message': 'Could not reach your server: $e', 'output': ''};
     }
   }
 
@@ -306,9 +330,13 @@ class DevopsService extends ChangeNotifier {
         headers: {'X-Archangel-Token': backend.token!},
       );
       fetchAll();
+      _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to delete $name.');
+      _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('Error deleting deployment: $e');
+      _lastActionMessage = 'Could not reach the backend: $e';
+      _lastActionStatus = null;
       return false;
     }
   }
