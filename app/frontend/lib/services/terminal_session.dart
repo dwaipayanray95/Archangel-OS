@@ -19,6 +19,18 @@ String shellSingleQuote(String s) => "'${s.replaceAll("'", "'\\''")}'";
 /// The line typed into a shell to change into [dir].
 String cdCommandFor(String dir) => 'cd -- ${shellSingleQuote(dir)}\n';
 
+/// True when [dir] is safe to type into a shell line: no C0 control chars
+/// (0x00-0x1F) or DEL (0x7F), which readline would interpret before quoting.
+bool isSafeShellPath(String dir) {
+  for (final u in dir.codeUnits) {
+    if (u < 0x20 || u == 0x7f) return false;
+  }
+  return true;
+}
+
+/// Max characters of terminal output retained (oldest trimmed first).
+const int terminalOutputCap = 200000;
+
 /// Picks the first unused name: "main", then "shell-2", "shell-3", ...
 /// [taken] should hold both server-side sessions and currently open tabs.
 String nextSessionName(Iterable<String> taken) {
@@ -133,8 +145,11 @@ class TerminalSession extends ChangeNotifier {
   SessionStatus _status = SessionStatus.connecting;
   SessionStatus get status => _status;
 
-  final StringBuffer _output = StringBuffer();
-  String get output => _output.toString();
+  String _output = '';
+  String get output => _output;
+
+  int _gen = 0;
+  bool _disposed = false;
 
   String? _error;
   String? get error => _error;
@@ -146,6 +161,12 @@ class TerminalSession extends ChangeNotifier {
   /// dismissible banner, never mixed into terminal output.
   String? _notice;
   String? get notice => _notice;
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   void dismissNotice() {
     if (_notice == null) return;
     _notice = null;
@@ -178,7 +199,8 @@ class TerminalSession extends ChangeNotifier {
   }
 
   void _startConnection() {
-    if (_backend == null) return;
+    if (_backend == null || _disposed) return;
+    final gen = ++_gen;
     _sub?.cancel();
     _channel?.sink.close();
     _pingTimer?.cancel();
@@ -186,6 +208,7 @@ class TerminalSession extends ChangeNotifier {
     if (_firstOutput.isCompleted) _firstOutput = Completer<void>();
     _stalled = false;
     _stallTimer = Timer(const Duration(seconds: 10), () {
+      if (gen != _gen || _disposed) return;
       _stalled = true;
       if (_output.isEmpty) notifyListeners();
     });
@@ -205,8 +228,10 @@ class TerminalSession extends ChangeNotifier {
       return;
     }
 
+    final WebSocketChannel channel;
     try {
-      _channel = WebSocketChannel.connect(uri);
+      channel = WebSocketChannel.connect(uri);
+      _channel = channel;
     } catch (e) {
       _status = SessionStatus.error;
       _error = 'Could not open connection: $e';
@@ -214,9 +239,13 @@ class TerminalSession extends ChangeNotifier {
       return;
     }
 
-    _sub = _channel!.stream.listen(
-      _onMessage,
+    _sub = channel.stream.listen(
+      (raw) {
+        if (gen != _gen) return;
+        _onMessage(raw);
+      },
       onDone: () {
+        if (gen != _gen) return;
         _pingTimer?.cancel();
         if (_status != SessionStatus.error) {
           _status = SessionStatus.closed;
@@ -224,6 +253,7 @@ class TerminalSession extends ChangeNotifier {
         }
       },
       onError: (e) {
+        if (gen != _gen) return;
         _pingTimer?.cancel();
         _status = SessionStatus.error;
         _error = e.toString();
@@ -232,7 +262,8 @@ class TerminalSession extends ChangeNotifier {
       cancelOnError: true,
     );
 
-    _channel!.ready.then((_) {
+    channel.ready.then((_) {
+      if (gen != _gen || _disposed) return;
       if (_status != SessionStatus.connected) {
         _status = SessionStatus.connected;
         notifyListeners();
@@ -242,10 +273,11 @@ class TerminalSession extends ChangeNotifier {
       _pingTimer?.cancel();
       _pingTimer = Timer.periodic(const Duration(seconds: 45), (_) {
         if (_status == SessionStatus.connected) {
-          _channel?.sink.add(jsonEncode({'type': 'ping'}));
+          channel.sink.add(jsonEncode({'type': 'ping'}));
         }
       });
     }).catchError((Object e) {
+      if (gen != _gen || _disposed) return;
       if (_status != SessionStatus.error) {
         _status = SessionStatus.error;
         _error = 'Could not open connection: $e';
@@ -256,16 +288,17 @@ class TerminalSession extends ChangeNotifier {
 
   void reconnect() {
     // The server redraws the attached session, so start from a clean buffer.
-    _output.clear();
+    _output = '';
     _startConnection();
   }
 
   void clearOutput() {
-    _output.clear();
+    _output = '';
     notifyListeners();
   }
 
   void _onMessage(dynamic raw) {
+    if (_disposed) return;
     Map<String, dynamic> frame;
     try {
       frame = jsonDecode(raw as String) as Map<String, dynamic>;
@@ -306,20 +339,34 @@ class TerminalSession extends ChangeNotifier {
   /// rather than leaving non-printable box characters.
   void _appendDecodedText(String text) {
     if (text.isEmpty) return;
-    for (int i = 0; i < text.length; i++) {
-      final char = text[i];
-      if (char == '\b' || char == '\x7f') {
-        // Backspace: remove last character if buffer is not empty
-        final current = _output.toString();
-        if (current.isNotEmpty) {
-          _output.clear();
-          _output.write(current.substring(0, current.length - 1));
+    // Backspaces edit the pending chunk first; only a backspace that runs past
+    // the chunk touches the retained tail (O(1) amortised, no full rebuild).
+    final chunk = <int>[];
+    var trimTail = 0;
+    for (final u in text.codeUnits) {
+      if (u == 0x08 || u == 0x7f) {
+        if (chunk.isNotEmpty) {
+          chunk.removeLast();
+        } else {
+          trimTail++;
         }
       } else {
-        _output.write(char);
+        chunk.add(u);
       }
     }
+    var base = _output;
+    if (trimTail > 0) {
+      base = base.substring(0, base.length > trimTail ? base.length - trimTail : 0);
+    }
+    var next = chunk.isEmpty ? base : base + String.fromCharCodes(chunk);
+    if (next.length > terminalOutputCap) {
+      next = next.substring(next.length - terminalOutputCap);
+    }
+    _output = next;
   }
+
+  @visibleForTesting
+  void debugAppend(String text) => _appendDecodedText(text);
 
   /// Cleans ANSI escape sequences and normalizes carriage returns for smooth display
   static final RegExp _ansiRegex = RegExp(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])');
@@ -331,13 +378,18 @@ class TerminalSession extends ChangeNotifier {
   }
 
   /// Types a `cd` into the shell once it has printed something (prompt).
-  Future<void> changeDirectory(String dir) async {
+  /// Returns false when nothing was sent (unsafe path, disposed, or not
+  /// connected after waiting).
+  Future<bool> changeDirectory(String dir) async {
+    if (!isSafeShellPath(dir)) return false;
     await waitForFirstOutput();
+    if (_disposed || _status != SessionStatus.connected) return false;
     sendInput(cdCommandFor(dir));
+    return true;
   }
 
   void sendInput(String text) {
-    if (_channel == null || text.isEmpty) return;
+    if (_disposed || _channel == null || text.isEmpty) return;
     _channel!.sink.add(jsonEncode({
       'type': 'stdin',
       'data': base64.encode(utf8.encode(text)),
@@ -347,6 +399,7 @@ class TerminalSession extends ChangeNotifier {
   void resize(int cols, int rows) {
     _cols = cols;
     _rows = rows;
+    if (_disposed) return;
     _channel?.sink.add(jsonEncode({'type': 'resize', 'cols': cols, 'rows': rows}));
   }
 
@@ -360,7 +413,10 @@ class TerminalSession extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
     close();
+    _disposed = true;
+    _gen++;
     super.dispose();
   }
 }

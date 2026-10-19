@@ -66,7 +66,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (initialDir != null && initialDir.isNotEmpty) {
       session.changeDirectory(initialDir);
     } else if (initialCommand != null && initialCommand.isNotEmpty) {
-      session.waitForFirstOutput().then((_) => session.sendInput('$initialCommand\n'));
+      session.waitForFirstOutput().then((_) => session.sendInput('$initialCommand\n')); // no-op once disposed
     }
     setState(() {
       _sessions.add(session);
@@ -81,6 +81,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
     session.dispose();
     setState(() {
       _sessions.removeAt(index);
+      if (index < _tab) _tab--;
       if (_tab >= _sessions.length) _tab = _sessions.length - 1;
       if (_tab < 0) _tab = 0;
     });
@@ -125,8 +126,14 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (pendingDir != null && backend.isPaired) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        if (!isSafeShellPath(pendingDir)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('This folder name contains control characters; open it manually.')));
+          return;
+        }
         if (_sessions.isNotEmpty) {
-          _sessions[_tab].sendInput(cdCommandFor(pendingDir));
+          // Waits for the session to be connected, like a fresh tab does.
+          _sessions[_tab].changeDirectory(pendingDir);
         } else {
           _openSession(backend, name: 'main', initialDir: pendingDir);
         }

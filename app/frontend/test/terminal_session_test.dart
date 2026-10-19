@@ -29,6 +29,41 @@ void main() {
     });
   });
 
+  group('isSafeShellPath', () {
+    test('accepts normal and unicode paths', () {
+      expect(isSafeShellPath('/var/log/my dir/é'), isTrue);
+    });
+    test('rejects C0 controls and DEL', () {
+      expect(isSafeShellPath('/a\nb'), isFalse);
+      expect(isSafeShellPath('/a\x00b'), isFalse);
+      expect(isSafeShellPath('/a\x1bb'), isFalse);
+      expect(isSafeShellPath('/a\x7fb'), isFalse);
+    });
+  });
+
+  group('output buffer', () {
+    test('caps retained output, trimming from the start', () {
+      final s = TerminalSession(label: 'x');
+      s.debugAppend('A' * (terminalOutputCap - 10));
+      s.debugAppend('B' * 30);
+      expect(s.output.length, terminalOutputCap);
+      expect(s.output.endsWith('B' * 30), isTrue);
+      expect(s.output.startsWith('A'), isTrue);
+      s.dispose();
+    });
+    test('backspace edits tail and chunk', () {
+      final s = TerminalSession(label: 'x');
+      s.debugAppend('abc');
+      s.debugAppend('\b\bX');
+      expect(s.output, 'aX');
+      s.debugAppend('ab\x7f');
+      expect(s.output, 'aXa');
+      s.debugAppend('\b\b\b\b');
+      expect(s.output, '');
+      s.dispose();
+    });
+  });
+
   group('session JSON', () {
     test('parses the list payload', () {
       final list = parseTerminalSessions(
