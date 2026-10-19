@@ -161,14 +161,20 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
               // themes, so this is deliberately not themed.
               padding: EdgeInsets.all(ax.space.lg),
               color: Colors.white,
-              child: QrImageView(
-                data: code,
-                size: 220,
-                padding: EdgeInsets.zero,
-                backgroundColor: Colors.white,
-                errorCorrectionLevel: QrErrorCorrectLevel.L,
-                eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
-                dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+              // Fixed size: AlertDialog measures intrinsic widths, which QrImageView's
+              // LayoutBuilder cannot answer.
+              child: SizedBox(
+                width: 220,
+                height: 220,
+                child: QrImageView(
+                  data: code,
+                  size: 220,
+                  padding: EdgeInsets.zero,
+                  backgroundColor: Colors.white,
+                  errorCorrectionLevel: QrErrorCorrectLevel.L,
+                  eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
+                  dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+                ),
               ),
             ),
           ),
