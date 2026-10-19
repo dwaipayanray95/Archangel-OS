@@ -654,4 +654,3 @@ func readLinuxOSName() string {
 	}
 	return "Linux"
 }
-

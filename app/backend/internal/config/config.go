@@ -44,6 +44,13 @@ type Config struct {
 	// device's config so it knows where to dial in from outside the
 	// tunnel. Required for `archangeld pair` to work; unused otherwise.
 	PublicEndpoint string `yaml:"public_endpoint"`
+
+	// TerminalSocket is the tmux server socket the Terminal tab's
+	// persistent sessions use. It must be an explicit path (not tmux's
+	// default under /tmp) because archangel.service has PrivateTmp=true, so
+	// a /tmp socket would be invisible to the tmux server, which runs
+	// outside the service's sandbox. Its directory is created 0700.
+	TerminalSocket string `yaml:"terminal_socket"`
 }
 
 func Load(path string) (*Config, error) {
@@ -74,6 +81,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.WgSubnet == "" {
 		cfg.WgSubnet = "10.10.0"
+	}
+	if cfg.TerminalSocket == "" {
+		cfg.TerminalSocket = "/home/archangel/.archangel/tmux.sock"
 	}
 
 	return &cfg, nil

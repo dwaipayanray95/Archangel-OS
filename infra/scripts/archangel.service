@@ -6,6 +6,7 @@ Requires=wg-quick@wg0.service
 
 [Service]
 Type=simple
+ExecStartPre=+/bin/sh -c 'loginctl enable-linger archangel || true'
 ExecStart=/opt/archangel/archangeld -config /etc/archangel/config.yaml
 Restart=on-failure
 RestartSec=5
@@ -20,6 +21,11 @@ MemoryHigh=120M
 CPUQuota=50%
 TasksMax=100
 
+# Interactive terminals no longer run under this unit: they run under the
+# archangel user's systemd user manager via tmux, so MemoryMax/CPUQuota etc.
+# below only constrain the daemon itself. lingering keeps that user manager
+# alive without a login session.
+#
 # Hybrid Cockpit model: the daemon runs as 'archangel' for least-privilege
 # separation, but is granted passwordless sudo in /etc/sudoers.d/archangel
 # so administrative commands in the terminal (apt upgrade, systemctl, etc.)
@@ -33,7 +39,8 @@ NoNewPrivileges=false
 ProtectSystem=full
 PrivateTmp=true
 WorkingDirectory=/home/archangel
-ReadWritePaths=/home/archangel /opt/archangel /srv/deploy
+# '-' prefix: a missing /srv/deploy is non-fatal.
+ReadWritePaths=/home/archangel /opt/archangel -/srv/deploy
 ReadOnlyPaths=/etc/archangel
 
 [Install]

@@ -143,7 +143,7 @@ class AxSegmented<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final bar = Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: AxColors.s1,
@@ -161,6 +161,14 @@ class AxSegmented<T> extends StatelessWidget {
             ),
         ],
       ),
+    );
+    // On narrow (phone-width) parents the segments can be wider than the
+    // screen - scroll sideways instead of overflowing. Unbounded parents
+    // (e.g. inside a Row) keep the plain intrinsic-width bar.
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.hasBoundedWidth
+          ? SingleChildScrollView(scrollDirection: Axis.horizontal, child: bar)
+          : bar,
     );
   }
 }

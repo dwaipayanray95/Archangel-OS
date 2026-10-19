@@ -55,14 +55,14 @@ class _DevopsScreenState extends State<DevopsScreen> {
       final ok = await svc.triggerServiceAction(row.name, action);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ok ? 'Service ${row.name} $action triggered.' : 'Failed to $action ${row.name}.')),
+          SnackBar(content: Text(ok ? 'Service ${row.name} $action triggered.' : (svc.lastActionMessage ?? 'Failed to $action ${row.name}.'))),
         );
       }
     } else if (_tab == _DevTab.scheduled) {
       final ok = await svc.triggerScheduled(row.name);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ok ? 'Timer ${row.name} triggered.' : 'Failed to trigger ${row.name}.')),
+          SnackBar(content: Text(ok ? 'Timer ${row.name} triggered.' : (svc.lastActionMessage ?? 'Failed to trigger ${row.name}.'))),
         );
       }
     } else if (_tab == _DevTab.deployments) {
@@ -189,7 +189,8 @@ class _DevopsScreenState extends State<DevopsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Column(
+              Flexible(
+               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -208,6 +209,7 @@ class _DevopsScreenState extends State<DevopsScreen> {
                   const SizedBox(height: 3),
                   Text('systemd · cron · caddy · deploy hooks', style: AxTextStyles.mutedMono),
                 ],
+               ),
               ),
               InkWell(
                 borderRadius: BorderRadius.circular(AxRadius.pill),

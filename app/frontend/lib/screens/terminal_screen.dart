@@ -18,8 +18,10 @@ class TerminalScreen extends StatefulWidget {
 
 class _TerminalScreenState extends State<TerminalScreen> {
   final List<TerminalSession> _sessions = [];
+  List<TerminalSessionInfo> _serverSessions = const [];
   int _tab = 0;
-  int _nextId = 1;
+  bool _bootstrapping = false;
+  bool _bootstrapped = false;
 
   @override
   void dispose() {
@@ -29,24 +31,42 @@ class _TerminalScreenState extends State<TerminalScreen> {
     super.dispose();
   }
 
-  void _openSession(ArchangeldConnection backend, {String? initialDir, String? initialCommand, String? label, bool isShared = false}) {
-    final sessionLabel = isShared ? 'live tmux' : (label ?? 'shell $_nextId');
-    if (!isShared) _nextId++;
-    final session = TerminalSession(label: sessionLabel);
+  Iterable<String> get _takenNames => [..._serverSessions.map((s) => s.name), ..._sessions.map((s) => s.name)];
+
+  /// Fetches the server's session list, then attaches to "main" (or the first
+  /// existing session when there is no "main").
+  Future<void> _bootstrap(ArchangeldConnection backend, {String? initialDir}) async {
+    if (_bootstrapping) return;
+    _bootstrapping = true;
+    final list = await TerminalSessionApi.list(backend);
+    if (!mounted) return;
+    if (list != null) _serverSessions = list;
+    final names = _serverSessions.map((s) => s.name).toList();
+    final name = names.isEmpty || names.contains('main') ? 'main' : names.first;
+    _bootstrapped = true;
+    _bootstrapping = false;
+    if (_sessions.isEmpty) _openSession(backend, name: name, initialDir: initialDir);
+  }
+
+  Future<void> _refreshServerSessions(ArchangeldConnection backend) async {
+    final list = await TerminalSessionApi.list(backend);
+    if (!mounted || list == null) return;
+    setState(() => _serverSessions = list);
+  }
+
+  void _openSession(ArchangeldConnection backend, {String? name, String? initialDir, String? initialCommand}) {
+    final sessionName = name ?? nextSessionName(_takenNames);
+    final existing = _sessions.indexWhere((s) => s.name == sessionName);
+    if (existing >= 0) {
+      setState(() => _tab = existing);
+      return;
+    }
+    final session = TerminalSession(label: sessionName);
     session.connect(backend);
-    if (isShared) {
-      // Connects or attaches to a shared persistent tmux session that survives disconnections
-      Future.delayed(const Duration(milliseconds: 600), () {
-        session.sendInput('tmux new-session -A -s archangel-live\n');
-      });
-    } else if (initialDir != null && initialDir.isNotEmpty) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        session.sendInput('cd "$initialDir"\n');
-      });
+    if (initialDir != null && initialDir.isNotEmpty) {
+      session.changeDirectory(initialDir);
     } else if (initialCommand != null && initialCommand.isNotEmpty) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        session.sendInput('$initialCommand\n');
-      });
+      session.waitForFirstOutput().then((_) => session.sendInput('$initialCommand\n')); // no-op once disposed
     }
     setState(() {
       _sessions.add(session);
@@ -54,14 +74,45 @@ class _TerminalScreenState extends State<TerminalScreen> {
     });
   }
 
-  void _closeSession(int index) {
+  /// Detach: drops this tab's connection; the shell keeps running server-side.
+  void _detachSession(int index, ArchangeldConnection backend) {
     final session = _sessions[index];
     session.close();
     session.dispose();
     setState(() {
       _sessions.removeAt(index);
+      if (index < _tab) _tab--;
       if (_tab >= _sessions.length) _tab = _sessions.length - 1;
+      if (_tab < 0) _tab = 0;
     });
+    _refreshServerSessions(backend);
+  }
+
+  Future<void> _endSession(int index, ArchangeldConnection backend) async {
+    final session = _sessions[index];
+    final ok = await _confirmEnd(context, session.name);
+    if (ok != true || !mounted) return;
+    final err = await TerminalSessionApi.end(backend, session.name);
+    if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err), backgroundColor: AxColors.bad));
+      return;
+    }
+    final i = _sessions.indexOf(session);
+    if (i >= 0) _detachSession(i, backend);
+  }
+
+  Future<void> _showSessions(ArchangeldConnection backend) async {
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (_) => _SessionsDialog(
+        backend: backend,
+        openNames: _sessions.map((s) => s.name).toSet(),
+        initial: _serverSessions,
+      ),
+    );
+    if (picked != null && mounted) _openSession(backend, name: picked);
+    if (mounted) _refreshServerSessions(backend);
   }
 
   @override
@@ -74,15 +125,23 @@ class _TerminalScreenState extends State<TerminalScreen> {
 
     if (pendingDir != null && backend.isPaired) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!isSafeShellPath(pendingDir)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('This folder name contains control characters; open it manually.')));
+          return;
+        }
         if (_sessions.isNotEmpty) {
-          _sessions[_tab].sendInput('cd "$pendingDir"\n');
+          // Waits for the session to be connected, like a fresh tab does.
+          _sessions[_tab].changeDirectory(pendingDir);
         } else {
-          _openSession(backend, initialDir: pendingDir);
+          _openSession(backend, name: 'main', initialDir: pendingDir);
         }
       });
     } else if (pendingCmd != null && backend.isPaired) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _openSession(backend, initialCommand: pendingCmd, label: 'exec');
+        if (!mounted) return;
+        _openSession(backend, initialCommand: pendingCmd);
       });
     }
 
@@ -91,9 +150,17 @@ class _TerminalScreenState extends State<TerminalScreen> {
     }
 
     if (_sessions.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _sessions.isEmpty) _openSession(backend, initialDir: pendingDir);
-      });
+      if (!_bootstrapped && !_bootstrapping && pendingDir == null && pendingCmd == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _sessions.isEmpty) _bootstrap(backend);
+        });
+      } else if (_bootstrapped && pendingDir == null && pendingCmd == null) {
+        // All tabs were detached: offer a way back in rather than auto-reopening.
+        return _NoTabs(
+          onNew: () => _openSession(backend),
+          onSessions: () => _showSessions(backend),
+        );
+      }
       return const Center(
         child: CircularProgressIndicator(strokeWidth: 2, color: AxColors.accent),
       );
@@ -105,7 +172,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.fromLTRB(10, 7, 10, 0),
+          padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
           decoration: const BoxDecoration(color: AxColors.s1, border: Border(bottom: BorderSide(color: AxColors.line))),
           child: Row(
             children: [
@@ -121,55 +188,31 @@ class _TerminalScreenState extends State<TerminalScreen> {
                           session: _sessions[i],
                           selected: i == _tab,
                           onTap: () => setState(() => _tab = i),
-                          onClose: () => _closeSession(i),
+                          onClose: () => _detachSession(i, backend),
                         ),
                       const SizedBox(width: 4),
-                      PopupMenuButton<String>(
+                      IconButton(
                         tooltip: 'New session',
                         icon: const Icon(Icons.add_rounded, size: 16, color: AxColors.fg3),
-                        color: AxColors.s2,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: AxColors.line)),
-                        onSelected: (val) {
-                          if (val == 'shell') {
-                            _openSession(backend);
-                          } else if (val == 'tmux') {
-                            _openSession(backend, isShared: true);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'shell',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.terminal_rounded, size: 14, color: AxColors.accent),
-                                const SizedBox(width: 8),
-                                Text('Standard Shell', style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg)),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'tmux',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.hub_rounded, size: 14, color: AxColors.warn),
-                                const SizedBox(width: 8),
-                                Text('Persistent Tmux (Alive)', style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg)),
-                              ],
-                            ),
-                          ),
-                        ],
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        onPressed: () => _openSession(backend),
+                      ),
+                      IconButton(
+                        tooltip: 'Sessions',
+                        icon: const Icon(Icons.layers_outlined, size: 15, color: AxColors.fg3),
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        onPressed: () => _showSessions(backend),
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(width: 6),
-              // Quick action buttons: Copy output, clear screen
+              // Quick action buttons: Copy output, clear screen, end session
               IconButton(
                 icon: const Icon(Icons.copy_rounded, size: 13, color: AxColors.fg3),
                 tooltip: 'Copy buffer',
-                padding: const EdgeInsets.all(6),
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: currentSession.output));
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -177,26 +220,179 @@ class _TerminalScreenState extends State<TerminalScreen> {
                   );
                 },
               ),
-              const SizedBox(width: 6),
               IconButton(
                 icon: const Icon(Icons.cleaning_services_rounded, size: 13, color: AxColors.fg3),
                 tooltip: 'Clear screen',
-                padding: const EdgeInsets.all(6),
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 onPressed: () {
                   currentSession.clearOutput();
                   currentSession.sendInput('\x0c'); // Form feed / clear
                 },
               ),
-              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.power_settings_new_rounded, size: 14, color: AxColors.bad),
+                tooltip: 'End session',
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: () => _endSession(_tab, backend),
+              ),
+              const SizedBox(width: 4),
               Padding(
-                padding: const EdgeInsets.only(bottom: 2, right: 4),
+                padding: const EdgeInsets.only(right: 4),
                 child: Text(backend.host ?? '', style: AxTextStyles.mono.copyWith(fontSize: 10, color: AxColors.fg3)),
               ),
             ],
           ),
         ),
         Expanded(child: _LivePane(key: ValueKey(currentSession), session: currentSession)),
+      ],
+    );
+  }
+}
+
+Future<bool?> _confirmEnd(BuildContext context, String name) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AxColors.s1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AxRadius.lg), side: const BorderSide(color: AxColors.line)),
+      title: Text('End session "$name"?', style: AxTextStyles.sans.copyWith(fontSize: 16, fontWeight: FontWeight.w600)),
+      content: Text(
+        'This stops everything running in this session.',
+        style: AxTextStyles.sans.copyWith(fontSize: 13, color: AxColors.fg2, height: 1.4),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text('Cancel', style: AxTextStyles.sans.copyWith(color: AxColors.fg3)),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: AxColors.bad, foregroundColor: Colors.white),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('End session'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _NoTabs extends StatelessWidget {
+  final VoidCallback onNew;
+  final VoidCallback onSessions;
+  const _NoTabs({required this.onNew, required this.onSessions});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('No session open', style: AxTextStyles.sans.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text('Detached sessions keep running on your server.', style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.fg2)),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilledButton(onPressed: onNew, child: const Text('New session')),
+              OutlinedButton(onPressed: onSessions, child: const Text('Sessions')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lists the sessions running on the server so one can be reattached or ended.
+class _SessionsDialog extends StatefulWidget {
+  final ArchangeldConnection backend;
+  final Set<String> openNames;
+  final List<TerminalSessionInfo> initial;
+  const _SessionsDialog({required this.backend, required this.openNames, required this.initial});
+
+  @override
+  State<_SessionsDialog> createState() => _SessionsDialogState();
+}
+
+class _SessionsDialogState extends State<_SessionsDialog> {
+  late List<TerminalSessionInfo> _list = widget.initial;
+  bool _loading = true;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final list = await TerminalSessionApi.list(widget.backend);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _failed = list == null;
+      if (list != null) _list = list;
+    });
+  }
+
+  Future<void> _end(TerminalSessionInfo s) async {
+    final ok = await _confirmEnd(context, s.name);
+    if (ok != true || !mounted) return;
+    final err = await TerminalSessionApi.end(widget.backend, s.name);
+    if (!mounted) return;
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err), backgroundColor: AxColors.bad));
+    }
+    _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return AlertDialog(
+      backgroundColor: AxColors.s1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AxRadius.lg), side: const BorderSide(color: AxColors.line)),
+      title: Text('Sessions', style: AxTextStyles.sans.copyWith(fontSize: 16, fontWeight: FontWeight.w600)),
+      content: SizedBox(
+        width: 380,
+        child: _list.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  _loading ? 'Loading…' : (_failed ? "Couldn't load sessions from your server." : 'No sessions running yet.'),
+                  style: AxTextStyles.sans.copyWith(fontSize: 12.5, color: AxColors.fg2),
+                ),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final s in _list)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      minVerticalPadding: 8,
+                      leading: Icon(Icons.terminal_rounded, size: 16, color: widget.openNames.contains(s.name) ? AxColors.accent : AxColors.fg3),
+                      title: Text(s.name, style: AxTextStyles.mono.copyWith(fontSize: 13)),
+                      subtitle: Text(
+                        '${s.runningSince(now)}${s.attached ? ' · attached elsewhere' : ''}${widget.openNames.contains(s.name) ? ' · open' : ''}',
+                        style: AxTextStyles.sans.copyWith(fontSize: 11, color: AxColors.fg3),
+                      ),
+                      trailing: IconButton(
+                        tooltip: 'End session',
+                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                        icon: const Icon(Icons.power_settings_new_rounded, size: 15, color: AxColors.bad),
+                        onPressed: () => _end(s),
+                      ),
+                      onTap: () => Navigator.of(context).pop(s.name),
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text('Close', style: AxTextStyles.sans.copyWith(color: AxColors.fg3)),
+        ),
       ],
     );
   }
@@ -220,12 +416,11 @@ class _TermTab extends StatelessWidget {
           SessionStatus.error => AxColors.bad,
           SessionStatus.closed => AxColors.fg3,
         };
-        final isTmux = session.label.contains('tmux');
         return GestureDetector(
           onTap: onTap,
           child: AnimatedContainer(
             duration: AxMotion.base,
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            padding: const EdgeInsets.only(left: 11),
             margin: const EdgeInsets.only(right: 2),
             decoration: BoxDecoration(
               color: selected ? const Color(0xFF070807) : Colors.transparent,
@@ -236,15 +431,13 @@ class _TermTab extends StatelessWidget {
               children: [
                 Container(width: 5, height: 5, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
                 const SizedBox(width: 7),
-                if (isTmux) ...[
-                  const Icon(Icons.hub_rounded, size: 11, color: AxColors.warn),
-                  const SizedBox(width: 4),
-                ],
                 Text(session.label, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: selected ? AxColors.fg : AxColors.fg3)),
-                const SizedBox(width: 7),
-                GestureDetector(
-                  onTap: onClose,
-                  child: const Icon(Icons.close_rounded, size: 12, color: AxColors.fg3),
+                IconButton(
+                  tooltip: 'Detach',
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.close_rounded, size: 13, color: AxColors.fg3),
+                  onPressed: onClose,
                 ),
               ],
             ),
@@ -381,6 +574,27 @@ class _LivePaneState extends State<_LivePane> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (widget.session.notice != null)
+                  Container(
+                    color: AxColors.warn.withValues(alpha: 0.14),
+                    padding: const EdgeInsets.only(left: 14, top: 2, bottom: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, size: 14, color: AxColors.warn),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(widget.session.notice!, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: AxColors.warn)),
+                        ),
+                        IconButton(
+                          tooltip: 'Dismiss',
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                          icon: const Icon(Icons.close_rounded, size: 14, color: AxColors.warn),
+                          onPressed: widget.session.dismissNotice,
+                        ),
+                      ],
+                    ),
+                  ),
+
                 // Error or Reconnect Header
                 if (widget.session.status == SessionStatus.error || widget.session.status == SessionStatus.closed)
                   Container(
@@ -449,7 +663,9 @@ class _LivePaneState extends State<_LivePane> {
                         controller: _scroll,
                         child: SelectableText(
                           widget.session.output.isEmpty && widget.session.status == SessionStatus.connected
-                              ? 'Waiting for prompt…'
+                              ? (widget.session.noDataTimedOut
+                                  ? 'Still nothing from your server. Check the tunnel is connected (top bar) or open Settings.'
+                                  : 'Waiting for prompt…')
                               : widget.session.output,
                           style: AxTextStyles.mono.copyWith(fontSize: 12, height: 1.45, color: AxColors.fg),
                         ),
@@ -603,7 +819,9 @@ class _AccessoryKey extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(5),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(5),

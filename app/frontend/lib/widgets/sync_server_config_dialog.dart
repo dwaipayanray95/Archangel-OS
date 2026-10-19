@@ -5,21 +5,34 @@ import '../services/ssh_transport.dart';
 import '../services/vps_setup_service.dart';
 import '../theme/tokens.dart';
 import 'host_key_dialog.dart';
-import 'pin_prompt_dialog.dart';
+import 'passphrase_prompt_dialog.dart';
+
+/// What the dialog does once it has an SSH connection - both modes need
+/// the same host/user/key form, so they share this dialog.
+enum SyncServerMode {
+  /// Re-apply the systemd unit and permissions (leaves Admin mode as it is).
+  sync,
+
+  /// Turn Admin mode (passwordless sudo for the archangel user) back on -
+  /// the one thing the app can't do over its own API.
+  enableAdminMode,
+}
 
 /// Shown from Settings to let users synchronize or repair the server's
 /// systemd service definition and sudoers configuration over SSH without
-/// needing to touch a terminal or deploy script.
-Future<void> showSyncServerConfigDialog(BuildContext context) {
+/// needing to touch a terminal or deploy script - or, with
+/// [SyncServerMode.enableAdminMode], to turn Admin mode back on.
+Future<void> showSyncServerConfigDialog(BuildContext context, {SyncServerMode mode = SyncServerMode.sync}) {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
-    builder: (context) => const SyncServerConfigDialog(),
+    builder: (context) => SyncServerConfigDialog(mode: mode),
   );
 }
 
 class SyncServerConfigDialog extends StatefulWidget {
-  const SyncServerConfigDialog({super.key});
+  final SyncServerMode mode;
+  const SyncServerConfigDialog({super.key, this.mode = SyncServerMode.sync});
 
   @override
   State<SyncServerConfigDialog> createState() => _SyncServerConfigDialogState();
@@ -110,14 +123,14 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
 
       if (_rememberKey) {
         if (mounted) {
-          final pin = await promptForPin(
+          final savePassphrase = await promptForPassphrase(
             context,
-            title: 'Set a PIN',
-            message: 'Choose a PIN to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the PIN.',
+            title: 'Set a passphrase',
+            message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
             confirm: true,
           );
-          if (pin != null) {
-            await saveSshCredentials(pin, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
+          if (savePassphrase != null) {
+            await saveSshCredentials(savePassphrase, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
           }
         }
       } else {
@@ -152,9 +165,12 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
     }
   }
 
+  bool get _isAdminMode => widget.mode == SyncServerMode.enableAdminMode;
+
   void _runSync() {
     final service = VpsSetupService(_transport!);
-    service.syncServiceAndPermissions().listen(
+    final stream = _isAdminMode ? service.enableAdminMode() : service.syncServiceAndPermissions();
+    stream.listen(
       (event) => setState(() => _appendOrUpdate(event)),
       onError: (Object e) => setState(() => _runError = e),
       onDone: () {
@@ -172,7 +188,7 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AxColors.s2,
-      title: Text('Sync Server Permissions', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
+      title: Text(_isAdminMode ? 'Turn on Admin mode' : 'Sync Server Permissions', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
       content: SizedBox(
         width: 460,
         height: 360,
@@ -187,7 +203,7 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
             TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
             FilledButton(
               onPressed: _connecting || _loadingSavedKey ? null : _connect,
-              child: _connecting ? const _MiniSpinner() : const Text('Connect & sync'),
+              child: _connecting ? const _MiniSpinner() : Text(_isAdminMode ? 'Connect & turn on' : 'Connect & sync'),
             ),
           ],
         _Step.progress => [
@@ -209,8 +225,11 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Updates the server systemd service definition and sudoers configuration to the latest Hybrid Cockpit standard. '
-            'This enables persistent tmux sessions and gives the terminal full administrative power (sudo).',
+            _isAdminMode
+                ? 'Admin mode lets the terminal and Archangel run commands as root (sudo). '
+                    'Turning it on needs your SSH key, because the app can only turn it off by itself.'
+                : 'Updates the server systemd service definition and permissions to the latest standard, '
+                    'including persistent tmux sessions. Admin mode (sudo) is left as it is - on or off.',
             style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.5),
           ),
           const SizedBox(height: 14),
@@ -279,7 +298,7 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
         ),
         if (_runError != null) ...[
           const SizedBox(height: 8),
-          Text('Sync failed: $_runError', style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.bad)),
+          Text('${_isAdminMode ? 'Could not turn on Admin mode' : 'Sync failed'}: $_runError', style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.bad)),
         ],
       ],
     );
@@ -292,11 +311,12 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
         children: [
           const Icon(Icons.check_circle_outline_rounded, size: 48, color: AxColors.accent),
           const SizedBox(height: 12),
-          Text('Server Configuration Updated', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.bold)),
+          Text(_isAdminMode ? 'Admin mode is on' : 'Server Configuration Updated', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
           Text(
-            'The systemd unit, sudoers grants, and /home/archangel directory are configured. '
-            'Persistent tmux sessions and sudo are now live.',
+            _isAdminMode
+                ? 'The terminal and Archangel can run commands as root (sudo) again.'
+                : 'The systemd unit and /home/archangel directory are configured. Persistent tmux sessions are live.',
             textAlign: TextAlign.center,
             style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.4),
           ),

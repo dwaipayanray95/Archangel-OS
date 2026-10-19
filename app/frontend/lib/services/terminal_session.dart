@@ -2,11 +2,128 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import 'archangeld_connection.dart';
 
 enum SessionStatus { connecting, connected, closed, error }
+
+/// Server-side session names: mirrors the backend's ^[A-Za-z0-9_-]{1,32}$.
+final RegExp terminalSessionNameRe = RegExp(r'^[A-Za-z0-9_-]{1,32}$');
+
+/// Quotes [s] for a POSIX shell: wraps in single quotes and rewrites every
+/// embedded `'` as `'\''`, so spaces, `$`, backticks and quotes are inert.
+String shellSingleQuote(String s) => "'${s.replaceAll("'", "'\\''")}'";
+
+/// The line typed into a shell to change into [dir].
+String cdCommandFor(String dir) => 'cd -- ${shellSingleQuote(dir)}\n';
+
+/// True when [dir] is safe to type into a shell line: no C0 control chars
+/// (0x00-0x1F) or DEL (0x7F), which readline would interpret before quoting.
+bool isSafeShellPath(String dir) {
+  for (final u in dir.codeUnits) {
+    if (u < 0x20 || u == 0x7f) return false;
+  }
+  return true;
+}
+
+/// Max characters of terminal output retained (oldest trimmed first).
+const int terminalOutputCap = 200000;
+
+/// Picks the first unused name: "main", then "shell-2", "shell-3", ...
+/// [taken] should hold both server-side sessions and currently open tabs.
+String nextSessionName(Iterable<String> taken) {
+  final used = taken.toSet();
+  if (!used.contains('main')) return 'main';
+  var n = 2;
+  while (used.contains('shell-$n')) {
+    n++;
+  }
+  return 'shell-$n';
+}
+
+/// One entry of GET /api/v1/terminal/sessions.
+class TerminalSessionInfo {
+  final String name;
+  final int windows;
+  final bool attached;
+  final DateTime? created;
+
+  const TerminalSessionInfo({required this.name, this.windows = 1, this.attached = false, this.created});
+
+  factory TerminalSessionInfo.fromJson(Map<String, dynamic> json) {
+    final unix = (json['created_unix'] as num?)?.toInt();
+    return TerminalSessionInfo(
+      name: json['name'] as String? ?? '',
+      windows: (json['windows'] as num?)?.toInt() ?? 1,
+      attached: json['attached'] == true || (json['attached'] is num && (json['attached'] as num) > 0),
+      created: unix != null && unix > 0 ? DateTime.fromMillisecondsSinceEpoch(unix * 1000) : null,
+    );
+  }
+
+  /// "running since Oct 19, 14:02" (or just the time when it is today).
+  String runningSince(DateTime now) => formatRunningSince(created, now);
+}
+
+/// Tolerant parser for the session list body; bad input yields an empty list.
+List<TerminalSessionInfo> parseTerminalSessions(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! List) return const [];
+    return [
+      for (final e in decoded)
+        if (e is Map<String, dynamic>) TerminalSessionInfo.fromJson(e),
+    ].where((s) => s.name.isNotEmpty).toList();
+  } catch (_) {
+    return const [];
+  }
+}
+
+String formatRunningSince(DateTime? created, DateTime now) {
+  if (created == null) return 'running';
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  String two(int v) => v.toString().padLeft(2, '0');
+  final time = '${two(created.hour)}:${two(created.minute)}';
+  final sameDay = created.year == now.year && created.month == now.month && created.day == now.day;
+  return sameDay ? 'running since $time' : 'running since ${months[created.month - 1]} ${created.day}, $time';
+}
+
+/// HTTP side of persistent sessions (list / end).
+class TerminalSessionApi {
+  /// Returns null when the list could not be fetched (distinct from "none").
+  static Future<List<TerminalSessionInfo>?> list(ArchangeldConnection backend) async {
+    if (!backend.isPaired || backend.token == null) return null;
+    try {
+      final res = await http
+          .get(backend.terminalSessionsHttpUri(), headers: {'X-Archangel-Token': backend.token!})
+          .timeout(const Duration(seconds: 6));
+      if (res.statusCode != 200) return null;
+      return parseTerminalSessions(res.body);
+    } catch (e) {
+      debugPrint('Error listing terminal sessions: $e');
+      return null;
+    }
+  }
+
+  /// Ends the session on the server. Returns null on success, else a message.
+  static Future<String?> end(ArchangeldConnection backend, String name) async {
+    if (!backend.isPaired || backend.token == null) return 'Not connected';
+    try {
+      final res = await http
+          .delete(backend.terminalSessionHttpUri(name), headers: {'X-Archangel-Token': backend.token!})
+          .timeout(const Duration(seconds: 8));
+      Map<String, dynamic>? data;
+      try {
+        data = jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {}
+      if (res.statusCode == 200 && (data == null || data['success'] != false)) return null;
+      return (data?['message'] as String?) ?? 'Could not end session (HTTP ${res.statusCode})';
+    } catch (e) {
+      return 'Could not end session: $e';
+    }
+  }
+}
 
 /// One real PTY session over archangeld's /ws/terminal, speaking its exact
 /// wire protocol (see backend/internal/wsproto/wsproto.go): JSON frames
@@ -19,21 +136,53 @@ enum SessionStatus { connecting, connected, closed, error }
 /// color, screen redraws) is separate scope - the `xterm` package is the
 /// natural fit on top of this if/when that's wanted.
 class TerminalSession extends ChangeNotifier {
+  /// Doubles as the server-side persistent session name.
   final String label;
+  String get name => label;
   WebSocketChannel? _channel;
   StreamSubscription? _sub;
 
   SessionStatus _status = SessionStatus.connecting;
   SessionStatus get status => _status;
 
-  final StringBuffer _output = StringBuffer();
-  String get output => _output.toString();
+  String _output = '';
+  String get output => _output;
+
+  int _gen = 0;
+  bool _disposed = false;
 
   String? _error;
   String? get error => _error;
 
   int? _exitCode;
   int? get exitCode => _exitCode;
+
+  /// Latest server `error` frame (e.g. persistence unavailable). Shown as a
+  /// dismissible banner, never mixed into terminal output.
+  String? _notice;
+  String? get notice => _notice;
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
+  void dismissNotice() {
+    if (_notice == null) return;
+    _notice = null;
+    notifyListeners();
+  }
+
+  Completer<void> _firstOutput = Completer<void>();
+  Timer? _stallTimer;
+  bool _stalled = false;
+
+  /// True when 10 s passed after connecting without any output arriving.
+  bool get noDataTimedOut => _stalled && _output.isEmpty;
+
+  /// Completes on the first stdout frame, or after [timeout] regardless.
+  Future<void> waitForFirstOutput({Duration timeout = const Duration(seconds: 3)}) =>
+      _firstOutput.future.timeout(timeout, onTimeout: () {});
 
   ArchangeldConnection? _backend;
   int _cols = 120;
@@ -50,18 +199,28 @@ class TerminalSession extends ChangeNotifier {
   }
 
   void _startConnection() {
-    if (_backend == null) return;
+    if (_backend == null || _disposed) return;
+    final gen = ++_gen;
     _sub?.cancel();
     _channel?.sink.close();
     _pingTimer?.cancel();
+    _stallTimer?.cancel();
+    if (_firstOutput.isCompleted) _firstOutput = Completer<void>();
+    _stalled = false;
+    _stallTimer = Timer(const Duration(seconds: 10), () {
+      if (gen != _gen || _disposed) return;
+      _stalled = true;
+      if (_output.isEmpty) notifyListeners();
+    });
 
     _status = SessionStatus.connecting;
     _error = null;
+    _notice = null;
     notifyListeners();
 
     final Uri uri;
     try {
-      uri = _backend!.terminalWsUri();
+      uri = _backend!.terminalWsUri(session: label);
     } on StateError catch (e) {
       _status = SessionStatus.error;
       _error = e.message;
@@ -69,8 +228,10 @@ class TerminalSession extends ChangeNotifier {
       return;
     }
 
+    final WebSocketChannel channel;
     try {
-      _channel = WebSocketChannel.connect(uri);
+      channel = WebSocketChannel.connect(uri);
+      _channel = channel;
     } catch (e) {
       _status = SessionStatus.error;
       _error = 'Could not open connection: $e';
@@ -78,9 +239,13 @@ class TerminalSession extends ChangeNotifier {
       return;
     }
 
-    _sub = _channel!.stream.listen(
-      _onMessage,
+    _sub = channel.stream.listen(
+      (raw) {
+        if (gen != _gen) return;
+        _onMessage(raw);
+      },
       onDone: () {
+        if (gen != _gen) return;
         _pingTimer?.cancel();
         if (_status != SessionStatus.error) {
           _status = SessionStatus.closed;
@@ -88,6 +253,7 @@ class TerminalSession extends ChangeNotifier {
         }
       },
       onError: (e) {
+        if (gen != _gen) return;
         _pingTimer?.cancel();
         _status = SessionStatus.error;
         _error = e.toString();
@@ -96,7 +262,8 @@ class TerminalSession extends ChangeNotifier {
       cancelOnError: true,
     );
 
-    _channel!.ready.then((_) {
+    channel.ready.then((_) {
+      if (gen != _gen || _disposed) return;
       if (_status != SessionStatus.connected) {
         _status = SessionStatus.connected;
         notifyListeners();
@@ -106,10 +273,11 @@ class TerminalSession extends ChangeNotifier {
       _pingTimer?.cancel();
       _pingTimer = Timer.periodic(const Duration(seconds: 45), (_) {
         if (_status == SessionStatus.connected) {
-          _channel?.sink.add(jsonEncode({'type': 'ping'}));
+          channel.sink.add(jsonEncode({'type': 'ping'}));
         }
       });
     }).catchError((Object e) {
+      if (gen != _gen || _disposed) return;
       if (_status != SessionStatus.error) {
         _status = SessionStatus.error;
         _error = 'Could not open connection: $e';
@@ -119,15 +287,18 @@ class TerminalSession extends ChangeNotifier {
   }
 
   void reconnect() {
+    // The server redraws the attached session, so start from a clean buffer.
+    _output = '';
     _startConnection();
   }
 
   void clearOutput() {
-    _output.clear();
+    _output = '';
     notifyListeners();
   }
 
   void _onMessage(dynamic raw) {
+    if (_disposed) return;
     Map<String, dynamic> frame;
     try {
       frame = jsonDecode(raw as String) as Map<String, dynamic>;
@@ -146,6 +317,7 @@ class TerminalSession extends ChangeNotifier {
           return;
         }
         if (_status != SessionStatus.connected) _status = SessionStatus.connected;
+        if (!_firstOutput.isCompleted) _firstOutput.complete();
         notifyListeners();
       case 'exit':
         _exitCode = frame['code'] as int?;
@@ -153,9 +325,9 @@ class TerminalSession extends ChangeNotifier {
         _pingTimer?.cancel();
         notifyListeners();
       case 'error':
-        _error = frame['message'] as String?;
-        _status = SessionStatus.error;
-        _pingTimer?.cancel();
+        // Not necessarily fatal (persistence fallback keeps working); a real
+        // failure is followed by a close frame, which sets the status.
+        _notice = (frame['message'] as String?) ?? 'Unknown server error';
         notifyListeners();
       case 'pong':
         // Keep-alive acknowledged
@@ -167,20 +339,34 @@ class TerminalSession extends ChangeNotifier {
   /// rather than leaving non-printable box characters.
   void _appendDecodedText(String text) {
     if (text.isEmpty) return;
-    for (int i = 0; i < text.length; i++) {
-      final char = text[i];
-      if (char == '\b' || char == '\x7f') {
-        // Backspace: remove last character if buffer is not empty
-        final current = _output.toString();
-        if (current.isNotEmpty) {
-          _output.clear();
-          _output.write(current.substring(0, current.length - 1));
+    // Backspaces edit the pending chunk first; only a backspace that runs past
+    // the chunk touches the retained tail (O(1) amortised, no full rebuild).
+    final chunk = <int>[];
+    var trimTail = 0;
+    for (final u in text.codeUnits) {
+      if (u == 0x08 || u == 0x7f) {
+        if (chunk.isNotEmpty) {
+          chunk.removeLast();
+        } else {
+          trimTail++;
         }
       } else {
-        _output.write(char);
+        chunk.add(u);
       }
     }
+    var base = _output;
+    if (trimTail > 0) {
+      base = base.substring(0, base.length > trimTail ? base.length - trimTail : 0);
+    }
+    var next = chunk.isEmpty ? base : base + String.fromCharCodes(chunk);
+    if (next.length > terminalOutputCap) {
+      next = next.substring(next.length - terminalOutputCap);
+    }
+    _output = next;
   }
+
+  @visibleForTesting
+  void debugAppend(String text) => _appendDecodedText(text);
 
   /// Cleans ANSI escape sequences and normalizes carriage returns for smooth display
   static final RegExp _ansiRegex = RegExp(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])');
@@ -191,8 +377,19 @@ class TerminalSession extends ChangeNotifier {
     return stripped.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
   }
 
+  /// Types a `cd` into the shell once it has printed something (prompt).
+  /// Returns false when nothing was sent (unsafe path, disposed, or not
+  /// connected after waiting).
+  Future<bool> changeDirectory(String dir) async {
+    if (!isSafeShellPath(dir)) return false;
+    await waitForFirstOutput();
+    if (_disposed || _status != SessionStatus.connected) return false;
+    sendInput(cdCommandFor(dir));
+    return true;
+  }
+
   void sendInput(String text) {
-    if (_channel == null || text.isEmpty) return;
+    if (_disposed || _channel == null || text.isEmpty) return;
     _channel!.sink.add(jsonEncode({
       'type': 'stdin',
       'data': base64.encode(utf8.encode(text)),
@@ -202,18 +399,24 @@ class TerminalSession extends ChangeNotifier {
   void resize(int cols, int rows) {
     _cols = cols;
     _rows = rows;
+    if (_disposed) return;
     _channel?.sink.add(jsonEncode({'type': 'resize', 'cols': cols, 'rows': rows}));
   }
 
+  /// Detaches: drops the websocket only. The shell keeps running on the server.
   void close() {
     _pingTimer?.cancel();
+    _stallTimer?.cancel();
     _sub?.cancel();
     _channel?.sink.close();
   }
 
   @override
   void dispose() {
+    if (_disposed) return;
     close();
+    _disposed = true;
+    _gen++;
     super.dispose();
   }
 }

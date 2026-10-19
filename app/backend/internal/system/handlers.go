@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/dwaipayanray95/project-archangel/backend/internal/adminmode"
 )
 
 var upgrader = websocket.Upgrader{}
@@ -120,6 +121,19 @@ func RebootHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check privileges BEFORE answering OK: previously the 200 went out
+	// first and a failed sudo in the background goroutine was silently
+	// ignored, so the app announced a reboot that never happened.
+	if runtime.GOOS == "linux" && !adminmode.Enabled() {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"status":  "error",
+			"message": adminmode.OffMessage,
+		})
+		return
+	}
+
 	slog.Warn("system reboot requested via API")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
@@ -130,8 +144,10 @@ func RebootHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		time.Sleep(1 * time.Second)
 		if runtime.GOOS == "linux" {
-			_ = exec.Command("sudo", "systemctl", "reboot").Run()
-			_ = exec.Command("sudo", "reboot").Run()
+			if _, err := adminmode.Run(10*time.Second, "systemctl", "reboot"); err != nil {
+				slog.Error("systemctl reboot failed, trying reboot", "err", err)
+				_, _ = adminmode.Run(10*time.Second, "reboot")
+			}
 		}
 	}()
 }

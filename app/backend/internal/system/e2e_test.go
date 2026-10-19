@@ -15,8 +15,8 @@ func TestEndToEndSystemRoutes(t *testing.T) {
 	rawToken := "test-secret-token"
 	expectedHash := auth.HashToken(rawToken)
 
-	verify := func(hash string) bool {
-		return hash == expectedHash
+	verify := func(hash string) (string, bool) {
+		return "test", hash == expectedHash
 	}
 
 	router := api.NewRouter(verify)

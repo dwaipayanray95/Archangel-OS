@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/container_model.dart';
+import 'api_error.dart';
 import 'archangeld_connection.dart';
 
 class ContainersService extends ChangeNotifier {
@@ -15,6 +16,12 @@ class ContainersService extends ChangeNotifier {
 
   String? _error;
   String? get error => _error;
+
+  /// Why the last [triggerAction] failed, in the server's own words when it
+  /// gave any (e.g. "Docker is not running on this server"). Null after a
+  /// success.
+  String? _lastActionMessage;
+  String? get lastActionMessage => _lastActionMessage;
 
   Timer? _pollTimer;
   ArchangeldConnection? _backend;
@@ -76,7 +83,7 @@ class ContainersService extends ChangeNotifier {
         _overview = DockerOverviewModel.fromJson(data);
         _error = null;
       } else {
-        _error = 'Failed to fetch containers (HTTP ${res.statusCode})';
+        _error = serverMessage(res, 'Failed to fetch containers (HTTP ${res.statusCode})');
         _overview ??= const DockerOverviewModel(
           dockerAvailable: false,
           engineVersion: 'unreachable',
@@ -120,9 +127,11 @@ class ContainersService extends ChangeNotifier {
       );
 
       fetchContainers();
+      _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to $action container.');
       return res.statusCode == 200;
     } catch (e) {
       debugPrint('Error triggering container action: $e');
+      _lastActionMessage = 'Could not reach the backend: $e';
       return false;
     }
   }
@@ -159,11 +168,17 @@ class ContainersService extends ChangeNotifier {
         body: jsonEncode(payload),
       );
 
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      // Error bodies (e.g. 503 "Docker is not running") may not carry the
+      // full success/message shape, so don't assume it.
+      Map<String, dynamic> data = {};
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) data = decoded;
+      } catch (_) {}
       fetchContainers();
       return {
         'success': data['success'] == true,
-        'message': data['message'] ?? (res.statusCode == 200 ? 'Container created' : 'Failed to create container'),
+        'message': data['message'] ?? serverMessage(res, res.statusCode == 200 ? 'Container created' : 'Failed to create container'),
       };
     } catch (e) {
       debugPrint('Error creating container: $e');

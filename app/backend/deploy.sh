@@ -194,7 +194,7 @@ fi
 echo ""
 
 echo "==> [6/7] Installing and (re)starting the systemd service"
-scp_cmd "$SCRIPT_DIR/archangel.service" "${SERVER_USER}@${SERVER_HOST}:/tmp/archangel.service"
+scp_cmd "$SCRIPT_DIR/../../infra/scripts/archangel.service" "${SERVER_USER}@${SERVER_HOST}:/tmp/archangel.service"
 ssh_cmd bash <<'REMOTE'
 set -e
 sudo mv /tmp/archangel.service /etc/systemd/system/archangel.service

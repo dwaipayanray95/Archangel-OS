@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/system_metrics.dart';
+import 'api_error.dart';
 import 'archangeld_connection.dart';
 
 enum MonitoringStatus { disconnected, connecting, connected, error }
@@ -245,11 +246,13 @@ class MonitoringService extends ChangeNotifier {
       if (res.statusCode == 200) {
         await fetchProcesses();
         return const ProcessActionResult(success: true, message: 'Process terminated');
-      } else if (res.statusCode == 401 || res.statusCode == 403) {
+      } else if (res.statusCode == 401) {
         return const ProcessActionResult(success: false, message: 'Unauthorized (invalid or expired token)');
+      } else if (res.statusCode == 403) {
+        // 403 is usually "Admin mode is off - this action needs it".
+        return ProcessActionResult(success: false, message: serverMessage(res, 'Not allowed (HTTP 403)'));
       } else {
-        final errText = res.body.isNotEmpty ? res.body.trim() : 'HTTP ${res.statusCode}';
-        return ProcessActionResult(success: false, message: 'Server error: $errText');
+        return ProcessActionResult(success: false, message: 'Server error: ${serverMessage(res, 'HTTP ${res.statusCode}')}');
       }
     } catch (e) {
       return ProcessActionResult(success: false, message: 'Connection failed: $e');
@@ -278,11 +281,13 @@ class MonitoringService extends ChangeNotifier {
       if (res.statusCode == 200) {
         await fetchProcesses();
         return ProcessActionResult(success: true, message: 'Priority updated to $priority');
-      } else if (res.statusCode == 401 || res.statusCode == 403) {
+      } else if (res.statusCode == 401) {
         return const ProcessActionResult(success: false, message: 'Unauthorized (invalid or expired token)');
+      } else if (res.statusCode == 403) {
+        // 403 is usually "Admin mode is off - this action needs it".
+        return ProcessActionResult(success: false, message: serverMessage(res, 'Not allowed (HTTP 403)'));
       } else {
-        final errText = res.body.isNotEmpty ? res.body.trim() : 'HTTP ${res.statusCode}';
-        return ProcessActionResult(success: false, message: 'Server error: $errText');
+        return ProcessActionResult(success: false, message: 'Server error: ${serverMessage(res, 'HTTP ${res.statusCode}')}');
       }
     } catch (e) {
       return ProcessActionResult(success: false, message: 'Connection failed: $e');
@@ -309,11 +314,13 @@ class MonitoringService extends ChangeNotifier {
       );
       if (res.statusCode == 200) {
         return const ProcessActionResult(success: true, message: 'Reboot initiated successfully');
-      } else if (res.statusCode == 401 || res.statusCode == 403) {
+      } else if (res.statusCode == 401) {
         return const ProcessActionResult(success: false, message: 'Unauthorized (invalid or expired token)');
+      } else if (res.statusCode == 403) {
+        // 403 is usually "Admin mode is off - this action needs it".
+        return ProcessActionResult(success: false, message: serverMessage(res, 'Not allowed (HTTP 403)'));
       } else {
-        final errText = res.body.isNotEmpty ? res.body.trim() : 'HTTP ${res.statusCode}';
-        return ProcessActionResult(success: false, message: 'Server error: $errText');
+        return ProcessActionResult(success: false, message: 'Server error: ${serverMessage(res, 'HTTP ${res.statusCode}')}');
       }
     } catch (e) {
       return ProcessActionResult(success: false, message: 'Connection failed: $e');

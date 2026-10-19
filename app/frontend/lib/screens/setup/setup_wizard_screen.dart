@@ -14,7 +14,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/archangel_mark.dart';
 import '../../widgets/ax_widgets.dart';
 import '../../widgets/host_key_dialog.dart';
-import '../../widgets/pin_prompt_dialog.dart';
+import '../../widgets/passphrase_prompt_dialog.dart';
 
 /// The in-app "zero-SSH-by-hand" first-run wizard: connect → progress →
 /// done. See lib/services/vps_setup_service.dart for what actually runs
@@ -87,7 +87,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   }
 
   Future<void> _restoreSavedKey() async {
-    // Restoring the key requires the PIN that protects it - it grants
+    // Restoring the key requires the passphrase that protects it - it grants
     // root on the VPS, so a device left unlocked shouldn't hand it over
     // just by opening this screen. unlockSavedSshCredentials caches the
     // decrypted value in memory for the app session, so if it was
@@ -148,15 +148,20 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
         onUnknownHostKey: _confirmHostKey,
       );
 
+      if (!mounted) {
+        transport.close();
+        return;
+      }
+
       if (_rememberKey) {
-        final pin = await promptForPin(
+        final savePassphrase = await promptForPassphrase(
           context,
-          title: 'Set a PIN',
-          message: 'Choose a PIN to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the PIN.',
+          title: 'Set a passphrase',
+          message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
           confirm: true,
         );
-        if (pin != null) {
-          await saveSshCredentials(pin, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
+        if (savePassphrase != null) {
+          await saveSshCredentials(savePassphrase, SavedSshCredentials(host: host, username: username, privateKeyPem: privateKey));
         }
       } else {
         await clearSavedSshCredentials();

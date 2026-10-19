@@ -1,8 +1,36 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import '../models/file_entry.dart';
 import 'archangeld_connection.dart';
+
+/// Returns [name] if free, else "name (1).ext", "name (2).ext", ... so a
+/// download never overwrites an existing file. [exists] is asked per candidate.
+String uniqueFileName(String name, bool Function(String candidate) exists) {
+  // Only ever a bare file name: remote paths must not steer where we write.
+  var base = name.split(RegExp(r'[\\/]')).last.trim();
+  if (base.isEmpty || base == '.' || base == '..') base = 'download';
+  if (!exists(base)) return base;
+  final dot = base.lastIndexOf('.');
+  final hasExt = dot > 0; // leading-dot files (".bashrc") have no extension
+  final stem = hasExt ? base.substring(0, dot) : base;
+  final ext = hasExt ? base.substring(dot) : '';
+  var i = 1;
+  while (exists('$stem ($i)$ext')) {
+    i++;
+  }
+  return '$stem ($i)$ext';
+}
+
+class DownloadResult {
+  final String? savedPath;
+  final String? error;
+  const DownloadResult.saved(String path) : savedPath = path, error = null;
+  const DownloadResult.failed(String message) : savedPath = null, error = message;
+  bool get ok => savedPath != null;
+}
 
 class FilesService extends ChangeNotifier {
   // Empty means "wherever the server's configured files_root is" - the
@@ -222,5 +250,24 @@ class FilesService extends ChangeNotifier {
       debugPrint('Error downloading file $path: $e');
     }
     return null;
+  }
+
+  /// Downloads [path] and writes it into the user's Downloads folder (or the
+  /// app documents folder where there is none, e.g. Android), never
+  /// overwriting an existing file.
+  Future<DownloadResult> downloadToDisk(String path) async {
+    final bytes = await downloadFileBytes(path);
+    if (bytes == null) return const DownloadResult.failed('Could not fetch the file from your server');
+    try {
+      final dir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+      await dir.create(recursive: true);
+      final fileName = uniqueFileName(path, (n) => File('${dir.path}${Platform.pathSeparator}$n').existsSync());
+      final target = File('${dir.path}${Platform.pathSeparator}$fileName');
+      await target.writeAsBytes(bytes, flush: true);
+      return DownloadResult.saved(target.path);
+    } catch (e) {
+      debugPrint('Error saving download $path: $e');
+      return DownloadResult.failed('Could not save the file: $e');
+    }
   }
 }

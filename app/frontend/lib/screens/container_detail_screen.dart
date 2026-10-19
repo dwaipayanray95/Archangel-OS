@@ -63,7 +63,7 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to $action container ${_container.name}')),
+        SnackBar(content: Text(svc.lastActionMessage ?? 'Failed to $action container ${_container.name}')),
       );
     }
   }
@@ -103,7 +103,7 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to remove container ${_container.name}')),
+        SnackBar(content: Text(svc.lastActionMessage ?? 'Failed to remove container ${_container.name}')),
       );
     }
   }

@@ -24,6 +24,8 @@ import (
 	"github.com/dwaipayanray95/project-archangel/backend/internal/api"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/auth"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/config"
+	"github.com/dwaipayanray95/project-archangel/backend/internal/devices"
+	"github.com/dwaipayanray95/project-archangel/backend/internal/docker"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/files"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/terminal"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/tokenstore"
@@ -42,6 +44,12 @@ func main() {
 			return
 		case "pair":
 			runPair(os.Args[2:])
+			return
+		case "devices":
+			runDevices(os.Args[2:])
+			return
+		case "unpair":
+			runUnpair(os.Args[2:])
 			return
 		}
 	}
@@ -94,17 +102,25 @@ func main() {
 	// JSON file checked at most once per new WebSocket/request, so the
 	// extra disk read is not worth the complexity of a cache + reload
 	// signal for a single-user personal tool.
-	verify := auth.Verifier(func(hash string) bool {
+	verify := auth.Verifier(func(hash string) (string, bool) {
 		if cfg.TokenHash != "" && subtle.ConstantTimeCompare([]byte(hash), []byte(cfg.TokenHash)) == 1 {
-			return true
+			return "legacy", true
 		}
 		current, err := tokenstore.Load(cfg.TokenStorePath)
 		if err != nil {
 			slog.Error("failed to reload token store", "err", err)
-			return store.IsValid(hash) // fall back to the startup snapshot rather than locking everyone out
+			return store.Lookup(hash) // fall back to the startup snapshot rather than locking everyone out
 		}
-		return current.IsValid(hash)
+		return current.Lookup(hash)
 	})
+
+	// Terminal sessions live in a tmux server outside the service sandbox;
+	// see internal/terminal/tmux.go.
+	terminal.SetSocketPath(cfg.TerminalSocket)
+	// New containers publish "host:container" ports on the WireGuard
+	// address only, unless the caller names a public IP explicitly.
+	docker.SetPrivateBindIP(cfg.BindAddr)
+	devices.Configure(cfg.TokenStorePath, *configPath)
 
 	router := api.NewRouter(verify)
 
@@ -218,22 +234,7 @@ func runPair(args []string) {
 	// no matter what the device name is. Partition flags out from the
 	// positional device-name argument first so it can appear anywhere
 	// relative to the flags, matching how most real CLIs behave.
-	var flagArgs, positional []string
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		switch {
-		case a == "-config" || a == "--config":
-			flagArgs = append(flagArgs, a)
-			if i+1 < len(args) {
-				i++
-				flagArgs = append(flagArgs, args[i])
-			}
-		case strings.HasPrefix(a, "-"):
-			flagArgs = append(flagArgs, a)
-		default:
-			positional = append(positional, a)
-		}
-	}
+	flagArgs, positional := splitArgs(args)
 	_ = fs.Parse(flagArgs)
 
 	if len(positional) != 1 || positional[0] == "" {
@@ -241,6 +242,10 @@ func runPair(args []string) {
 		os.Exit(1)
 	}
 	name := positional[0]
+	if err := tokenstore.ValidateDeviceName(name); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
@@ -249,6 +254,18 @@ func runPair(args []string) {
 	}
 	if cfg.PublicEndpoint == "" {
 		fmt.Fprintln(os.Stderr, "config.yaml has no public_endpoint set (e.g. \"203.0.113.5:51820\") - required for `pair` so new devices know where to dial in.")
+		os.Exit(1)
+	}
+
+	// Check for a duplicate name up front: by the time the token store is
+	// written the WireGuard peer would already exist, leaving an orphan.
+	store, err := tokenstore.Load(cfg.TokenStorePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to load the token store:", err)
+		os.Exit(1)
+	}
+	if _, exists := store.Find(name); exists {
+		fmt.Fprintf(os.Stderr, "a device named %q already exists - pick another name or `archangeld unpair %s` first.\n", name, name)
 		os.Exit(1)
 	}
 
@@ -282,12 +299,7 @@ func runPair(args []string) {
 		os.Exit(1)
 	}
 
-	store, err := tokenstore.Load(cfg.TokenStorePath)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to load the token store:", err)
-		os.Exit(1)
-	}
-	if err := store.Add(name, hash); err != nil {
+	if err := store.Add(name, hash, devicePubKey, ip); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to save the new device's token:", err)
 		os.Exit(1)
 	}
@@ -331,4 +343,115 @@ func runPair(args []string) {
 			fmt.Fprintln(os.Stderr, "\nfailed to render QR code (is qrencode installed?):", err)
 		}
 	}
+}
+
+// splitArgs partitions CLI args into flag arguments and positional ones, so
+// the positional argument (device name) may appear before or after the
+// flags - Go's flag package stops at the first non-flag argument.
+func splitArgs(args []string) (flagArgs, positional []string) {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		switch {
+		case a == "-config" || a == "--config":
+			flagArgs = append(flagArgs, a)
+			if i+1 < len(args) {
+				i++
+				flagArgs = append(flagArgs, args[i])
+			}
+		case strings.HasPrefix(a, "-"):
+			flagArgs = append(flagArgs, a)
+		default:
+			positional = append(positional, a)
+		}
+	}
+	return flagArgs, positional
+}
+
+// runDevices implements `archangeld devices`: lists paired devices (name,
+// created, tunnel IP). Only reads tokens.json, so no root needed beyond
+// being able to read that file.
+func runDevices(args []string) {
+	fs := flag.NewFlagSet("devices", flag.ExitOnError)
+	configPath := fs.String("config", "/etc/archangel/config.yaml", "path to config.yaml")
+	flagArgs, _ := splitArgs(args)
+	_ = fs.Parse(flagArgs)
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to load config:", err)
+		os.Exit(1)
+	}
+	store, err := tokenstore.Load(cfg.TokenStorePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to load the token store:", err)
+		os.Exit(1)
+	}
+	entries := store.Entries()
+	if len(entries) == 0 {
+		fmt.Println("No paired devices.")
+		return
+	}
+	fmt.Printf("%-32s  %-20s  %s\n", "NAME", "CREATED", "TUNNEL IP")
+	for _, e := range entries {
+		ip := e.TunnelIP
+		if ip == "" {
+			ip = "-"
+		}
+		fmt.Printf("%-32s  %-20s  %s\n", e.Name, e.CreatedAt.Format("2006-01-02 15:04"), ip)
+	}
+}
+
+// runUnpair implements `archangeld unpair <name>`: revokes a device by
+// deleting its token (so the API rejects it immediately) and then removing
+// its WireGuard peer, live and from wg0.conf. Must run as root - the
+// in-app "revoke device" button reaches it through `sudo -n`.
+func runUnpair(args []string) {
+	fs := flag.NewFlagSet("unpair", flag.ExitOnError)
+	configPath := fs.String("config", "/etc/archangel/config.yaml", "path to config.yaml")
+	flagArgs, positional := splitArgs(args)
+	_ = fs.Parse(flagArgs)
+
+	if len(positional) != 1 || positional[0] == "" {
+		fmt.Fprintln(os.Stderr, "usage: archangeld unpair <device-name>")
+		os.Exit(1)
+	}
+	name := positional[0]
+
+	if os.Geteuid() != 0 {
+		fmt.Fprintln(os.Stderr, "unpair must run as root (it edits the WireGuard config) - try: sudo archangeld unpair", name)
+		os.Exit(1)
+	}
+
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to load config:", err)
+		os.Exit(1)
+	}
+	store, err := tokenstore.Load(cfg.TokenStorePath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to load the token store:", err)
+		os.Exit(1)
+	}
+	entry, ok := store.Find(name)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "no paired device named %q\n", name)
+		os.Exit(1)
+	}
+
+	// Token first: that's what actually shuts the API door, and it must
+	// happen even if the WireGuard step below fails.
+	if err := store.Remove(name); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to remove the device's token:", err)
+		os.Exit(1)
+	}
+
+	if entry.WgPublicKey == "" {
+		fmt.Fprintf(os.Stderr, "Removed %q's token, but no WireGuard public key was recorded for it (paired before key tracking) - remove its [Peer] block from %s/%s.conf by hand.\n", name, cfg.WgDir, cfg.WgInterface)
+		return
+	}
+	if err := wgpeer.RemovePeer(cfg.WgDir, cfg.WgInterface, entry.WgPublicKey); err != nil {
+		fmt.Fprintf(os.Stderr, "Removed %q's token, but removing its WireGuard peer failed: %v\n", name, err)
+		os.Exit(1)
+	}
+	fmt.Printf("Unpaired %q (token and WireGuard peer removed).\n", name)
 }

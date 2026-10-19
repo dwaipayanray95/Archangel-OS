@@ -1,16 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path_provider/path_provider.dart';
 
 /// A plain local-file key/value store, replacing flutter_secure_storage
-/// for app state that isn't sensitive enough to need PIN-derived
+/// for app state that isn't sensitive enough to need passphrase-derived
 /// encryption (see ssh_credentials.dart / credential_crypto.dart for the
 /// one thing that is: the SSH private key that grants root on the VPS).
 ///
 /// This holds things like the paired host/token and the WireGuard
 /// tunnel config - real secrets, but ones the app needs on every launch
-/// to function at all, so gating them behind a PIN prompt every single
+/// to function at all, so gating them behind a passphrase prompt every single
 /// time would be worse than what this replaces. flutter_secure_storage
 /// on macOS is a thin wrapper over Keychain Services, which requires a
 /// stable code-signing entitlement (Keychain Sharing, set up via Xcode)
@@ -30,8 +31,19 @@ class LocalKvStore {
 
   static final LocalKvStore instance = LocalKvStore._('archangel_app_state.json');
 
+  /// Test seam: when set, the store lives in this directory instead of the
+  /// path_provider application support directory (which has no platform
+  /// channel under `flutter test`).
+  @visibleForTesting
+  static Future<Directory> Function()? directoryOverride;
+
+  /// Test seam: drops the in-memory cache so the next access re-reads the
+  /// backing file (or starts empty if the override directory changed).
+  @visibleForTesting
+  void resetForTesting() => _cache = null;
+
   Future<File> _file() async {
-    final dir = await getApplicationSupportDirectory();
+    final dir = await (directoryOverride?.call() ?? getApplicationSupportDirectory());
     return File('${dir.path}/$_fileName');
   }
 
@@ -57,6 +69,13 @@ class LocalKvStore {
   Future<void> _persist() async {
     final file = await _file();
     await file.writeAsString(jsonEncode(_cache ?? {}), flush: true);
+    // The file holds the auth token and WireGuard private key: restrict it
+    // to the owner. Best effort; failures are ignored.
+    if (Platform.isLinux || Platform.isMacOS) {
+      try {
+        await Process.run('chmod', ['600', file.path]);
+      } catch (_) {}
+    }
   }
 
   Future<String?> read(String key) async => (await _load())[key];

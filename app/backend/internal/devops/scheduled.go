@@ -131,7 +131,15 @@ func listLocalCron() []ScheduledItem {
 	return items
 }
 
-// TriggerScheduled triggers immediate run of a timer unit.
+// listScheduledFn is ListScheduled, swappable in tests.
+var listScheduledFn = ListScheduled
+
+// TriggerScheduled starts the service a timer activates ("Run now"). Any
+// timer that currently appears in `systemctl list-timers --all` is allowed,
+// not just a fixed allowlist: the list is re-read on every call, so the
+// name must belong to a real timer on this host right now, and the unit
+// started is the one systemd itself reports the timer activates - never
+// something derived from the caller's string.
 func TriggerScheduled(name string) error {
 	if !strings.HasSuffix(name, ".timer") {
 		return fmt.Errorf("only systemd .timer units can be triggered on-demand")
@@ -140,6 +148,20 @@ func TriggerScheduled(name string) error {
 		return fmt.Errorf("invalid schedule name")
 	}
 
-	serviceName := strings.TrimSuffix(name, ".timer") + ".service"
-	return ServiceAction(serviceName, "start")
+	items, err := listScheduledFn()
+	if err != nil {
+		return fmt.Errorf("could not list timers: %w", err)
+	}
+	for _, it := range items {
+		if it.Name != name {
+			continue
+		}
+		// For timers, ScheduledItem.Schedule holds the "activates" column.
+		service := it.Schedule
+		if !validUnitName.MatchString(service) || !strings.HasSuffix(service, ".service") {
+			return fmt.Errorf("timer %s has no startable service (activates %q)", name, service)
+		}
+		return systemctlRun("start", service)
+	}
+	return fmt.Errorf("unknown timer %s", name)
 }

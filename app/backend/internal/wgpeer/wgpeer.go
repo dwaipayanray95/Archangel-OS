@@ -144,6 +144,99 @@ func AddPeer(wgDir, iface, name, publicKey, ip string) error {
 	return nil
 }
 
+// RemovePeer is the inverse of AddPeer: it drops the peer from the live
+// interface (`wg set <iface> peer <key> remove`, effective immediately -
+// existing sessions are cut) and rewrites wg0.conf without that peer's
+// [Peer] block so it doesn't come back after a restart. The rewrite is
+// atomic (temp file in the same dir + rename) and keeps mode 0600.
+func RemovePeer(wgDir, iface, publicKey string) error {
+	if publicKey == "" {
+		return fmt.Errorf("no WireGuard public key recorded for this device")
+	}
+
+	setCmd := exec.Command("wg", "set", iface, "peer", publicKey, "remove")
+	if out, err := setCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("wg set (live peer remove): %w: %s", err, strings.TrimSpace(string(out)))
+	}
+
+	confPath := filepath.Join(wgDir, iface+".conf")
+	data, err := os.ReadFile(confPath)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", confPath, err)
+	}
+	updated, removed := RemovePeerFromConf(string(data), publicKey)
+	if !removed {
+		return nil // already absent from the file; the live removal above is what mattered
+	}
+
+	tmp, err := os.CreateTemp(wgDir, "."+iface+".conf.*")
+	if err != nil {
+		return fmt.Errorf("creating temp file for %s: %w", confPath, err)
+	}
+	tmpName := tmp.Name()
+	cleanup := func() { _ = os.Remove(tmpName) }
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		cleanup()
+		return fmt.Errorf("chmod temp config: %w", err)
+	}
+	if _, err := tmp.WriteString(updated); err != nil {
+		tmp.Close()
+		cleanup()
+		return fmt.Errorf("writing temp config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		cleanup()
+		return fmt.Errorf("closing temp config: %w", err)
+	}
+	if err := os.Rename(tmpName, confPath); err != nil {
+		cleanup()
+		return fmt.Errorf("replacing %s: %w", confPath, err)
+	}
+	return nil
+}
+
+// RemovePeerFromConf returns conf without the [Peer] block whose PublicKey
+// is publicKey, plus whether such a block was found. "Block" means the
+// [Peer] header through the line before the next [Section] header (this
+// includes the "# name" comment AddPeer and wireguard_setup.sh write right
+// after the header, and the blank separator before the next block); a
+// "# comment" line sitting directly above the header is removed too, so
+// repeated add/remove cycles don't accumulate junk. Pure function, for testing.
+func RemovePeerFromConf(conf, publicKey string) (string, bool) {
+	lines := strings.Split(conf, "\n")
+	isHeader := func(l string) bool { return strings.HasPrefix(strings.TrimSpace(l), "[") }
+
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimSpace(lines[i]) != "[Peer]" {
+			continue
+		}
+		end := i + 1
+		for end < len(lines) && !isHeader(lines[end]) {
+			end++
+		}
+		match := false
+		for _, l := range lines[i+1 : end] {
+			t := strings.TrimSpace(l)
+			if strings.HasPrefix(t, "PublicKey") && valueAfterEquals(t) == publicKey {
+				match = true
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+
+		start := i
+		if start > 0 && strings.HasPrefix(strings.TrimSpace(lines[start-1]), "#") {
+			start--
+		}
+		out := append(append([]string{}, lines[:start]...), lines[end:]...)
+		return strings.Join(out, "\n"), true
+	}
+	return conf, false
+}
+
 func valueAfterEquals(line string) string {
 	parts := strings.SplitN(line, "=", 2)
 	if len(parts) != 2 {

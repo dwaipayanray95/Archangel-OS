@@ -2,8 +2,8 @@ package devops
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/dwaipayanray95/project-archangel/backend/internal/adminmode"
 )
 
 var validUnitName = regexp.MustCompile(`^[a-zA-Z0-9@_.:-]+$`)
@@ -23,15 +25,39 @@ var validUnitName = regexp.MustCompile(`^[a-zA-Z0-9@_.:-]+$`)
 // `systemctl <action> <name>`, turning "manage a few homelab services" into
 // "manage anything on the box."
 var managedUnits = map[string]bool{
-	"caddy.service":               true,
-	"docker.service":              true,
-	"postgresql.service":          true,
-	"wg-quick@wg0.service":        true,
+	"caddy.service":        true,
+	"docker.service":       true,
+	"postgresql.service":   true,
+	"wg-quick@wg0.service": true,
+	// The real unit file is archangel.service; archangeld.service is kept
+	// for hosts/clients that still use the old name.
+	"archangel.service":           true,
 	"archangeld.service":          true,
 	"unattended-upgrades.service": true,
 	"ssh.service":                 true,
 	"cron.service":                true,
 }
+
+// lockoutUnits can be restarted but never stopped from the app: stopping
+// SSH, the WireGuard tunnel, or archangeld itself would cut the user off
+// from the server with no way back in except the provider's console.
+var lockoutUnits = map[string]bool{
+	"ssh.service":          true,
+	"wg-quick@wg0.service": true,
+	"archangeld.service":   true,
+	"archangel.service":    true,
+}
+
+// ErrRefused marks an action the backend refuses on purpose (as opposed to
+// one that failed); handlers map it to 403.
+var ErrRefused = errors.New("refused")
+
+// refusedError carries a user-facing message verbatim (no "refused:" prefix)
+// while still matching errors.Is(err, ErrRefused).
+type refusedError struct{ msg string }
+
+func (e refusedError) Error() string        { return e.msg }
+func (e refusedError) Is(target error) bool { return target == ErrRefused }
 
 // ListServices inspects systemd service units.
 func ListServices() ([]ServiceItem, error) {
@@ -156,24 +182,36 @@ func ServiceAction(name, action string) error {
 		return fmt.Errorf("unsupported action: %s", action)
 	}
 
+	if err := checkLockout(name, action); err != nil {
+		return err
+	}
+
+	return systemctlRun(action, name)
+}
+
+// checkLockout refuses "stop" for units whose absence would strand the user.
+func checkLockout(name, action string) error {
+	if action == "stop" && lockoutUnits[name] {
+		return refusedError{fmt.Sprintf("Stopping %s would cut you off from your server; restart is allowed", name)}
+	}
+	return nil
+}
+
+// systemctlRun runs `sudo -n systemctl <action> <unit>`. A var so tests can
+// observe calls without touching the host. Root is needed because the
+// service runs unprivileged; when Admin mode is off the error says so.
+var systemctlRun = func(action, unit string) error {
 	if runtime.GOOS != "linux" {
 		return nil // Simulated on non-Linux dev machines
 	}
-
-	systemctl, err := exec.LookPath("systemctl")
-	if err != nil {
+	if _, err := exec.LookPath("systemctl"); err != nil {
 		return fmt.Errorf("systemctl not available on this host")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, systemctl, action, name)
-	var errBuf bytes.Buffer
-	cmd.Stderr = &errBuf
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s failed: %v (%s)", action, err, strings.TrimSpace(errBuf.String()))
+	if _, err := adminmode.Run(10*time.Second, "systemctl", action, unit); err != nil {
+		if errors.Is(err, adminmode.ErrOff) {
+			return err
+		}
+		return fmt.Errorf("%s failed: %v", action, err)
 	}
 	return nil
 }

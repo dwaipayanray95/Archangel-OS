@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/dwaipayanray95/project-archangel/backend/internal/adminmode"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/auth"
+	"github.com/dwaipayanray95/project-archangel/backend/internal/devices"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/devops"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/docker"
 	"github.com/dwaipayanray95/project-archangel/backend/internal/files"
@@ -17,7 +19,7 @@ import (
 )
 
 // NewRouter builds the full route table. verify decides whether a
-// request's token hash is valid - every route except /api/v1/health
+// request's token hash is valid (and names the device) - every route except /api/v1/health
 // requires it.
 func NewRouter(verify auth.Verifier) http.Handler {
 	mux := http.NewServeMux()
@@ -27,6 +29,17 @@ func NewRouter(verify auth.Verifier) http.Handler {
 	mux.HandleFunc("GET /api/v1/health", healthHandler)
 
 	mux.Handle("GET /ws/terminal", auth.Middleware(verify, http.HandlerFunc(terminal.Handler)))
+	mux.Handle("GET /api/v1/terminal/sessions", auth.Middleware(verify, http.HandlerFunc(terminal.SessionsHandler)))
+	mux.Handle("DELETE /api/v1/terminal/sessions/{name}", auth.Middleware(verify, http.HandlerFunc(terminal.SessionDeleteHandler)))
+
+	// Paired devices: list and revoke
+	mux.Handle("GET /api/v1/devices", auth.Middleware(verify, http.HandlerFunc(devices.ListHandler)))
+	mux.Handle("DELETE /api/v1/devices/{name}", auth.Middleware(verify, http.HandlerFunc(devices.DeleteHandler)))
+
+	// Admin mode (passwordless sudo grant): read state, or drop it. There is
+	// intentionally no way to turn it back on through the API.
+	mux.Handle("GET /api/v1/system/admin-mode", auth.Middleware(verify, http.HandlerFunc(adminmode.GetHandler)))
+	mux.Handle("POST /api/v1/system/admin-mode", auth.Middleware(verify, http.HandlerFunc(adminmode.SetHandler)))
 
 	// System metrics, processes, and live stats stream
 	mux.Handle("GET /api/v1/system/metrics", auth.Middleware(verify, http.HandlerFunc(system.MetricsHandler)))

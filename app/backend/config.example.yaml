@@ -35,3 +35,12 @@ public_endpoint: ""
 # work at all: left empty, every /api/v1/files/* request is rejected
 # rather than defaulting to allowing the whole filesystem. e.g. "/home/ubuntu".
 files_root: ""
+
+# Unix socket of the tmux server that hosts the Terminal tab's persistent
+# shells. The tmux server runs under the archangel user's systemd user
+# manager (outside archangel.service's sandbox, memory cap and restarts),
+# and the socket path has to be explicit because the service has
+# PrivateTmp=true - a default /tmp socket would be invisible to it. The
+# parent directory is created with mode 0700.
+# Default: /home/archangel/.archangel/tmux.sock
+terminal_socket: ""

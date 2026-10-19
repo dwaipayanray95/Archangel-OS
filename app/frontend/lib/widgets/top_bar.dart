@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/app_state.dart';
+import '../services/containers_service.dart';
+import '../services/devops_service.dart';
 import '../services/monitoring_service.dart';
 import '../services/wireguard_controller.dart';
 import '../theme/tokens.dart';
 import 'archangel_mark.dart';
 import 'ax_widgets.dart';
+import 'command_palette.dart' show paletteShortcutLabel;
+import 'notif_panel.dart' show hasNotifications;
 
 /// The persistent top status bar — present on every screen, showing tunnel
 /// state and live system stats, functioning like a real OS's menu bar.
@@ -49,57 +53,105 @@ class TopBar extends StatelessWidget implements PreferredSizeWidget {
           final statsWide = constraints.maxWidth >= 900;
           return Row(
             children: [
-          Container(
-            width: 21,
-            height: 21,
-            decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(7)),
-            child: Center(child: ArchangelMark(size: 12, color: AxColors.bg)),
-          ),
-          if (wide) ...[
-            const SizedBox(width: 9),
-            Text('Archangel', style: AxTextStyles.sans.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
-          ],
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: tunnelColor.withValues(alpha: 0.11),
-              borderRadius: BorderRadius.circular(AxRadius.pill),
-              border: Border.all(color: tunnelColor.withValues(alpha: 0.18)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                StatusDot(color: tunnelColor, size: 6, pulse: wg.status == TunnelStatus.connected),
-                const SizedBox(width: 7),
-                Text(tunnelLabel, style: AxTextStyles.mono.copyWith(fontSize: 10.5, fontWeight: FontWeight.w500, color: tunnelColor)),
-                if (wide && wg.config != null) ...[
-                  const SizedBox(width: 6),
-                  Text(wg.config!.interfaceAddress, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3)),
-                ],
+              Container(
+                width: 21,
+                height: 21,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Center(
+                  child: ArchangelMark(size: 12, color: AxColors.bg),
+                ),
+              ),
+              if (wide) ...[
+                const SizedBox(width: 9),
+                Text(
+                  'Archangel',
+                  style: AxTextStyles.sans.copyWith(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
-            ),
-          ),
-          const Spacer(),
-          if (statsWide) ...[
-            () {
-              final mon = context.watch<MonitoringService>();
-              final metrics = mon.metrics;
-              final cpuStr = metrics != null ? '${metrics.cpu.usagePercent.round()}%' : '18%';
-              final memStr = metrics != null ? '${metrics.memory.usagePercent.round()}%' : '61%';
-              final upStr = metrics != null ? metrics.uptimeLabel : '42d';
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: tunnelColor.withValues(alpha: 0.11),
+                  borderRadius: BorderRadius.circular(AxRadius.pill),
+                  border: Border.all(
+                    color: tunnelColor.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    StatusDot(
+                      color: tunnelColor,
+                      size: 6,
+                      pulse: wg.status == TunnelStatus.connected,
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      tunnelLabel,
+                      style: AxTextStyles.mono.copyWith(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w500,
+                        color: tunnelColor,
+                      ),
+                    ),
+                    if (wide && wg.config != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        wg.config!.interfaceAddress,
+                        style: AxTextStyles.mono.copyWith(
+                          fontSize: 10.5,
+                          color: AxColors.fg3,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Spacer(),
+              if (statsWide) ...[
+                () {
+                  final mon = context.watch<MonitoringService>();
+                  final metrics = mon.metrics;
+                  final cpuStr =
+                      metrics != null
+                          ? '${metrics.cpu.usagePercent.round()}%'
+                          : '—';
+                  final memStr =
+                      metrics != null
+                          ? '${metrics.memory.usagePercent.round()}%'
+                          : '—';
+                  final upStr = metrics != null ? metrics.uptimeLabel : '—';
 
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _BarStat(label: 'CPU', value: cpuStr, color: accent),
-                  _BarStat(label: 'MEM', value: memStr, color: AxColors.info),
-                  _BarStat(label: 'UP', value: upStr, color: AxColors.fg2, last: true),
-                ],
-              );
-            }(),
-          ],
-          const SizedBox(width: 8),
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _BarStat(label: 'CPU', value: cpuStr, color: accent),
+                      _BarStat(
+                        label: 'MEM',
+                        value: memStr,
+                        color: AxColors.info,
+                      ),
+                      _BarStat(
+                        label: 'UP',
+                        value: upStr,
+                        color: AxColors.fg2,
+                        last: true,
+                      ),
+                    ],
+                  );
+                }(),
+              ],
+              const SizedBox(width: 8),
               _SearchButton(wide: wide),
               const SizedBox(width: 5),
               _NotifButton(),
@@ -116,7 +168,12 @@ class _BarStat extends StatelessWidget {
   final String value;
   final Color color;
   final bool last;
-  const _BarStat({required this.label, required this.value, required this.color, this.last = false});
+  const _BarStat({
+    required this.label,
+    required this.value,
+    required this.color,
+    this.last = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -124,14 +181,31 @@ class _BarStat extends StatelessWidget {
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        border: Border(right: last ? BorderSide.none : const BorderSide(color: AxColors.line)),
+        border: Border(
+          right:
+              last ? BorderSide.none : const BorderSide(color: AxColors.line),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: AxTextStyles.mono.copyWith(fontSize: 9, letterSpacing: 1.1, color: AxColors.fg3)),
+          Text(
+            label,
+            style: AxTextStyles.mono.copyWith(
+              fontSize: 9,
+              letterSpacing: 1.1,
+              color: AxColors.fg3,
+            ),
+          ),
           const SizedBox(width: 6),
-          Text(value, style: AxTextStyles.mono.copyWith(fontSize: 11.5, fontWeight: FontWeight.w500, color: color)),
+          Text(
+            value,
+            style: AxTextStyles.mono.copyWith(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -161,7 +235,13 @@ class _SearchButton extends StatelessWidget {
             const Icon(Icons.search, size: 14, color: AxColors.fg2),
             if (wide) ...[
               const SizedBox(width: 7),
-              Text('Search', style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2)),
+              Text(
+                'Search',
+                style: AxTextStyles.sans.copyWith(
+                  fontSize: 12,
+                  color: AxColors.fg2,
+                ),
+              ),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
@@ -170,7 +250,13 @@ class _SearchButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(color: AxColors.line),
                 ),
-                child: Text('⌘K', style: AxTextStyles.mono.copyWith(fontSize: 9.5, color: AxColors.fg3)),
+                child: Text(
+                  paletteShortcutLabel(),
+                  style: AxTextStyles.mono.copyWith(
+                    fontSize: 9.5,
+                    color: AxColors.fg3,
+                  ),
+                ),
               ),
             ],
           ],
@@ -184,6 +270,10 @@ class _NotifButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final showDot = hasNotifications(
+      context.watch<ContainersService>(),
+      context.watch<DevopsService>(),
+    );
     return GestureDetector(
       onTap: app.toggleNotif,
       child: Container(
@@ -196,20 +286,25 @@ class _NotifButton extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            const Icon(Icons.notifications_outlined, size: 14, color: AxColors.fg2),
-            Positioned(
-              top: 3,
-              right: 3,
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: app.accent,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AxColors.s1, width: 1.5),
+            const Icon(
+              Icons.notifications_outlined,
+              size: 14,
+              color: AxColors.fg2,
+            ),
+            if (showDot)
+              Positioned(
+                top: 3,
+                right: 3,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: app.accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AxColors.s1, width: 1.5),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

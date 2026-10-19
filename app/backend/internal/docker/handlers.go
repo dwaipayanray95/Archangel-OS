@@ -16,10 +16,20 @@ import (
 
 var defaultClient = NewClient()
 
+// notRunningMessage is returned whenever an action needs Docker and the
+// daemon isn't reachable. There is deliberately no demo/simulated mode:
+// pretending an action succeeded would be a lie.
+const notRunningMessage = "Docker is not running on this server"
+
+func writeDockerUnavailable(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusServiceUnavailable)
+	_ = json.NewEncoder(w).Encode(ActionResponse{Success: false, Message: notRunningMessage})
+}
+
 // SetDefaultClient overrides the package-level Docker client the HTTP
 // handlers use. Exported for tests: CI runners commonly ship a real,
 // live Docker daemon at the default socket path, so relying on
-// IsAvailable() naturally returning false to exercise the fallback/demo
+// IsAvailable() naturally returning false to exercise the unavailable
 // path is environment-dependent - tests should point this at a client
 // with a guaranteed-nonexistent socket path instead.
 func SetDefaultClient(c *Client) {
@@ -34,6 +44,9 @@ func ContainersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
+	// Lazily start the background CPU/memory poller (once per process).
+	startStatsPoller()
 
 	if !defaultClient.IsAvailable() {
 		_ = json.NewEncoder(w).Encode(FallbackOverview())
@@ -96,11 +109,7 @@ func ContainerActionHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if !defaultClient.IsAvailable() {
-		// Simulate action success on mock containers
-		_ = json.NewEncoder(w).Encode(ActionResponse{
-			Success: true,
-			Message: fmt.Sprintf("%s action simulated for %s (demo mode)", action, id),
-		})
+		writeDockerUnavailable(w)
 		return
 	}
 
@@ -143,14 +152,7 @@ func ContainerCreateHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if !defaultClient.IsAvailable() {
-		name := req.Name
-		if name == "" {
-			name = "demo-" + req.Image
-		}
-		_ = json.NewEncoder(w).Encode(ActionResponse{
-			Success: true,
-			Message: fmt.Sprintf("container %s created and started from %s (demo mode)", name, req.Image),
-		})
+		writeDockerUnavailable(w)
 		return
 	}
 
@@ -175,6 +177,9 @@ func ContainerCreateHandler(w http.ResponseWriter, r *http.Request) {
 // already gated by auth.Middleware regardless.
 var upgrader = websocket.Upgrader{}
 
+// logWriteTimeout bounds each log-line write to the client.
+const logWriteTimeout = 10 * time.Second
+
 // ContainerLogsWsHandler handles GET /ws/docker/containers/{id}/logs
 func ContainerLogsWsHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -192,40 +197,34 @@ func ContainerLogsWsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	if !defaultClient.IsAvailable() {
-		// Stream mock demo logs
-		demoLogs := []LogEntry{
-			{TS: "06:14:02", Level: "INFO", Source: "http.log.access", Text: "handled request GET /api/v1/status status=200"},
-			{TS: "06:14:05", Level: "INFO", Source: "http.log.access", Text: "handled request POST /api/v1/auth status=200"},
-			{TS: "06:14:11", Level: "WARN", Source: "http.log.access", Text: "blocked probe GET /.env status=403"},
-			{TS: "06:14:19", Level: "INFO", Source: "worker", Text: "background job finished successfully"},
-		}
-
-		for _, l := range demoLogs {
-			if err := conn.WriteJSON(l); err != nil {
-				return
-			}
-		}
-
-		ticker := time.NewTicker(4 * time.Second)
-		defer ticker.Stop()
-
+	// Nothing reads from the socket otherwise, so a client disconnect would
+	// go unnoticed until the next write failed (possibly never, on a quiet
+	// container). Draining client messages makes ReadMessage return an error
+	// on disconnect, which cancels ctx and tears down the Docker stream.
+	go func() {
+		defer cancel()
 		for {
-			select {
-			case <-ctx.Done():
+			if _, _, err := conn.ReadMessage(); err != nil {
 				return
-			case t := <-ticker.C:
-				l := LogEntry{
-					TS:     t.Format("15:04:05"),
-					Level:  "INFO",
-					Source: "docker",
-					Text:   "heartbeat check ok · container healthy",
-				}
-				if err := conn.WriteJSON(l); err != nil {
-					return
-				}
 			}
 		}
+	}()
+
+	// writeJSON bounds every write so a stalled client can't wedge this
+	// goroutine forever. Only the streaming loop below writes, so no mutex.
+	writeJSON := func(v any) error {
+		_ = conn.SetWriteDeadline(time.Now().Add(logWriteTimeout))
+		return conn.WriteJSON(v)
+	}
+
+	if !defaultClient.IsAvailable() {
+		_ = writeJSON(LogEntry{
+			TS:     time.Now().Format("15:04:05"),
+			Level:  "ERROR",
+			Source: "docker",
+			Text:   notRunningMessage,
+		})
+		return
 	}
 
 	// Docker only multiplexes /logs output into the 8-byte-header framed
@@ -239,7 +238,7 @@ func ContainerLogsWsHandler(w http.ResponseWriter, r *http.Request) {
 
 	stream, err := defaultClient.StreamLogsReader(ctx, id, 100)
 	if err != nil {
-		_ = conn.WriteJSON(LogEntry{
+		_ = writeJSON(LogEntry{
 			TS:     time.Now().Format("15:04:05"),
 			Level:  "ERROR",
 			Source: "docker",
@@ -281,7 +280,7 @@ func ContainerLogsWsHandler(w http.ResponseWriter, r *http.Request) {
 			Source: id,
 			Text:   clean,
 		}
-		return conn.WriteJSON(entry) == nil
+		return writeJSON(entry) == nil
 	}
 
 	if tty {

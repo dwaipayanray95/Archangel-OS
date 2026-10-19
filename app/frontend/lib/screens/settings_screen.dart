@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/app_state.dart';
+import '../services/admin_mode_service.dart';
 import '../services/app_version.dart';
 import '../services/archangeld_connection.dart';
+import '../services/devices_service.dart';
+import '../services/monitoring_service.dart';
 import '../services/semver.dart';
+import '../services/ssh_credentials.dart';
 import '../services/tunnel_config.dart';
 import '../services/update_check_service.dart';
 import '../services/wireguard_controller.dart';
@@ -15,6 +19,7 @@ import '../widgets/ax_widgets.dart';
 import '../widgets/backend_update_dialog.dart';
 import '../widgets/manage_ssh_key_dialog.dart';
 import '../widgets/pairing_dialog.dart';
+import '../widgets/passphrase_prompt_dialog.dart';
 import '../widgets/sync_server_config_dialog.dart';
 import '../widgets/uninstall_dialog.dart';
 
@@ -26,6 +31,10 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  /// The backend host the devices/Admin-mode services were last pointed at,
+  /// so they (re)load when pairing changes while this screen is open.
+  String? _servicesHost;
+
   @override
   void initState() {
     super.initState();
@@ -34,22 +43,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  void _syncBackendServices(ArchangeldConnection backend) {
+    final host = backend.isPaired ? backend.host : null;
+    if (host == _servicesHost) return;
+    _servicesHost = host;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<DevicesService>().init(backend);
+      context.read<AdminModeService>().init(backend);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final backend = context.watch<ArchangeldConnection>();
     final updates = context.watch<UpdateCheckService>();
+    final devices = context.watch<DevicesService>();
+    final hostname = context.watch<MonitoringService>().metrics?.host.hostname ?? '';
+    _syncBackendServices(backend);
     final ver = AppVersion.current;
     final backendVer = backend.isPaired
         ? (backend.backendVersion != null
             ? 'v${backend.backendVersion}'
             : (backend.backendChecking ? 'checking…' : (backend.backendVersionError ?? 'offline')))
         : 'not paired';
-    final plainRows = [
-      ['Host', 'Archangel-MK1'],
-      ['Paired devices', '1'],
-      ['License', 'personal use'],
-    ];
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
@@ -58,7 +76,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Text('Settings', style: AxTextStyles.h1),
           const SizedBox(height: 3),
-          Text('Archangel v${AppVersion.archangel} · paired 1 device', style: AxTextStyles.mutedMono),
+          Text(
+            backend.isPaired && devices.loaded
+                ? 'Archangel v${AppVersion.archangel} · ${devices.devices.length} paired ${devices.devices.length == 1 ? 'device' : 'devices'}'
+                : 'Archangel v${AppVersion.archangel}',
+            style: AxTextStyles.mutedMono,
+          ),
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, c) {
@@ -69,21 +92,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const _TunnelCard(),
                   const SizedBox(height: 11),
                   const _BackendCard(),
-                  const SizedBox(height: 11),
-                  AxCard(
-                    padding: const EdgeInsets.all(15),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Auth', style: AxTextStyles.sans.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 4),
-                        Text('Device tokens rotate every 30 days.', style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.fg2)),
-                        const SizedBox(height: 11),
-                        _TokenRow(name: 'macbook-air', meta: 'issued Aug 14 · expires Sep 13'),
-                        _TokenRow(name: 'pixel-9', meta: 'issued Aug 30 · expires Sep 29'),
-                      ],
-                    ),
-                  ),
+                  if (backend.isPaired) ...[
+                    const SizedBox(height: 11),
+                    const _DevicesCard(),
+                  ],
                 ],
               );
               final right = Column(
@@ -118,29 +130,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                           ],
-                        ),
-                        const SizedBox(height: 14),
-                        const Divider(color: AxColors.line, height: 1),
-                        const SizedBox(height: 12),
-                        Text('Density', style: AxTextStyles.sans.copyWith(fontSize: 11, color: AxColors.fg3)),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(color: AxColors.s2, borderRadius: BorderRadius.circular(AxRadius.pill), border: Border.all(color: AxColors.line)),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(color: app.accent, borderRadius: BorderRadius.circular(AxRadius.pill)),
-                                child: Text('Comfortable', style: AxTextStyles.sans.copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, color: AxColors.bg)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                child: Text('Compact', style: AxTextStyles.sans.copyWith(fontSize: 11.5, fontWeight: FontWeight.w600, color: AxColors.fg3)),
-                              ),
-                            ],
-                          ),
                         ),
                       ],
                     ),
@@ -194,11 +183,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ? () => showBackendUpdateDialog(context, targetVersion: updates.latestBackend!, releaseTag: updates.backendTag!)
                               : null,
                         ),
-                        for (final r in plainRows) _KvRow(r[0], r[1], divider: false),
+                        if (backend.isPaired && hostname.isNotEmpty) _KvRow('Host', hostname, divider: false),
                       ],
                     ),
                   ),
                   if (backend.isPaired) ...[
+                    const SizedBox(height: 11),
+                    const _AdminModeCard(),
                     const SizedBox(height: 11),
                     AxCard(
                       padding: const EdgeInsets.all(15),
@@ -208,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text('SSH key & Server Config', style: AxTextStyles.sans.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),
                           Text(
-                            'Manage the remembered SSH key, or synchronize the server service unit and sudo permissions to the latest release.',
+                            'Manage the remembered SSH key (protected by a passphrase), or synchronize the server service unit and permissions to the latest release.',
                             style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.fg3, height: 1.4),
                           ),
                           const SizedBox(height: 10),
@@ -219,6 +210,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               OutlinedButton(
                                 onPressed: () => showManageSshKeyDialog(context),
                                 child: const Text('Manage SSH key'),
+                              ),
+                              OutlinedButton(
+                                onPressed: () => _changePassphrase(context),
+                                child: const Text('Change passphrase'),
                               ),
                               FilledButton.tonalIcon(
                                 icon: const Icon(Icons.sync_rounded, size: 14),
@@ -330,13 +325,149 @@ class _UpdateBadge extends StatelessWidget {
   }
 }
 
-class _TokenRow extends StatelessWidget {
-  final String name;
-  final String meta;
-  const _TokenRow({required this.name, required this.meta});
+/// Yes/no confirmation in the app's dialog style. Returns false if dismissed.
+Future<bool> _confirm(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirmLabel,
+  bool destructive = true,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: AxColors.s2,
+      title: Text(title, style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
+      content: SizedBox(
+        width: 400,
+        child: Text(message, style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.5)),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton(
+          style: destructive ? FilledButton.styleFrom(backgroundColor: AxColors.bad, foregroundColor: Colors.white) : null,
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(confirmLabel),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
+
+void _snack(ScaffoldMessengerState messenger, String message) {
+  messenger.showSnackBar(SnackBar(content: Text(message)));
+}
+
+/// "Change passphrase" for the saved SSH key: asks for the current and a new
+/// passphrase, then re-encrypts the saved key.
+Future<void> _changePassphrase(BuildContext context) async {
+  final messenger = ScaffoldMessenger.of(context);
+  if (!await hasSavedSshCredentials()) {
+    _snack(messenger, 'No SSH key is saved yet - use "Manage SSH key" to save one.');
+    return;
+  }
+  if (!context.mounted) return;
+  final result = await promptToChangePassphrase(context);
+  if (result == null) return;
+  try {
+    await changeSshCredentialsPassphrase(result.$1, result.$2);
+    _snack(messenger, 'Passphrase changed.');
+  } on WrongPassphraseException {
+    _snack(messenger, 'The current passphrase is incorrect.');
+  } catch (e) {
+    _snack(messenger, 'Could not change the passphrase: $e');
+  }
+}
+
+const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+String _formatDate(DateTime d) {
+  final l = d.toLocal();
+  return '${_months[l.month - 1]} ${l.day}, ${l.year}';
+}
+
+/// Paired devices as reported by the backend, with per-device revoke.
+class _DevicesCard extends StatelessWidget {
+  const _DevicesCard();
+
+  Future<void> _revoke(BuildContext context, PairedDevice device) async {
+    final svc = context.read<DevicesService>();
+    final backend = context.read<ArchangeldConnection>();
+    final wg = context.read<WireGuardController>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => _RevokeDeviceDialog(device: device),
+    );
+    if (confirmed != true) return;
+
+    final result = await svc.revoke(device, self: device.current);
+    if (!result.success) {
+      _snack(messenger, result.message);
+      return;
+    }
+    if (device.current) {
+      // This device just lost access: forget the pairing locally as well.
+      await backend.unpair();
+      await wg.unpair();
+    }
+    _snack(messenger, device.current ? result.message : 'Revoked ${device.name}.');
+  }
 
   @override
   Widget build(BuildContext context) {
+    final svc = context.watch<DevicesService>();
+    return AxCard(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Devices', style: AxTextStyles.sans.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              GestureDetector(
+                onTap: svc.loading ? null : svc.refresh,
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: svc.loading
+                      ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
+                      : Icon(Icons.refresh, size: 14, color: AxColors.fg3),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('Devices paired with this server. Revoking one cuts its access immediately.',
+              style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.fg2)),
+          const SizedBox(height: 11),
+          if (svc.error != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(svc.error!, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.bad)),
+            ),
+          if (svc.loaded && svc.devices.isEmpty)
+            Text('No paired devices.', style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.fg3)),
+          for (final d in svc.devices) _DeviceRow(device: d, onRevoke: () => _revoke(context, d)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeviceRow extends StatelessWidget {
+  final PairedDevice device;
+  final VoidCallback onRevoke;
+  const _DeviceRow({required this.device, required this.onRevoke});
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = [
+      if (device.createdAt != null) 'paired ${_formatDate(device.createdAt!)}',
+      if (device.tunnelIp != null) device.tunnelIp!,
+    ].join(' · ');
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
@@ -347,12 +478,172 @@ class _TokenRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: AxTextStyles.sans.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text(meta, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3)),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(device.name, style: AxTextStyles.sans.copyWith(fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                    ),
+                    if (device.current) ...[
+                      const SizedBox(width: 7),
+                      AxPill(text: 'This device', color: AxColors.accent),
+                    ],
+                  ],
+                ),
+                if (meta.isNotEmpty) Text(meta, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3)),
               ],
             ),
           ),
-          const AxGhostButton(label: 'Rotate'),
+          AxGhostButton(label: 'Revoke', color: AxColors.bad, onTap: onRevoke),
+        ],
+      ),
+    );
+  }
+}
+
+/// Confirms revoking a device. For the device in use, the user must also
+/// type its name - it cuts their own connection to the server.
+class _RevokeDeviceDialog extends StatefulWidget {
+  final PairedDevice device;
+  const _RevokeDeviceDialog({required this.device});
+
+  @override
+  State<_RevokeDeviceDialog> createState() => _RevokeDeviceDialogState();
+}
+
+class _RevokeDeviceDialogState extends State<_RevokeDeviceDialog> {
+  final _nameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final device = widget.device;
+    final canRevoke = !device.current || _nameController.text.trim() == device.name;
+    return AlertDialog(
+      backgroundColor: AxColors.s2,
+      title: Text('Revoke "${device.name}"?', style: AxTextStyles.sans.copyWith(fontSize: 15, fontWeight: FontWeight.w700)),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              device.current
+                  ? 'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
+                      'You will need SSH access to the server to pair again.'
+                  : 'This device will lose access to the server immediately. It will need to be paired again to reconnect.',
+              style: AxTextStyles.sans.copyWith(fontSize: 12, color: AxColors.fg2, height: 1.5),
+            ),
+            if (device.current) ...[
+              const SizedBox(height: 12),
+              Text('Type "${device.name}" to confirm', style: AxTextStyles.sans.copyWith(fontSize: 11, color: AxColors.fg3)),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _nameController,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                style: AxTextStyles.mono.copyWith(fontSize: 12),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: AxColors.s1,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AxColors.line)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AxColors.line)),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: AxColors.bad, foregroundColor: Colors.white),
+          onPressed: canRevoke ? () => Navigator.of(context).pop(true) : null,
+          child: const Text('Revoke'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Admin mode: whether the archangel user has passwordless sudo on the
+/// server. The app can switch it off; switching it on needs SSH.
+class _AdminModeCard extends StatelessWidget {
+  const _AdminModeCard();
+
+  Future<void> _toggle(BuildContext context, bool wantOn) async {
+    final svc = context.read<AdminModeService>();
+    final messenger = ScaffoldMessenger.of(context);
+    if (wantOn) {
+      await showSyncServerConfigDialog(context, mode: SyncServerMode.enableAdminMode);
+      await svc.refresh();
+      return;
+    }
+    final ok = await _confirm(
+      context,
+      title: 'Turn off Admin mode?',
+      message: 'The terminal and Archangel will no longer be able to run commands as root. '
+          'Actions that need root - starting or stopping services, rebooting, revoking devices - will be refused until you turn it back on, '
+          'which needs your SSH key.',
+      confirmLabel: 'Turn off',
+    );
+    if (!ok) return;
+    final result = await svc.disable();
+    if (!result.success) {
+      _snack(messenger, result.message);
+      await svc.refresh();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = context.watch<AdminModeService>();
+    final enabled = svc.enabled;
+    final known = enabled != null;
+    return AxCard(
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Admin mode', style: AxTextStyles.sans.copyWith(fontSize: 12.5, fontWeight: FontWeight.w700)),
+              const Spacer(),
+              if (known) AxPill(text: enabled ? 'on' : 'off', color: enabled ? AxColors.accent : AxColors.fg3),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Admin mode lets the terminal and Archangel run commands as root (sudo). '
+            'Turn it off for a safer, limited mode. Turning it back on needs your SSH key.',
+            style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.fg3, height: 1.4),
+          ),
+          const SizedBox(height: 10),
+          if (known)
+            Row(
+              children: [
+                Switch(value: enabled, onChanged: svc.loading ? null : (v) => _toggle(context, v)),
+                const SizedBox(width: 6),
+                Text(enabled ? 'Enabled' : 'Disabled', style: AxTextStyles.sans.copyWith(fontSize: 11.5, color: AxColors.fg2)),
+              ],
+            )
+          else if (svc.error == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5)),
+            ),
+          if (svc.error != null) ...[
+            Text(svc.error!, style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.bad)),
+            const SizedBox(height: 8),
+            AxGhostButton(label: 'Retry', onTap: svc.loading ? null : svc.refresh),
+          ],
         ],
       ),
     );
@@ -412,7 +703,20 @@ class _BackendCard extends StatelessWidget {
           if (backend.isPaired) ...[
             _KvRow('Host', backend.host!),
             const SizedBox(height: 12),
-            AxGhostButton(label: 'Unpair', color: AxColors.bad, onTap: backend.unpair),
+            AxGhostButton(
+              label: 'Unpair',
+              color: AxColors.bad,
+              onTap: () async {
+                final ok = await _confirm(
+                  context,
+                  title: 'Unpair from this backend?',
+                  message: 'This app will forget the backend address and token, so you will need to pair again to use the terminal, files, containers and monitoring. '
+                      'The server itself is not changed, and this device stays in its paired-devices list until you revoke it.',
+                  confirmLabel: 'Unpair',
+                );
+                if (ok) await backend.unpair();
+              },
+            ),
           ] else
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -549,7 +853,19 @@ class _TunnelCard extends StatelessWidget {
                 const SizedBox(width: 7),
                 AxGhostButton(label: 'View config', onTap: () => _showConfigDialog(context, cfg)),
                 const SizedBox(width: 7),
-                AxGhostButton(label: 'Unpair', color: AxColors.bad, onTap: () => wg.unpair()),
+                AxGhostButton(
+                  label: 'Unpair',
+                  color: AxColors.bad,
+                  onTap: () async {
+                    final ok = await _confirm(
+                      context,
+                      title: 'Remove the tunnel from this device?',
+                      message: 'The WireGuard tunnel config is deleted from this device, so it can no longer reach the server until you pair again.',
+                      confirmLabel: 'Unpair',
+                    );
+                    if (ok) await wg.unpair();
+                  },
+                ),
               ],
             ],
           ),

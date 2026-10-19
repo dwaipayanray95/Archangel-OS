@@ -93,7 +93,9 @@ func (c *Client) GetVersion() string {
 	if err := json.NewDecoder(resp.Body).Decode(&data); err == nil && data.Version != "" {
 		return data.Version
 	}
-	return "27.1.1"
+	// Never invent a version number: if the daemon answered but gave us
+	// nothing parseable, say so honestly.
+	return "unknown"
 }
 
 // ListContainers returns parsed container summaries with stack classification.
@@ -170,7 +172,7 @@ func (c *Client) ListContainers() ([]ContainerItem, error) {
 		uptime := r.Status
 		if strings.HasPrefix(uptime, "Up ") {
 			parts := strings.Split(uptime, " ")
-			if len(parts) >= 3 {
+			if len(parts) >= 3 && parts[2] != "" {
 				uptime = "up " + parts[1] + parts[2][:1]
 			}
 		}
@@ -194,60 +196,9 @@ func (c *Client) ListContainers() ([]ContainerItem, error) {
 		})
 	}
 
-	// Concurrently query instantaneous stats for running containers (capped at 1.5s overall)
-	statsCtx, statsCancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
-	defer statsCancel()
-
-	type statResult struct {
-		idx      int
-		cpu      float64
-		memMb    int64
-		memLabel string
-	}
-	statChan := make(chan statResult, len(result))
-	sem := make(chan struct{}, 6) // Max 6 concurrent calls to docker.sock
-
-	for i := range result {
-		if !result[i].Running {
-			continue
-		}
-		go func(idx int, id string) {
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			cpu, memMb, label, err := c.ContainerStats(statsCtx, id)
-			if err == nil {
-				statChan <- statResult{idx: idx, cpu: cpu, memMb: memMb, memLabel: label}
-			} else {
-				// Leave the zero-value/"—" defaults already set on result[idx]
-				// rather than fabricating a plausible-looking reading - a
-				// failed/timed-out stats fetch must never be shown as real
-				// telemetry.
-				statChan <- statResult{idx: idx, cpu: 0, memMb: 0, memLabel: "—"}
-			}
-		}(i, result[i].ID)
-	}
-
-	// Drain results until context expires or all running containers reported
-	runningCount := 0
-	for _, it := range result {
-		if it.Running {
-			runningCount++
-		}
-	}
-
-	collected := 0
-	for collected < runningCount {
-		select {
-		case sr := <-statChan:
-			collected++
-			result[sr.idx].CPU = sr.cpu
-			result[sr.idx].MemMb = sr.memMb
-			result[sr.idx].MemLabel = sr.memLabel
-		case <-statsCtx.Done():
-			collected = runningCount // Stop waiting if timed out
-		}
-	}
+	// CPU/memory come from the background stats cache (see stats.go) so
+	// listing never blocks on Docker's slow per-container /stats calls.
+	mergeStats(result, globalStats, time.Now())
 
 	return result, nil
 }
@@ -332,45 +283,25 @@ func (c *Client) CreateAndStartContainer(ctx context.Context, req CreateContaine
 		return "", fmt.Errorf("invalid container name: %s", cleanName)
 	}
 
-	// Prepare ports
+	// Prepare ports. See ParsePortSpec for the accepted formats and the
+	// private-by-default publishing rule.
 	exposedPorts := make(map[string]struct{})
 	portBindings := make(map[string][]map[string]string)
 
 	for _, p := range req.Ports {
-		p = strings.TrimSpace(p)
-		if p == "" {
+		spec, err := ParsePortSpec(p, privateBindIP())
+		if err != nil {
+			return "", err
+		}
+		if spec == nil {
 			continue
 		}
-		parts := strings.Split(p, ":")
-		if len(parts) == 3 {
-			hostIP := strings.TrimSpace(parts[0])
-			hostPort := strings.TrimSpace(parts[1])
-			contPort := strings.TrimSpace(parts[2])
-			if !strings.Contains(contPort, "/") {
-				contPort += "/tcp"
-			}
-			exposedPorts[contPort] = struct{}{}
-			portBindings[contPort] = append(portBindings[contPort], map[string]string{
-				"HostIp":   hostIP,
-				"HostPort": hostPort,
+		exposedPorts[spec.ContainerPort] = struct{}{}
+		if spec.HostPort != "" {
+			portBindings[spec.ContainerPort] = append(portBindings[spec.ContainerPort], map[string]string{
+				"HostIp":   spec.HostIP,
+				"HostPort": spec.HostPort,
 			})
-		} else if len(parts) == 2 {
-			hostPort := strings.TrimSpace(parts[0])
-			contPort := strings.TrimSpace(parts[1])
-			if !strings.Contains(contPort, "/") {
-				contPort += "/tcp"
-			}
-			exposedPorts[contPort] = struct{}{}
-			portBindings[contPort] = append(portBindings[contPort], map[string]string{
-				"HostIp":   "0.0.0.0",
-				"HostPort": hostPort,
-			})
-		} else if len(parts) == 1 {
-			contPort := strings.TrimSpace(parts[0])
-			if !strings.Contains(contPort, "/") {
-				contPort += "/tcp"
-			}
-			exposedPorts[contPort] = struct{}{}
 		}
 	}
 
@@ -501,8 +432,8 @@ func (c *Client) ContainerStats(ctx context.Context, id string) (cpu float64, me
 			SystemCPUUsage uint64 `json:"system_cpu_usage"`
 		} `json:"precpu_stats"`
 		MemoryStats struct {
-			Usage uint64 `json:"usage"`
-			Limit uint64 `json:"limit"`
+			Usage uint64            `json:"usage"`
+			Limit uint64            `json:"limit"`
 			Stats map[string]uint64 `json:"stats"`
 		} `json:"memory_stats"`
 	}

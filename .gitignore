@@ -5,3 +5,5 @@
 .oci/
 oci_config
 *.ppk
+
+.DS_Store

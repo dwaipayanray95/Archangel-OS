@@ -1,6 +1,8 @@
 package devops
 
 import (
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -119,6 +121,66 @@ func TestDeploymentCRUDAndValidation(t *testing.T) {
 
 		if err := DeleteDeployment(testName); err != nil {
 			t.Errorf("DeleteDeployment failed: %v", err)
+		}
+	}
+}
+
+func TestServiceActionLockoutGuards(t *testing.T) {
+	var calls []string
+	old := systemctlRun
+	systemctlRun = func(action, unit string) error { calls = append(calls, action+" "+unit); return nil }
+	defer func() { systemctlRun = old }()
+
+	for _, u := range []string{"ssh.service", "wg-quick@wg0.service", "archangeld.service", "archangel.service"} {
+		err := ServiceAction(u, "stop")
+		if err == nil || !errors.Is(err, ErrRefused) || !strings.Contains(err.Error(), "cut you off") {
+			t.Errorf("ServiceAction(%s, stop) = %v, want lockout refusal", u, err)
+		}
+		if err := ServiceAction(u, "restart"); err != nil {
+			t.Errorf("ServiceAction(%s, restart) = %v, want allowed", u, err)
+		}
+	}
+	if err := ServiceAction("docker.service", "stop"); err != nil {
+		t.Errorf("stopping docker should be allowed: %v", err)
+	}
+	if len(calls) != 5 {
+		t.Errorf("systemctl calls = %v", calls)
+	}
+}
+
+func TestTriggerScheduledUsesLiveTimerList(t *testing.T) {
+	var calls []string
+	oldRun, oldList := systemctlRun, listScheduledFn
+	systemctlRun = func(action, unit string) error { calls = append(calls, action+" "+unit); return nil }
+	listScheduledFn = func() ([]ScheduledItem, error) {
+		return []ScheduledItem{
+			{Name: "certbot.timer", Schedule: "certbot.service"},
+			{Name: "weird.timer", Schedule: "-"},
+		}, nil
+	}
+	defer func() { systemctlRun, listScheduledFn = oldRun, oldList }()
+
+	if err := TriggerScheduled("certbot.timer"); err != nil {
+		t.Fatalf("certbot.timer: %v", err)
+	}
+	if len(calls) != 1 || calls[0] != "start certbot.service" {
+		t.Errorf("calls = %v", calls)
+	}
+	if err := TriggerScheduled("missing.timer"); err == nil {
+		t.Error("unlisted timer should be rejected")
+	}
+	if err := TriggerScheduled("weird.timer"); err == nil {
+		t.Error("timer without a service should be rejected")
+	}
+	if len(calls) != 1 {
+		t.Errorf("rejected triggers must not run anything: %v", calls)
+	}
+}
+
+func TestDeployDirsExcludeTemp(t *testing.T) {
+	for _, d := range getDeployDirs() {
+		if strings.Contains(d, "archangel-deploy") {
+			t.Errorf("temp deploy dir still present: %s", d)
 		}
 	}
 }
