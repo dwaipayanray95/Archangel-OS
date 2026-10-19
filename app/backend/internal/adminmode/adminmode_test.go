@@ -32,6 +32,9 @@ func TestIsSudoDenied(t *testing.T) {
 // stub replaces runCmd and records calls.
 func stub(t *testing.T, fn func(name string, args []string) (string, string, error)) *[][]string {
 	t.Helper()
+	oldLook := lookPath
+	lookPath = func(string) (string, error) { return "", errors.New("not found") }
+	t.Cleanup(func() { lookPath = oldLook })
 	var calls [][]string
 	old := runCmd
 	runCmd = func(ctx context.Context, name string, args ...string) ([]byte, []byte, error) {
@@ -121,5 +124,23 @@ func TestSetHandlerBadBody(t *testing.T) {
 	SetHandler(rec, httptest.NewRequest("POST", "/", strings.NewReader(`{}`)))
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("code = %d", rec.Code)
+	}
+}
+
+func TestRunEscapesSandboxWithSystemdRun(t *testing.T) {
+	calls := stub(t, func(string, []string) (string, string, error) { return "", "", nil })
+	lookPath = func(string) (string, error) { return "/usr/bin/systemd-run", nil }
+	if _, err := Run(time.Second, "rm", "-f", SudoersPath); err != nil {
+		t.Fatal(err)
+	}
+	want := "sudo -n systemd-run --quiet --wait --pipe --collect --service-type=exec -- rm -f " + SudoersPath
+	if got := strings.Join((*calls)[0], " "); got != want {
+		t.Errorf("command = %q, want %q", got, want)
+	}
+	if !Enabled() {
+		t.Error("Enabled should be true")
+	}
+	if got := strings.Join((*calls)[1], " "); got != "sudo -n true" {
+		t.Errorf("Enabled probe = %q, want plain sudo -n true", got)
 	}
 }

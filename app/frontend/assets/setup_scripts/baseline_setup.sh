@@ -69,6 +69,15 @@ if id archangel > /dev/null 2>&1; then
   sudo usermod -aG docker archangel || true
 fi
 
+# Archangel publishes container ports on the WireGuard address by default
+# (private to your devices). Docker can only bind that address once wg0 is
+# up, so make Docker wait for the tunnel at boot - otherwise those
+# containers fail to start after a reboot.
+echo "==> Ordering Docker after WireGuard"
+sudo mkdir -p /etc/systemd/system/docker.service.d
+printf '[Unit]\nAfter=wg-quick@wg0.service\nWants=wg-quick@wg0.service\n' | sudo tee /etc/systemd/system/docker.service.d/archangel-wg.conf > /dev/null
+sudo systemctl daemon-reload
+
 echo "==> Caddy Reverse Proxy"
 if command -v caddy > /dev/null; then
   echo "    Caddy already installed - skipping."

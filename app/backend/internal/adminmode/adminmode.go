@@ -64,10 +64,33 @@ func IsSudoDenied(stderr string) bool {
 	return false
 }
 
-// Run executes `sudo -n <args...>` with a timeout. It returns ErrOff when
-// sudo refused (Admin mode off); other failures include the command's
-// stderr. stdout is returned on success.
+// lookPath is swappable in tests.
+var lookPath = exec.LookPath
+
+// escapeArgs wraps a privileged command in `systemd-run --pipe --wait` so
+// PID 1 runs it as a transient unit outside archangel.service's sandbox.
+// sudo alone is not enough: sudo's children inherit the unit's mount
+// namespace, where ProtectSystem=full and ReadOnlyPaths keep /etc
+// read-only even for root - so `rm /etc/sudoers.d/archangel`, `unpair`
+// (which rewrites /etc/wireguard/wg0.conf and /etc/archangel/tokens.json)
+// and similar would fail with "Read-only file system". Falls back to the
+// bare command where systemd-run doesn't exist (non-systemd dev boxes).
+func escapeArgs(args []string) []string {
+	if _, err := lookPath("systemd-run"); err != nil {
+		return args
+	}
+	return append([]string{"systemd-run", "--quiet", "--wait", "--pipe", "--collect", "--service-type=exec", "--"}, args...)
+}
+
+// Run executes `sudo -n <args...>` with a timeout, outside the service
+// sandbox (see escapeArgs). It returns ErrOff when sudo refused (Admin
+// mode off); other failures include the command's stderr. stdout is
+// returned on success.
 func Run(timeout time.Duration, args ...string) ([]byte, error) {
+	return run(timeout, escapeArgs(args))
+}
+
+func run(timeout time.Duration, args []string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -90,7 +113,8 @@ func Run(timeout time.Duration, args ...string) ([]byte, error) {
 // Enabled reports whether passwordless sudo currently works (`sudo -n true`
 // succeeds within 2 seconds).
 func Enabled() bool {
-	_, err := Run(2*time.Second, "true")
+	// Probes sudo itself, so no need to escape the sandbox.
+	_, err := run(2*time.Second, []string{"true"})
 	return err == nil
 }
 

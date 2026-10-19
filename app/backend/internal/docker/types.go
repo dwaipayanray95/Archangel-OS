@@ -1,34 +1,33 @@
 package docker
 
-
 // ContainerItem represents a single container's runtime state.
 type ContainerItem struct {
-	ID        string            `json:"id"`
-	Names     []string          `json:"names"`
-	Name      string            `json:"name"`
-	Image     string            `json:"image"`
-	Stack     string            `json:"stack"` // From com.docker.compose.project or "standalone"
-	State     string            `json:"state"` // "running", "exited", "paused", etc.
-	Status    string            `json:"status"` // e.g. "Up 42 days", "Exited (0) 6 hours ago"
-	Uptime    string            `json:"uptime"`
-	CPU       float64           `json:"cpu"` // Percentage
-	MemMb     int64             `json:"mem_mb"`
-	MemLabel  string            `json:"mem_label"`
-	Ports     string            `json:"ports"`
-	CID       string            `json:"cid"` // Truncated 12-char ID
-	Running   bool              `json:"running"`
-	Labels    map[string]string `json:"labels,omitempty"`
+	ID       string            `json:"id"`
+	Names    []string          `json:"names"`
+	Name     string            `json:"name"`
+	Image    string            `json:"image"`
+	Stack    string            `json:"stack"`  // From com.docker.compose.project or "standalone"
+	State    string            `json:"state"`  // "running", "exited", "paused", etc.
+	Status   string            `json:"status"` // e.g. "Up 42 days", "Exited (0) 6 hours ago"
+	Uptime   string            `json:"uptime"`
+	CPU      float64           `json:"cpu"` // Percentage
+	MemMb    int64             `json:"mem_mb"`
+	MemLabel string            `json:"mem_label"`
+	Ports    string            `json:"ports"`
+	CID      string            `json:"cid"` // Truncated 12-char ID
+	Running  bool              `json:"running"`
+	Labels   map[string]string `json:"labels,omitempty"`
 }
 
 // ContainersOverview wraps the engine status and containers payload.
 type ContainersOverview struct {
-	DockerAvailable bool            `json:"docker_available"`
-	EngineVersion   string          `json:"engine_version"`
-	RunningCount    int             `json:"running_count"`
-	StoppedCount    int             `json:"stopped_count"`
-	TotalImagesSize string          `json:"total_images_size"`
-	Containers      []ContainerItem `json:"containers"`
-	Stacks          []string        `json:"stacks"`
+	DockerAvailable bool              `json:"docker_available"`
+	EngineVersion   string            `json:"engine_version"`
+	RunningCount    int               `json:"running_count"`
+	StoppedCount    int               `json:"stopped_count"`
+	TotalImagesSize string            `json:"total_images_size"`
+	Containers      []ContainerItem   `json:"containers"`
+	Stacks          []string          `json:"stacks"`
 	StackMeta       map[string]string `json:"stack_meta"`
 }
 

@@ -432,8 +432,8 @@ func (c *Client) ContainerStats(ctx context.Context, id string) (cpu float64, me
 			SystemCPUUsage uint64 `json:"system_cpu_usage"`
 		} `json:"precpu_stats"`
 		MemoryStats struct {
-			Usage uint64 `json:"usage"`
-			Limit uint64 `json:"limit"`
+			Usage uint64            `json:"usage"`
+			Limit uint64            `json:"limit"`
 			Stats map[string]uint64 `json:"stats"`
 		} `json:"memory_stats"`
 	}
