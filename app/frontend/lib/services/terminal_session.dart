@@ -45,7 +45,7 @@ class TerminalSessionInfo {
     return TerminalSessionInfo(
       name: json['name'] as String? ?? '',
       windows: (json['windows'] as num?)?.toInt() ?? 1,
-      attached: json['attached'] == true || ((json['attached'] as num?) ?? 0) > 0,
+      attached: json['attached'] == true || (json['attached'] is num && (json['attached'] as num) > 0),
       created: unix != null && unix > 0 ? DateTime.fromMillisecondsSinceEpoch(unix * 1000) : null,
     );
   }

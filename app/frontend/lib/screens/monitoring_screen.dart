@@ -191,10 +191,7 @@ class _ChartCard extends StatelessWidget {
               const SizedBox(height: 12),
               SizedBox(height: 150, child: Sparkline(values: values, color: AxColors.accent)),
               const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [Text('Live (since you opened this screen)', style: AxTextStyles.mono.copyWith(fontSize: 9.5, color: AxColors.fg3))],
-              ),
+              Text('Live (since you opened this screen)', style: AxTextStyles.mono.copyWith(fontSize: 9.5, color: AxColors.fg3)),
             ],
           ),
         ),
