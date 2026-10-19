@@ -300,6 +300,18 @@ void main() {
   });
 
   group('VpsSetupService.updateBackend', () {
+    test('sync step installs terminal prerequisites and orders Docker after WireGuard', () async {
+      final ssh = FakeSshTransport(responses: [
+        _sumsResponse('200'),
+        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+      ]);
+      await VpsSetupService(ssh).syncServiceAndPermissions().toList();
+      final sync = ssh.commands.firstWhere((c) => c.contains('archangel.service'));
+      expect(sync, contains('dbus-user-session'));
+      expect(sync, contains('loginctl enable-linger archangel'));
+      expect(sync, contains('After=wg-quick@wg0.service'));
+    });
+
     test('backs up, downloads, restarts, and confirms via the health poll', () async {
       final ssh = FakeSshTransport(responses: [
         _sumsResponse('200'),
