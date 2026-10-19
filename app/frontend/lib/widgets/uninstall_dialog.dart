@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/archangeld_connection.dart';
+import '../services/server_registry.dart';
 import '../services/ssh_credentials.dart';
 import '../services/ssh_transport.dart';
 import '../services/vps_setup_service.dart';
@@ -157,9 +158,11 @@ class _UninstallDialogState extends State<UninstallDialog> {
           // The server this device was paired to no longer exists -
           // clear local pairing state so the app doesn't keep showing
           // "paired" against a dead server.
-          await context.read<ArchangeldConnection>().unpair();
-          if (!mounted) return;
-          await context.read<WireGuardController>().unpair();
+          await removeActiveServer(
+            registry: context.read<ServerRegistry>(),
+            wg: context.read<WireGuardController>(),
+            backend: context.read<ArchangeldConnection>(),
+          );
           if (!mounted) return;
           setState(() {
             _succeeded = true;

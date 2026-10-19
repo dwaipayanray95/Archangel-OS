@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../services/archangeld_connection.dart';
 import '../services/pairing_bundle.dart';
+import '../services/server_registry.dart';
 import '../services/wireguard_controller.dart';
 import '../theme/tokens.dart';
 import 'ax_widgets.dart';
@@ -21,21 +22,26 @@ import 'ax_widgets.dart';
 /// (`archangeld pair <name> --qr`) - other platforms don't get a camera
 /// option since scanning a QR code off a phone screen with a laptop
 /// webcam isn't a real workflow.
-Future<void> showPairingDialog(BuildContext context) {
+///
+/// Resolves to true when a server was paired (added to the
+/// [ServerRegistry] and made active), false if the dialog was cancelled.
+Future<bool> showPairingDialog(BuildContext context) async {
   final wg = context.read<WireGuardController>();
   final backend = context.read<ArchangeldConnection>();
+  final registry = context.read<ServerRegistry>();
+  var paired = false;
   final controller = TextEditingController();
   String? error;
 
-  return showDialog<void>(
+  await showDialog<void>(
     context: context,
     builder: (context) => StatefulBuilder(
       builder: (context, setState) {
         Future<void> submit(String raw) async {
           try {
             final bundle = PairingBundle.parse(raw);
-            await wg.pair(bundle.tunnel.toWgQuickConfig());
-            await backend.pair(host: bundle.host, token: bundle.token);
+            await pairNewServer(registry: registry, wg: wg, backend: backend, bundle: bundle);
+            paired = true;
             if (context.mounted) {
               Navigator.of(context).pop();
               if (Platform.isMacOS && !wg.isMacosHelperInstalled) {
@@ -106,6 +112,7 @@ Future<void> showPairingDialog(BuildContext context) {
       },
     ),
   );
+  return paired;
 }
 
 void _promptEnableSeamlessTunnel(BuildContext context, WireGuardController wg) {

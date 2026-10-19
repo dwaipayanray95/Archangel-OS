@@ -70,7 +70,7 @@ class _CommandPaletteState extends State<CommandPalette> {
     final liveContainers = contSvc.overview?.containers ?? [];
     final containerItems = <_PaletteItem>[
       for (final c in liveContainers.take(4))
-        _PaletteItem(label: c.name, sub: c.image, icon: Icons.view_in_ar_outlined, go: () => app.go(AxSection.containers)),
+        _PaletteItem(label: c.name, sub: c.image, icon: Icons.view_in_ar_outlined, go: () => app.go(AxSection.apps)),
     ];
 
     final query = _controller.text.trim().toLowerCase();
@@ -79,7 +79,7 @@ class _CommandPaletteState extends State<CommandPalette> {
 
     final groups = <String, List<_PaletteItem>>{
       'Sections': filter(sections),
-      'Containers': filter(containerItems),
+      'Apps': filter(containerItems),
     }..removeWhere((_, v) => v.isEmpty);
     _flat = [for (final g in groups.values) ...g];
     if (_selected >= _flat.length) _selected = _flat.isEmpty ? 0 : _flat.length - 1;

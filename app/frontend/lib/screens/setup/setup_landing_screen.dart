@@ -12,12 +12,23 @@ import 'setup_wizard_screen.dart';
 /// running (the existing paste/QR dialog, unchanged) - so pairing a
 /// *second* device isn't forced through the wizard.
 class SetupLandingScreen extends StatelessWidget {
-  const SetupLandingScreen({super.key});
+  const SetupLandingScreen({super.key, this.canCancel = false});
+
+  /// True when opened from the server switcher ("Add a server") on top of
+  /// the running app, so it can be closed again.
+  final bool canCancel;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AxColors.bg,
+      appBar: canCancel
+          ? AppBar(
+              backgroundColor: AxColors.bg,
+              elevation: 0,
+              title: const Text('Add a server'),
+            )
+          : null,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
@@ -68,7 +79,10 @@ class SetupLandingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 AxCard(
-                  onTap: () => showPairingDialog(context),
+                  onTap: () async {
+                    final paired = await showPairingDialog(context);
+                    if (paired && canCancel && context.mounted) Navigator.of(context).pop();
+                  },
                   padding: const EdgeInsets.all(20),
                   child: Row(
                     children: [

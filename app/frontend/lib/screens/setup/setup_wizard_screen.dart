@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/archangeld_connection.dart';
 import '../../services/pairing_bundle.dart';
+import '../../services/server_registry.dart';
 import '../../services/ssh_credentials.dart';
 import '../../services/ssh_transport.dart';
 import '../../services/vps_setup_service.dart';
@@ -255,8 +256,14 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
     try {
       final wg = context.read<WireGuardController>();
       final backend = context.read<ArchangeldConnection>();
-      await wg.pair(bundle.tunnel.toWgQuickConfig());
-      await backend.pair(host: bundle.host, token: bundle.token);
+      await pairNewServer(
+        registry: context.read<ServerRegistry>(),
+        wg: wg,
+        backend: backend,
+        bundle: bundle,
+        sshHost: _hostController.text.trim(),
+        sshUser: _usernameController.text.trim().isEmpty ? 'ubuntu' : _usernameController.text.trim(),
+      );
       if (!mounted) return;
       // _RootRouter swaps its own body to AppShell once isPaired becomes
       // true, but that's the bottom of this Navigator's stack - this

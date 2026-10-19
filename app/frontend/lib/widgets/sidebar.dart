@@ -6,11 +6,11 @@ import '../theme/tokens.dart';
 import 'ax_widgets.dart';
 
 const _navIcons = <AxSection, IconData>{
-  AxSection.overview: Icons.grid_view_rounded,
-  AxSection.monitoring: Icons.show_chart_rounded,
+  AxSection.home: Icons.grid_view_rounded,
+  AxSection.activity: Icons.show_chart_rounded,
   AxSection.files: Icons.folder_outlined,
-  AxSection.containers: Icons.view_in_ar_outlined,
-  AxSection.devops: Icons.settings_ethernet_rounded,
+  AxSection.apps: Icons.view_in_ar_outlined,
+  AxSection.services: Icons.settings_ethernet_rounded,
   AxSection.terminal: Icons.chevron_right_rounded,
   AxSection.settings: Icons.tune_rounded,
 };
@@ -162,7 +162,7 @@ class _NavItemState extends State<_NavItem> {
 class BottomTabs extends StatelessWidget {
   const BottomTabs({super.key});
 
-  static const _tabs = [AxSection.overview, AxSection.monitoring, AxSection.files, AxSection.containers, AxSection.terminal];
+  static const _tabs = [AxSection.home, AxSection.activity, AxSection.files, AxSection.apps, AxSection.terminal];
 
   @override
   Widget build(BuildContext context) {

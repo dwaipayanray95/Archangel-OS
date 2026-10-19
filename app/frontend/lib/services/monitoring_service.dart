@@ -71,12 +71,44 @@ class MonitoringService extends ChangeNotifier {
     });
   }
 
+  bool _active = true;
+
+  /// Whether this service should currently talk to the server. The app
+  /// shell turns this off while no destination that shows monitoring data
+  /// is visible, so a hidden screen costs no bandwidth or battery.
+  bool get active => _active;
+
+  /// Pauses (closes the live stream and process polling) or resumes
+  /// polling. Already-loaded data stays so the UI doesn't flash empty.
+  void setActive(bool value) {
+    if (_active == value) return;
+    _active = value;
+    if (!value) {
+      stop();
+    } else if (_backend != null && _backend!.isPaired) {
+      _connect();
+    }
+  }
+
   void start(ArchangeldConnection backend) {
     if (_backend == backend && _status == MonitoringStatus.connected) {
       return;
     }
     _backend = backend;
+    if (!_active) return;
     _connect();
+  }
+
+  /// Forgets everything learned from the previous server (used when the
+  /// user switches to a different server).
+  void reset() {
+    stop();
+    _metrics = null;
+    _processes = [];
+    _totalProcesses = 0;
+    _error = null;
+    _lastPolled = null;
+    notifyListeners();
   }
 
   void stop() {
@@ -91,6 +123,7 @@ class MonitoringService extends ChangeNotifier {
   }
 
   void _connect() {
+    if (!_active) return;
     if (_backend == null || !_backend!.isPaired) {
       _status = MonitoringStatus.disconnected;
       notifyListeners();
@@ -142,7 +175,7 @@ class MonitoringService extends ChangeNotifier {
 
   void _scheduleReconnect() {
     Future.delayed(const Duration(seconds: 4), () {
-      if (_status != MonitoringStatus.connected && _backend != null && _backend!.isPaired) {
+      if (_active && _status != MonitoringStatus.connected && _backend != null && _backend!.isPaired) {
         _connect();
       }
     });

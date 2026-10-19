@@ -85,10 +85,10 @@ List<_Tile> _buildTiles(SystemMetrics? metrics, {bool stale = false}) {
   if (metrics == null) {
     final sub = stale ? 'No data' : 'Waiting for telemetry…';
     return [
-      _Tile('CPU', '—', '%', sub, '', AxColors.fg3, AxColors.accent, Icons.memory, [0.0], AxSection.monitoring),
-      _Tile('MEMORY', '—', 'GB', sub, '', AxColors.fg3, AxColors.info, Icons.developer_board, [0.0], AxSection.monitoring),
-      _Tile('DISK', '—', 'GB', sub, '', AxColors.fg3, AxColors.fg, Icons.storage, [0.0], AxSection.monitoring),
-      _Tile('NETWORK', '—', 'MB/s', sub, '', AxColors.fg3, AxColors.accent, Icons.swap_vert, [0.0], AxSection.monitoring),
+      _Tile('CPU', '—', '%', sub, '', AxColors.fg3, AxColors.accent, Icons.memory, [0.0], AxSection.activity),
+      _Tile('MEMORY', '—', 'GB', sub, '', AxColors.fg3, AxColors.info, Icons.developer_board, [0.0], AxSection.activity),
+      _Tile('DISK', '—', 'GB', sub, '', AxColors.fg3, AxColors.fg, Icons.storage, [0.0], AxSection.activity),
+      _Tile('NETWORK', '—', 'MB/s', sub, '', AxColors.fg3, AxColors.accent, Icons.swap_vert, [0.0], AxSection.activity),
     ];
   }
 
@@ -124,7 +124,7 @@ List<_Tile> _buildTiles(SystemMetrics? metrics, {bool stale = false}) {
       AxColors.accent,
       Icons.memory,
       cpuSpark,
-      AxSection.monitoring,
+      AxSection.activity,
     ),
     _Tile(
       'MEMORY',
@@ -136,7 +136,7 @@ List<_Tile> _buildTiles(SystemMetrics? metrics, {bool stale = false}) {
       AxColors.info,
       Icons.developer_board,
       memSpark,
-      AxSection.monitoring,
+      AxSection.activity,
     ),
     _Tile(
       'DISK',
@@ -148,7 +148,7 @@ List<_Tile> _buildTiles(SystemMetrics? metrics, {bool stale = false}) {
       AxColors.fg,
       Icons.storage,
       diskSpark,
-      AxSection.monitoring,
+      AxSection.activity,
     ),
     _Tile(
       'NETWORK',
@@ -160,7 +160,7 @@ List<_Tile> _buildTiles(SystemMetrics? metrics, {bool stale = false}) {
       AxColors.accent,
       Icons.swap_vert,
       netSpark,
-      AxSection.monitoring,
+      AxSection.activity,
     ),
   ];
 }
@@ -407,7 +407,7 @@ class _ActivityFeed extends StatelessWidget {
         detail: '${c.image} · ${c.uptime.isNotEmpty ? c.uptime : (c.running ? "active" : "inactive")}',
         color: c.running ? AxColors.accent : AxColors.warn,
         ago: c.ports.isNotEmpty && c.ports != '—' ? c.ports : (c.running ? 'live' : 'idle'),
-        onTap: () => app.go(AxSection.containers),
+        onTap: () => app.go(AxSection.apps),
       ));
     }
 
@@ -419,7 +419,7 @@ class _ActivityFeed extends StatelessWidget {
         detail: s.meta,
         color: s.ok ? AxColors.accent : AxColors.bad,
         ago: s.ok ? 'active' : 'warn',
-        onTap: () => app.go(AxSection.devops),
+        onTap: () => app.go(AxSection.services),
       ));
     }
 
@@ -430,7 +430,7 @@ class _ActivityFeed extends StatelessWidget {
         detail: d.meta,
         color: d.ok ? AxColors.info : AxColors.bad,
         ago: 'deploy',
-        onTap: () => app.go(AxSection.devops),
+        onTap: () => app.go(AxSection.services),
       ));
     }
 
@@ -443,7 +443,7 @@ class _ActivityFeed extends StatelessWidget {
           detail: 'real-time telemetry link established',
           color: AxColors.accent,
           ago: 'live',
-          onTap: () => app.go(AxSection.monitoring),
+          onTap: () => app.go(AxSection.activity),
         ));
       } else {
         items.add(const _ActivityItem(
@@ -706,10 +706,10 @@ class _IdentityAndActions extends StatelessWidget {
                     onTap: () => app.go(AxSection.terminal),
                   ),
                   _ActionButton(
-                    label: 'DevOps',
+                    label: 'Services',
                     icon: Icons.layers_outlined,
                     color: AxColors.fg,
-                    onTap: () => app.go(AxSection.devops),
+                    onTap: () => app.go(AxSection.services),
                   ),
                   _ActionButton(
                     label: 'Files',

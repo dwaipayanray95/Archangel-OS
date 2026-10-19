@@ -55,6 +55,15 @@ class DevicesService extends ChangeNotifier {
     refresh();
   }
 
+  /// Drops state from the previous server (server switch).
+  void reset() {
+    _devices = [];
+    _loaded = false;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+
   Future<void> refresh() async {
     final backend = _backend;
     if (backend == null || !backend.isPaired || backend.token == null) {

@@ -5,8 +5,10 @@ import 'package:http/http.dart' as http;
 
 import 'local_kv_store.dart';
 
-const _kHostKey = 'archangeld_host';
-const _kTokenKey = 'archangeld_token';
+/// Storage keys of the active server's pairing (also read by ServerRegistry's
+/// migration of pre-multi-server installs).
+const kArchangeldHostKey = 'archangeld_host';
+const kArchangeldTokenKey = 'archangeld_token';
 final _store = LocalKvStore.instance;
 
 /// The archangeld connection details: host:port (reachable only over the
@@ -44,8 +46,8 @@ class ArchangeldConnection extends ChangeNotifier {
   bool get isLoaded => _loaded;
 
   Future<void> load() async {
-    _host = await _store.read(_kHostKey);
-    _token = await _store.read(_kTokenKey);
+    _host = await _store.read(kArchangeldHostKey);
+    _token = await _store.read(kArchangeldTokenKey);
     _loaded = true;
     notifyListeners();
     if (isPaired) {
@@ -59,8 +61,8 @@ class ArchangeldConnection extends ChangeNotifier {
     if (cleanHost.isEmpty) throw const FormatException('Host is required');
     if (cleanToken.isEmpty) throw const FormatException('Token is required');
 
-    await _store.write(_kHostKey, cleanHost);
-    await _store.write(_kTokenKey, cleanToken);
+    await _store.write(kArchangeldHostKey, cleanHost);
+    await _store.write(kArchangeldTokenKey, cleanToken);
     _host = cleanHost;
     _token = cleanToken;
     notifyListeners();
@@ -68,8 +70,8 @@ class ArchangeldConnection extends ChangeNotifier {
   }
 
   Future<void> unpair() async {
-    await _store.delete(_kHostKey);
-    await _store.delete(_kTokenKey);
+    await _store.delete(kArchangeldHostKey);
+    await _store.delete(kArchangeldTokenKey);
     _host = null;
     _token = null;
     _backendVersion = null;

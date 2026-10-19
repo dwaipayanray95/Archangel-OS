@@ -10,6 +10,7 @@ import '../services/archangeld_connection.dart';
 import '../services/devices_service.dart';
 import '../services/monitoring_service.dart';
 import '../services/semver.dart';
+import '../services/server_registry.dart';
 import '../services/ssh_credentials.dart';
 import '../services/tunnel_config.dart';
 import '../services/update_check_service.dart';
@@ -395,6 +396,7 @@ class _DevicesCard extends StatelessWidget {
     final svc = context.read<DevicesService>();
     final backend = context.read<ArchangeldConnection>();
     final wg = context.read<WireGuardController>();
+    final registry = context.read<ServerRegistry>();
     final messenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -410,8 +412,7 @@ class _DevicesCard extends StatelessWidget {
     }
     if (device.current) {
       // This device just lost access: forget the pairing locally as well.
-      await backend.unpair();
-      await wg.unpair();
+      await removeActiveServer(registry: registry, wg: wg, backend: backend);
     }
     _snack(messenger, device.current ? result.message : 'Revoked ${device.name}.');
   }
@@ -707,6 +708,8 @@ class _BackendCard extends StatelessWidget {
               label: 'Unpair',
               color: AxColors.bad,
               onTap: () async {
+                final registry = context.read<ServerRegistry>();
+                final wg = context.read<WireGuardController>();
                 final ok = await _confirm(
                   context,
                   title: 'Unpair from this backend?',
@@ -714,7 +717,7 @@ class _BackendCard extends StatelessWidget {
                       'The server itself is not changed, and this device stays in its paired-devices list until you revoke it.',
                   confirmLabel: 'Unpair',
                 );
-                if (ok) await backend.unpair();
+                if (ok) await removeActiveServer(registry: registry, wg: wg, backend: backend);
               },
             ),
           ] else

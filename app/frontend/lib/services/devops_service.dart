@@ -34,14 +34,47 @@ class DevopsService extends ChangeNotifier {
   Timer? _pollTimer;
   ArchangeldConnection? _backend;
 
+  bool _active = true;
+  bool get active => _active;
+
+  /// Pauses or resumes polling; the app shell keeps this on only while a
+  /// destination that shows services is visible.
+  void setActive(bool value) {
+    if (_active == value) return;
+    _active = value;
+    if (!value) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    } else if (_backend != null) {
+      _startPolling();
+    }
+  }
+
   void init(ArchangeldConnection backend) {
     _backend = backend;
-    fetchAll();
+    if (_active) _startPolling();
+  }
 
+  void _startPolling() {
+    fetchAll();
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       fetchAll();
     });
+  }
+
+  /// Drops everything loaded from the previous server (server switch).
+  void reset() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _services = [];
+    _scheduled = [];
+    _proxy = [];
+    _deployments = [];
+    _loading = false;
+    _error = null;
+    _lastActionMessage = null;
+    notifyListeners();
   }
 
   @override

@@ -98,6 +98,21 @@ class FilesService extends ChangeNotifier {
     loadDirectory(_currentPath);
   }
 
+  /// Forgets the previous server's folder, listing, caches and preview
+  /// (server switch) - paths on one server mean nothing on another.
+  void reset() {
+    _currentPath = '';
+    _rootPath = null;
+    _listing = null;
+    _dirCache.clear();
+    _activePreviewPath = null;
+    _previewLoading = false;
+    _fileContent = null;
+    _loading = false;
+    _error = null;
+    notifyListeners();
+  }
+
   Future<void> loadDirectory(String path, {bool forceRefresh = false}) async {
     // Instant UI render from cache if available - a cache hit is a
     // successful load (of a path we've already been to), so it does
