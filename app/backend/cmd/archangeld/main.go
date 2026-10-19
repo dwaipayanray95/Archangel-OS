@@ -247,6 +247,11 @@ func runPair(args []string) {
 		os.Exit(1)
 	}
 
+	if os.Geteuid() != 0 {
+		fmt.Fprintf(os.Stderr, "pair must run as root (it adds a WireGuard peer) - try: sudo archangeld pair %q\n", name)
+		os.Exit(1)
+	}
+
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to load config:", err)

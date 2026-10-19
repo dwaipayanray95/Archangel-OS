@@ -34,6 +34,7 @@ func NewRouter(verify auth.Verifier) http.Handler {
 
 	// Paired devices: list and revoke
 	mux.Handle("GET /api/v1/devices", auth.Middleware(verify, http.HandlerFunc(devices.ListHandler)))
+	mux.Handle("POST /api/v1/devices", auth.Middleware(verify, http.HandlerFunc(devices.CreateHandler)))
 	mux.Handle("DELETE /api/v1/devices/{name}", auth.Middleware(verify, http.HandlerFunc(devices.DeleteHandler)))
 
 	// Admin mode (passwordless sudo grant): read state, or drop it. There is

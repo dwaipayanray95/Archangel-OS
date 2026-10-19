@@ -76,3 +76,43 @@ func TestDeleteRefusesSelfUnlessConfirmed(t *testing.T) {
 		t.Errorf("invalid: code=%d", c)
 	}
 }
+
+func TestCreatePairsAndReturnsBundleOnce(t *testing.T) {
+	setup(t)
+	var paired []string
+	old := pair
+	pair = func(name string) (string, error) { paired = append(paired, name); return "QlVORExF\n", nil }
+	defer func() { pair = old }()
+
+	rec := httptest.NewRecorder()
+	CreateHandler(rec, httptest.NewRequest("POST", "/api/v1/devices", strings.NewReader(`{"name":" tablet "}`)))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"bundle":"QlVORExF"`) {
+		t.Fatalf("code=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Error("bundle response must not be cached")
+	}
+	if len(paired) != 1 || paired[0] != "tablet" {
+		t.Errorf("paired = %v", paired)
+	}
+}
+
+func TestCreateRejectsDuplicateAndBadNames(t *testing.T) {
+	setup(t)
+	old := pair
+	pair = func(string) (string, error) { t.Fatal("must not pair"); return "", nil }
+	defer func() { pair = old }()
+
+	for body, want := range map[string]int{
+		`{"name":"phone"}`:     http.StatusConflict,
+		`{"name":"bad\nname"}`: http.StatusBadRequest,
+		`{"name":""}`:          http.StatusBadRequest,
+		`not json`:             http.StatusBadRequest,
+	} {
+		rec := httptest.NewRecorder()
+		CreateHandler(rec, httptest.NewRequest("POST", "/api/v1/devices", strings.NewReader(body)))
+		if rec.Code != want {
+			t.Errorf("%s: code=%d want %d", body, rec.Code, want)
+		}
+	}
+}

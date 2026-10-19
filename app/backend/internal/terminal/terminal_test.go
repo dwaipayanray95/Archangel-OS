@@ -89,7 +89,7 @@ func TestValidSessionName(t *testing.T) {
 
 func TestArgBuilders(t *testing.T) {
 	sock := "/home/archangel/.archangel/tmux.sock"
-	if got := strings.Join(clientArgs(sock, "work"), " "); got != "-S "+sock+" new-session -A -s work" {
+	if got := strings.Join(clientArgs(sock, "work"), " "); got != "-S "+sock+" new-session -A -s work ; set-option -g status off" {
 		t.Errorf("clientArgs = %q", got)
 	}
 	if got := strings.Join(killArgs(sock, "work"), " "); got != "-S "+sock+" kill-session -t =work" {
