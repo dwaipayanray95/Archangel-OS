@@ -397,6 +397,11 @@ jobs:
       # /x86_64 avoids compiling and packaging code nobody runs - faster
       # build, smaller APK.
       - run: flutter build apk --release --split-per-abi --target-platform android-arm64
+      # Give the download a name people recognise (Flutter's default is
+      # app-arm64-v8a-release.apk).
+      - name: Rename APK
+        working-directory: app/frontend/build/app/outputs/flutter-apk
+        run: cp app-arm64-v8a-release.apk Archangel-android.apk
 
       - uses: actions/download-artifact@v4
         with:
@@ -406,7 +411,7 @@ jobs:
         with:
           tag_name: ${{ needs.plan.outputs.tag }}
           files: |
-            app/frontend/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            app/frontend/build/app/outputs/flutter-apk/Archangel-android.apk
             version-manifest.json
           # Only one job may generate notes (each run appends a copy). The
           # backend job does it when it runs; Android covers frontend-only releases.
