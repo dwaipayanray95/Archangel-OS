@@ -33,7 +33,7 @@ ssh_cmd() { ssh -i "$SSH_KEY" -o BatchMode=yes "${SERVER_USER}@${SERVER_HOST}" "
 scp_cmd() { scp -i "$SSH_KEY" "$@"; }
 
 echo "################################################################"
-echo "# Project Archangel backend - deploy"
+echo "# Archangel OS backend - deploy"
 echo "# Target: ${SERVER_USER}@${SERVER_HOST}  (bind ${WG_BIND_ADDR}:${PORT})"
 echo "################################################################"
 echo ""

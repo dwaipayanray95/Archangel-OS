@@ -3,4 +3,4 @@
 ///
 /// Forks build with their own repo:
 /// `flutter build <platform> --dart-define=ARCHANGEL_REPO=you/your-fork`
-const kGithubRepoSlug = String.fromEnvironment('ARCHANGEL_REPO', defaultValue: 'dwaipayanray95/Project-Archangel');
+const kGithubRepoSlug = String.fromEnvironment('ARCHANGEL_REPO', defaultValue: 'dwaipayanray95/Archangel-OS');

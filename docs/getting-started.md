@@ -28,7 +28,7 @@ The server must be a normal Intel/AMD (x86_64) or ARM server. Archangel's setup 
 ## 1. Download the app
 
 Go to the **Releases** page of the project on GitHub:
-<https://github.com/dwaipayanray95/Project-Archangel/releases>
+<https://github.com/dwaipayanray95/Archangel-OS/releases>
 
 Download the file for your device:
 

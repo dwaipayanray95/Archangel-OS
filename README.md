@@ -1,8 +1,10 @@
-# Archangel
+# Archangel OS
 
-**Archangel is the app that turns a rented server into your own private cloud.** Set it up, manage it, and use it from your phone or laptop. No Linux knowledge needed.
+*Your private cloud, guarded 24/7.*
 
-You rent a small server (it can be free), give the app its address, and the app installs everything for you. After that you can run apps, browse files, open a terminal and watch your server's health, all over a private, encrypted connection that only your own devices can use.
+**Archangel OS turns a rented server into your own private cloud.** Set it up, manage it, and use it from your phone or laptop. No Linux knowledge needed.
+
+You rent a small server (it can be free), give the Archangel app its address, and it installs everything for you. It installs on top of your existing Ubuntu server — no reinstalling the server's operating system, and nothing you already run there is replaced. After that you can run apps, browse files, open a terminal and watch your server's health, all over a private, encrypted connection that only your own devices can use.
 
 > **Source-available, not open source.** See [License](#license).
 
@@ -41,7 +43,7 @@ You need a server running Ubuntu, an SSH key, and the app. The step-by-step guid
 
 ### Download
 
-Get the app from the [Releases page](https://github.com/dwaipayanray95/Project-Archangel/releases/latest):
+Get the app from the [Releases page](https://github.com/dwaipayanray95/Archangel-OS/releases/latest):
 
 | Device | File |
 |---|---|

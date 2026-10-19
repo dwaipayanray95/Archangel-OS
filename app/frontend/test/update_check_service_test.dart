@@ -35,7 +35,7 @@ http.Client _fakeGithub({required Map<String, dynamic> manifest, String tag = 'v
     if (request.url.host == 'api.github.com') {
       return http.Response(
         jsonEncode({
-          'html_url': 'https://github.com/dwaipayanray95/Project-Archangel/releases/tag/$tag',
+          'html_url': 'https://github.com/dwaipayanray95/Archangel-OS/releases/tag/$tag',
           'assets': [
             {
               'name': 'version-manifest.json',

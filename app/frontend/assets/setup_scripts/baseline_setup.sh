@@ -1,5 +1,5 @@
 #!/bin/bash
-# Baseline hardening/setup for a fresh Project Archangel instance: system
+# Baseline hardening/setup for a fresh Archangel OS instance: system
 # update, swap, tmux, and an SSH-only ufw firewall. Matches infra/README.md
 # section 9's manual checklist exactly - this is that checklist, scripted.
 #
