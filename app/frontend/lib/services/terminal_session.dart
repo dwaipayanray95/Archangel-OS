@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:xterm/xterm.dart';
 
 import 'archangeld_connection.dart';
 
@@ -28,8 +29,8 @@ bool isSafeShellPath(String dir) {
   return true;
 }
 
-/// Max characters of terminal output retained (oldest trimmed first).
-const int terminalOutputCap = 200000;
+/// Lines of scrollback the emulator keeps per session (oldest dropped first).
+const int terminalScrollbackLines = 5000;
 
 /// Picks the first unused name: "main", then "shell-2", "shell-3", ...
 /// [taken] should hold both server-side sessions and currently open tabs.
@@ -125,28 +126,64 @@ class TerminalSessionApi {
   }
 }
 
+/// Maps one typed character to its Ctrl-modified control code, or null when
+/// the character has no control equivalent (digits, most punctuation).
+/// Letters and `@ [ \ ] ^ _` map to 0x00-0x1F; `?` maps to DEL.
+String? ctrlCharFor(String ch) {
+  if (ch.length != 1) return null;
+  final u = ch.codeUnitAt(0);
+  if (u >= 0x61 && u <= 0x7a) return String.fromCharCode(u - 0x60);
+  if (u >= 0x40 && u <= 0x5f) return String.fromCharCode(u - 0x40);
+  if (u == 0x20) return '\x00';
+  if (u == 0x3f) return '\x7f';
+  return null;
+}
+
 /// One real PTY session over archangeld's /ws/terminal, speaking its exact
 /// wire protocol (see backend/internal/wsproto/wsproto.go): JSON frames
 /// with a `type`, base64 `data` for stdin/stdout, `cols`/`rows` for resize.
 ///
-/// This deliberately renders raw output (stripped of nothing) rather than
-/// interpreting ANSI/VT100 escape sequences - it proves the pipe works
-/// end-to-end (real bytes, both directions, over the real endpoint) rather
-/// than being a full terminal emulator. A real emulator (cursor movement,
-/// color, screen redraws) is separate scope - the `xterm` package is the
-/// natural fit on top of this if/when that's wanted.
+/// Output is fed to an `xterm` [Terminal] emulator (cursor addressing,
+/// colours, alternate screen, scrollback), which is what a tmux-attached
+/// shell needs. Keystrokes come back through [Terminal.onOutput] and are sent
+/// as stdin frames; the emulator's size changes become resize frames.
 class TerminalSession extends ChangeNotifier {
   /// Doubles as the server-side persistent session name.
   final String label;
   String get name => label;
+
+  /// Test seam: builds the socket instead of a real WebSocket.
+  final WebSocketChannel Function(Uri uri)? _channelFactory;
+
   WebSocketChannel? _channel;
   StreamSubscription? _sub;
 
   SessionStatus _status = SessionStatus.connecting;
   SessionStatus get status => _status;
 
-  String _output = '';
-  String get output => _output;
+  late Terminal _terminal = _newTerminal();
+
+  /// The emulator for the current connection. It is replaced (not reused) on
+  /// reconnect, so widgets must re-read it when this session notifies; see
+  /// [terminalEpoch].
+  Terminal get terminal => _terminal;
+
+  /// Increments whenever [terminal] is replaced; use it as a widget key.
+  int get terminalEpoch => _epoch;
+  int _epoch = 0;
+
+  // Streaming UTF-8 decoder: a multibyte character split across two stdout
+  // frames is held until its remaining bytes arrive.
+  final StringBuffer _decoded = StringBuffer();
+  late Sink<List<int>> _utf8 = _newUtf8();
+
+  Sink<List<int>> _newUtf8() =>
+      const Utf8Decoder(allowMalformed: true).startChunkedConversion(StringConversionSink.fromStringSink(_decoded));
+
+  bool _gotOutput = false;
+
+  /// True once any server output has arrived on the current connection.
+  bool get hasOutput => _gotOutput;
 
   int _gen = 0;
   bool _disposed = false;
@@ -173,12 +210,22 @@ class TerminalSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sticky Ctrl from the on-screen accessory bar: the next typed character
+  /// (or accessory key) is sent as its Ctrl combination, then it clears.
+  bool _ctrlLatched = false;
+  bool get ctrlLatched => _ctrlLatched;
+  set ctrlLatched(bool v) {
+    if (_ctrlLatched == v) return;
+    _ctrlLatched = v;
+    notifyListeners();
+  }
+
   Completer<void> _firstOutput = Completer<void>();
   Timer? _stallTimer;
   bool _stalled = false;
 
   /// True when 10 s passed after connecting without any output arriving.
-  bool get noDataTimedOut => _stalled && _output.isEmpty;
+  bool get noDataTimedOut => _stalled && !_gotOutput;
 
   /// Completes on the first stdout frame, or after [timeout] regardless.
   Future<void> waitForFirstOutput({Duration timeout = const Duration(seconds: 3)}) =>
@@ -189,13 +236,54 @@ class TerminalSession extends ChangeNotifier {
   int _rows = 32;
   Timer? _pingTimer;
 
-  TerminalSession({required this.label});
+  TerminalSession({required this.label, WebSocketChannel Function(Uri uri)? channelFactory})
+      : _channelFactory = channelFactory;
+
+  Terminal _newTerminal() {
+    final t = Terminal(maxLines: terminalScrollbackLines);
+    t.onOutput = _onTerminalOutput;
+    t.onResize = _onTerminalResize;
+    return t;
+  }
+
+  void _onTerminalResize(int w, int h, int pw, int ph) => resize(w, h);
+
+  void _onTerminalOutput(String data) {
+    var out = data;
+    if (_ctrlLatched) {
+      _ctrlLatched = false;
+      final mapped = ctrlCharFor(data);
+      if (mapped != null) out = mapped;
+      notifyListeners();
+    }
+    sendInput(out);
+  }
 
   void connect(ArchangeldConnection backend, {int cols = 120, int rows = 32}) {
     _backend = backend;
     _cols = cols;
     _rows = rows;
+    _terminal.onResize = null; // the first size is sent once the socket is ready
+    _terminal.resize(cols, rows);
+    _terminal.onResize = _onTerminalResize;
     _startConnection();
+  }
+
+  /// Drops the old emulator and starts a clean one at the current size. The
+  /// server (tmux) redraws the attached session, so nothing is carried over.
+  void _resetTerminal() {
+    _terminal.onOutput = null;
+    _terminal.onResize = null;
+    final t = Terminal(maxLines: terminalScrollbackLines);
+    t.resize(_cols, _rows);
+    t.onOutput = _onTerminalOutput;
+    t.onResize = _onTerminalResize;
+    _terminal = t;
+    _epoch++;
+    _utf8.close();
+    _decoded.clear();
+    _utf8 = _newUtf8();
+    _gotOutput = false;
   }
 
   void _startConnection() {
@@ -210,7 +298,7 @@ class TerminalSession extends ChangeNotifier {
     _stallTimer = Timer(const Duration(seconds: 10), () {
       if (gen != _gen || _disposed) return;
       _stalled = true;
-      if (_output.isEmpty) notifyListeners();
+      if (!_gotOutput) notifyListeners();
     });
 
     _status = SessionStatus.connecting;
@@ -230,7 +318,7 @@ class TerminalSession extends ChangeNotifier {
 
     final WebSocketChannel channel;
     try {
-      channel = WebSocketChannel.connect(uri);
+      channel = (_channelFactory ?? WebSocketChannel.connect)(uri);
       _channel = channel;
     } catch (e) {
       _status = SessionStatus.error;
@@ -287,14 +375,9 @@ class TerminalSession extends ChangeNotifier {
   }
 
   void reconnect() {
-    // The server redraws the attached session, so start from a clean buffer.
-    _output = '';
+    // The server redraws the attached session, so start from a clean screen.
+    _resetTerminal();
     _startConnection();
-  }
-
-  void clearOutput() {
-    _output = '';
-    notifyListeners();
   }
 
   void _onMessage(dynamic raw) {
@@ -311,11 +394,14 @@ class TerminalSession extends ChangeNotifier {
         final data = frame['data'] as String?;
         if (data == null) return;
         try {
-          final decoded = utf8.decode(base64.decode(data), allowMalformed: true);
-          _appendDecodedText(_cleanAnsi(decoded));
+          _utf8.add(base64.decode(data));
         } catch (_) {
           return;
         }
+        final text = _decoded.toString();
+        _decoded.clear();
+        if (text.isNotEmpty) _terminal.write(text);
+        _gotOutput = true;
         if (_status != SessionStatus.connected) _status = SessionStatus.connected;
         if (!_firstOutput.isCompleted) _firstOutput.complete();
         notifyListeners();
@@ -335,46 +421,28 @@ class TerminalSession extends ChangeNotifier {
     }
   }
 
-  /// Appends decoded text to buffer, interpreting \b (backspace) properly
-  /// rather than leaving non-printable box characters.
-  void _appendDecodedText(String text) {
-    if (text.isEmpty) return;
-    // Backspaces edit the pending chunk first; only a backspace that runs past
-    // the chunk touches the retained tail (O(1) amortised, no full rebuild).
-    final chunk = <int>[];
-    var trimTail = 0;
-    for (final u in text.codeUnits) {
-      if (u == 0x08 || u == 0x7f) {
-        if (chunk.isNotEmpty) {
-          chunk.removeLast();
-        } else {
-          trimTail++;
-        }
-      } else {
-        chunk.add(u);
-      }
+  /// Test seam: delivers one raw JSON frame as if it came from the server.
+  @visibleForTesting
+  void debugReceive(String rawFrame) => _onMessage(rawFrame);
+
+  /// Presses a named key through the emulator, so application-cursor mode
+  /// and friends produce the right escape sequence. Honours (and clears)
+  /// the sticky Ctrl latch.
+  void pressKey(TerminalKey key) {
+    final ctrl = _ctrlLatched;
+    if (ctrl) {
+      _ctrlLatched = false;
+      notifyListeners();
     }
-    var base = _output;
-    if (trimTail > 0) {
-      base = base.substring(0, base.length > trimTail ? base.length - trimTail : 0);
-    }
-    var next = chunk.isEmpty ? base : base + String.fromCharCodes(chunk);
-    if (next.length > terminalOutputCap) {
-      next = next.substring(next.length - terminalOutputCap);
-    }
-    _output = next;
+    _terminal.keyInput(key, ctrl: ctrl);
   }
 
-  @visibleForTesting
-  void debugAppend(String text) => _appendDecodedText(text);
+  /// Types [text] as if from the keyboard (honours the Ctrl latch).
+  void typeText(String text) => _terminal.textInput(text);
 
-  /// Cleans ANSI escape sequences and normalizes carriage returns for smooth display
-  static final RegExp _ansiRegex = RegExp(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])');
-  static String _cleanAnsi(String input) {
-    // Strip standard ANSI CSI / OSC sequences
-    final stripped = input.replaceAll(_ansiRegex, '');
-    // Normalize solitary carriage returns that CLI progress indicators use so they don't corrupt rendering
-    return stripped.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  /// Pastes [text], using bracketed paste when the running program asked.
+  void pasteText(String text) {
+    if (text.isNotEmpty) _terminal.paste(text);
   }
 
   /// Types a `cd` into the shell once it has printed something (prompt).
@@ -417,6 +485,8 @@ class TerminalSession extends ChangeNotifier {
     close();
     _disposed = true;
     _gen++;
+    _terminal.onOutput = null;
+    _terminal.onResize = null;
     super.dispose();
   }
 }
