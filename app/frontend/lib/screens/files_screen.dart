@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../data/app_state.dart';
 import '../models/file_entry.dart';
 import '../services/archangeld_connection.dart';
 import '../services/files_service.dart';
-import '../theme/tokens.dart';
+import '../ui/screens/files/file_helpers.dart';
+import '../ui/screens/files/file_preview_sheet.dart';
+import '../ui/ui.dart';
 
+/// Files: browse the server's folders. Rows on a phone, a table on desktop.
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
 
@@ -16,614 +19,364 @@ class FilesScreen extends StatefulWidget {
 
 class _FilesScreenState extends State<FilesScreen> {
   String _filter = '';
+  final _crumbScroll = ScrollController();
+  String? _lastCrumbPath;
 
-  Future<void> _download(BuildContext context, FilesService files, String path) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final res = await files.downloadToDisk(path);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed')),
-        backgroundColor: res.ok ? AxColors.s2 : AxColors.bad,
-      ),
-    );
-  }
+  static const _jumps = <(String, String)>[
+    ('/etc', '/etc'),
+    ('/var/log', '/var/log'),
+    ('/srv', '/srv'),
+  ];
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final backend = context.read<ArchangeldConnection>();
-      context.read<FilesService>().init(backend);
+      if (!mounted) return;
+      context.read<FilesService>().init(context.read<ArchangeldConnection>());
     });
   }
 
-  List<String> _buildCrumbs(String path) {
-    if (path == '/' || path.isEmpty) return ['/'];
-    final parts = path.split('/').where((p) => p.isNotEmpty).toList();
-    return ['/', ...parts];
+  @override
+  void dispose() {
+    _crumbScroll.dispose();
+    super.dispose();
   }
 
-  void _openCrumb(List<String> crumbs, int idx, FilesService files) {
-    if (idx == 0) {
-      files.loadDirectory('/');
-      return;
+  void _scrollCrumbsToEnd(String path) {
+    if (_lastCrumbPath == path) return;
+    _lastCrumbPath = path;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _crumbScroll.hasClients) _crumbScroll.jumpTo(_crumbScroll.position.maxScrollExtent);
+    });
+  }
+
+  void _open(FilesService files, FileEntryModel e) {
+    if (e.isDir) {
+      setState(() => _filter = '');
+      files.loadDirectory(e.path);
+    } else {
+      showFilePreviewSheet(context, e);
     }
-    final parts = crumbs.sublist(1, idx + 1);
-    files.loadDirectory('/${parts.join('/')}');
   }
 
   @override
   Widget build(BuildContext context) {
-    final app = context.read<AppState>();
     final files = context.watch<FilesService>();
-    final currentPath = files.currentPath;
-    final crumbs = _buildCrumbs(currentPath);
-    final wide = MediaQuery.of(context).size.width >= 760;
-
+    final ax = context.ax;
+    final c = ax.colors;
+    final wide = MediaQuery.sizeOf(context).width >= 900;
     final listing = files.listing;
-    final allEntries = listing?.entries ?? const [];
-    
-    // Filter dotfiles unless showHidden is true
-    final visibleEntries = files.showHidden
-        ? allEntries
-        : allEntries.where((e) => !e.name.startsWith('.')).toList();
+    final here = (listing != null && listing.path.isNotEmpty) ? listing.path : files.currentPath;
+    final crumbs = buildCrumbs(here, rootPath: files.rootPath);
+    _scrollCrumbsToEnd(here);
 
-    final entries = _filter.isEmpty
-        ? visibleEntries
-        : visibleEntries.where((e) => e.name.toLowerCase().contains(_filter.toLowerCase())).toList();
+    final all = listing?.entries ?? const <FileEntryModel>[];
+    final shown = sortEntries(all.where((e) => files.showHidden || !e.name.startsWith('.')));
+    final entries = _filter.isEmpty ? shown : shown.where((e) => e.name.toLowerCase().contains(_filter.toLowerCase())).toList();
 
-    return Column(
+    // AxPage's header has no room for buttons next to the title on a phone,
+    // so there they live in the toolbar instead.
+    final actions = <Widget>[
+      AxIconButton(
+        icon: Icons.refresh_rounded,
+        tooltip: 'Refresh this folder',
+        onPressed: () => files.loadDirectory(files.currentPath, forceRefresh: true),
+      ),
+      AxButton.secondary(
+        label: 'Open terminal here',
+        icon: Icons.terminal_rounded,
+        onPressed: () => context.read<AppState>().openTerminalInDir(here),
+      ),
+    ];
+    final toolbar = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Top breadcrumb & action bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-          decoration: const BoxDecoration(
-            color: AxColors.s1,
-            border: Border(bottom: BorderSide(color: AxColors.line)),
-          ),
-          child: Row(
+        // Breadcrumbs: scroll sideways instead of wrapping or clipping.
+        SizedBox(
+          height: axMinTarget(context),
+          child: ListView(
+            controller: _crumbScroll,
+            scrollDirection: Axis.horizontal,
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (var i = 0; i < crumbs.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 3),
-                          child: GestureDetector(
-                            onTap: () => _openCrumb(crumbs, i, files),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: i == crumbs.length - 1 ? AxColors.s2 : Colors.transparent,
-                                borderRadius: BorderRadius.circular(7),
-                              ),
-                              child: Text(
-                                crumbs[i],
-                                style: AxTextStyles.mono.copyWith(
-                                  fontSize: 11.5,
-                                  color: i == crumbs.length - 1 ? AxColors.fg : AxColors.fg2,
-                                  fontWeight: i == crumbs.length - 1 ? FontWeight.w600 : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+              for (var i = 0; i < crumbs.length; i++) ...[
+                if (i > 0) Icon(Icons.chevron_right_rounded, size: 18, color: c.textSubtle),
+                _CrumbButton(
+                  crumb: crumbs[i],
+                  last: i == crumbs.length - 1,
+                  onTap: () => files.loadDirectory(crumbs[i].path),
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Refresh button
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded, size: 16, color: AxColors.fg2),
-                tooltip: 'Refresh directory',
-                onPressed: () => files.loadDirectory(currentPath, forceRefresh: true),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: () => app.openTerminalInDir(currentPath),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AxColors.s2,
-                    borderRadius: BorderRadius.circular(AxRadius.pill),
-                    border: Border.all(color: AxColors.line),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.terminal_rounded, size: 13, color: AxColors.accent),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Open in terminal',
-                        style: AxTextStyles.sans.copyWith(fontSize: 11.5, fontWeight: FontWeight.w600, color: AxColors.fg2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
         ),
-        // Filter bar, hidden files toggle & item count
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
-          decoration: const BoxDecoration(
-            color: AxColors.bg,
-            border: Border(bottom: BorderSide(color: AxColors.line)),
-          ),
-          child: Row(
+        SizedBox(height: ax.space.sm),
+        SizedBox(
+          height: axMinTarget(context),
+          child: ListView(
+            scrollDirection: Axis.horizontal,
             children: [
-              Flexible(
-               child: Container(
-                constraints: const BoxConstraints(maxWidth: 240),
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AxColors.s1,
-                  borderRadius: BorderRadius.circular(AxRadius.pill),
-                  border: Border.all(color: AxColors.line),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, size: 12, color: AxColors.fg3),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: TextField(
-                        onChanged: (v) => setState(() => _filter = v),
-                        style: AxTextStyles.mono.copyWith(fontSize: 11),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          hintText: 'filter files in folder',
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-               ),
-              ),
-              const SizedBox(width: 10),
-              // Hidden files toggle
-              InkWell(
-                onTap: files.toggleShowHidden,
-                borderRadius: BorderRadius.circular(AxRadius.pill),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: files.showHidden ? AxColors.s3 : AxColors.s1,
-                    borderRadius: BorderRadius.circular(AxRadius.pill),
-                    border: Border.all(color: files.showHidden ? AxColors.accent.withValues(alpha: 0.4) : AxColors.line),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        files.showHidden ? Icons.visibility : Icons.visibility_off_outlined,
-                        size: 11,
-                        color: files.showHidden ? AxColors.accent : AxColors.fg3,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'hidden',
-                        style: AxTextStyles.mono.copyWith(
-                          fontSize: 10.5,
-                          color: files.showHidden ? AxColors.accent : AxColors.fg3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Spacer(),
-              if (files.loading)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 1.5, color: AxColors.accent),
-                )
-              else
-                Text(
-                  '${entries.length} items',
-                  style: AxTextStyles.mono.copyWith(fontSize: 10.5, color: AxColors.fg3),
-                ),
+              _JumpChip(label: 'Home', icon: Icons.home_outlined, onTap: () => files.loadDirectory('')),
+              for (final (label, path) in _jumps) _JumpChip(label: label, onTap: () => files.loadDirectory(path)),
             ],
           ),
         ),
-        // Main view: Quick Jump + File list
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (wide)
-                Container(
-                  width: 196,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                  decoration: const BoxDecoration(
-                    color: AxColors.s1,
-                    border: Border(right: BorderSide(color: AxColors.line)),
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _TreeRow(
-                          label: files.rootPath ?? 'Root',
-                          selected: currentPath.isEmpty,
-                          onTap: () => files.loadDirectory(''),
-                        ),
-                        for (final d in files.quickJumpDirs)
-                          _TreeRow(
-                            label: d.name,
-                            selected: d.path == currentPath,
-                            onTap: () => files.loadDirectory(d.path),
-                          ),
-                      ],
-                    ),
-                  ),
+        SizedBox(height: ax.space.sm),
+        if (!wide) ...[
+          Wrap(spacing: ax.space.sm, runSpacing: ax.space.sm, crossAxisAlignment: WrapCrossAlignment.center, children: actions),
+          SizedBox(height: ax.space.sm),
+        ],
+        Wrap(
+          spacing: ax.space.lg,
+          runSpacing: ax.space.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320, minWidth: 200),
+              child: TextField(
+                decoration: const InputDecoration(
+                  isDense: true,
+                  labelText: 'Filter this folder',
+                  prefixIcon: Icon(Icons.search_rounded),
                 ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AxColors.line))),
-                            child: const Row(
-                              children: [
-                                Expanded(flex: 3, child: _ColLabel('NAME')),
-                                SizedBox(width: 14),
-                                Expanded(child: _ColLabel('SIZE', alignEnd: true)),
-                                SizedBox(width: 14),
-                                Expanded(child: _ColLabel('PERMS')),
-                                SizedBox(width: 14),
-                                Expanded(child: _ColLabel('MODIFIED')),
-                              ],
-                            ),
-                          ),
-                          if (files.error != null)
-                            Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.error_outline, size: 16, color: AxColors.bad),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(files.error!, style: AxTextStyles.mono.copyWith(color: AxColors.bad, fontSize: 12)),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: entries.length,
-                                itemBuilder: (context, i) {
-                                  final f = entries[i];
-                                  return _FileRow(
-                                    entry: f,
-                                    onTap: () {
-                                      if (f.isDir) {
-                                        files.loadDirectory(f.path);
-                                        files.closePreview();
-                                      } else {
-                                        files.openFilePreview(f.path);
-                                      }
-                                    },
-                                    onDownload: () => _download(context, files, f.path),
-                                  );
-                                },
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (files.activePreviewPath != null)
-                      _PreviewPane(
-                        path: files.activePreviewPath!,
-                        content: files.fileContent,
-                        loading: files.previewLoading,
-                        onClose: files.closePreview,
-                        onDownload: () => _download(context, files, files.activePreviewPath!),
-                      ),
-                  ],
-                ),
+                onChanged: (v) => setState(() => _filter = v),
               ),
-            ],
-          ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Switch(value: files.showHidden, onChanged: (_) => files.toggleShowHidden()),
+                SizedBox(width: ax.space.sm),
+                GestureDetector(
+                  onTap: files.toggleShowHidden,
+                  child: Text('Show hidden files', style: ax.typo.body.copyWith(color: c.text)),
+                ),
+              ],
+            ),
+          ],
         ),
+        SizedBox(height: ax.space.md),
+        if (files.loading && listing != null) LinearProgressIndicator(minHeight: 2, color: c.accent, backgroundColor: c.border),
+        if (wide && listing != null && files.error == null && entries.isNotEmpty) const _TableHeader(),
       ],
+    );
+
+    Widget? stateView;
+    if (files.error != null) {
+      final outside = isOutsideRootError(files.error);
+      stateView = ErrorState(
+        title: outside ? 'That folder is off limits' : 'Couldn’t open this folder',
+        message: outside ? outsideRootHint(files.rootPath) : files.error!,
+        onRetry: files.retry,
+        helpTitle: 'Why can’t I see this?',
+        helpText: 'For safety, Archangel only shows files inside one folder on your server. '
+            'Use Home or the folder path above to get back to files it can show. '
+            'For anything else, open a terminal.',
+      );
+    } else if (listing == null) {
+      stateView = LoadingState(message: 'Loading files...', onRetry: files.retry);
+    } else if (entries.isEmpty) {
+      final onlyHidden = !files.showHidden && all.isNotEmpty && _filter.isEmpty;
+      stateView = EmptyState(
+        icon: Icons.folder_open_rounded,
+        title: _filter.isNotEmpty ? 'Nothing matches "$_filter"' : (onlyHidden ? 'Only hidden files here' : 'This folder is empty'),
+        message: onlyHidden ? 'Turn on "Show hidden files" to see them.' : null,
+      );
+    }
+
+    return AxPage(
+      title: 'Files',
+      subtitle: listing == null || files.error != null
+          ? null
+          : '${entries.length} ${entries.length == 1 ? 'item' : 'items'} in ${listing.path.isEmpty ? '/' : listing.path}',
+      scrollable: false,
+      actions: wide ? actions : const [],
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(child: toolbar),
+          if (stateView != null)
+            SliverToBoxAdapter(child: stateView)
+          else
+            SliverList.builder(
+              itemCount: entries.length,
+              itemBuilder: (context, i) => wide
+                  ? _TableRow(entry: entries[i], onOpen: () => _open(files, entries[i]))
+                  : _PhoneRow(entry: entries[i], onOpen: () => _open(files, entries[i])),
+            ),
+        ],
+      ),
     );
   }
 }
 
-class _ColLabel extends StatelessWidget {
-  final String text;
-  final bool alignEnd;
-  const _ColLabel(this.text, {this.alignEnd = false});
-
-  @override
-  Widget build(BuildContext context) => Text(text, textAlign: alignEnd ? TextAlign.right : TextAlign.left, style: AxTextStyles.label);
-}
-
-class _TreeRow extends StatelessWidget {
-  final String label;
-  final bool selected;
+class _CrumbButton extends StatelessWidget {
+  const _CrumbButton({required this.crumb, required this.last, required this.onTap});
+  final Crumb crumb;
+  final bool last;
   final VoidCallback onTap;
-  const _TreeRow({required this.label, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    final ax = context.ax;
+    final c = ax.colors;
+    return Semantics(
+      button: true,
+      label: 'Go to ${crumb.label}',
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(ax.radii.sm),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: axMinTarget(context), minWidth: axMinTarget(context)),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: ax.space.sm),
+            child: Center(
+              child: Text(
+                crumb.label,
+                style: ax.typo.label.copyWith(color: last ? c.text : c.accent),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JumpChip extends StatelessWidget {
+  const _JumpChip({required this.label, required this.onTap, this.icon});
+  final String label;
+  final IconData? icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    return Padding(
+      padding: EdgeInsets.only(right: ax.space.sm),
+      child: ActionChip(
+        avatar: icon == null ? null : Icon(icon, size: 18, color: c.textMuted),
+        label: Text(label, style: ax.typo.label.copyWith(color: c.text)),
+        backgroundColor: c.surfaceAlt,
+        side: BorderSide(color: c.outline),
+        onPressed: onTap,
+      ),
+    );
+  }
+}
+
+class _PhoneRow extends StatelessWidget {
+  const _PhoneRow({required this.entry, required this.onOpen});
+  final FileEntryModel entry;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ax.colors;
+    return AxListTile(
+      leading: Icon(fileIconFor(entry), color: entry.isDir ? c.accent : c.textMuted),
+      title: entry.name,
+      subtitle: entrySubtitle(entry),
+      trailing: entry.isDir
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AxIconButton(
+                  icon: Icons.terminal_rounded,
+                  tooltip: 'Open terminal in ${entry.name}',
+                  onPressed: () => context.read<AppState>().openTerminalInDir(entry.path),
+                ),
+                Icon(Icons.chevron_right_rounded, color: c.textSubtle),
+              ],
+            )
+          : null,
+      onTap: onOpen,
+    );
+  }
+}
+
+const _sizeW = 100.0;
+const _modW = 150.0;
+const _actW = 56.0;
+
+class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    Widget h(String t) => Text(t, style: ax.typo.caption.copyWith(color: c.textMuted, fontWeight: FontWeight.w700));
+    return Container(
+      key: const ValueKey('files-table'),
+      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
+      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+      child: Row(
+        children: [
+          Expanded(child: h('Name')),
+          SizedBox(width: _sizeW, child: h('Size')),
+          SizedBox(width: _modW, child: h('Changed')),
+          const SizedBox(width: _actW),
+        ],
+      ),
+    );
+  }
+}
+
+class _TableRow extends StatelessWidget {
+  const _TableRow({required this.entry, required this.onOpen});
+  final FileEntryModel entry;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    return InkWell(
+      onTap: onOpen,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 1),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(color: selected ? AxColors.s2 : Colors.transparent, borderRadius: BorderRadius.circular(8)),
+        constraints: BoxConstraints(minHeight: axMinTarget(context)),
+        padding: EdgeInsets.symmetric(horizontal: ax.space.lg),
+        decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
         child: Row(
           children: [
-            Icon(Icons.folder_outlined, size: 12, color: selected ? AxColors.accent : AxColors.fg3),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label, style: AxTextStyles.mono.copyWith(fontSize: 11.5, color: selected ? AxColors.fg : AxColors.fg2), overflow: TextOverflow.ellipsis)),
+            Icon(fileIconFor(entry), size: 20, color: entry.isDir ? c.accent : c.textMuted),
+            SizedBox(width: ax.space.md),
+            Expanded(child: Text(entry.name, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis)),
+            SizedBox(
+              width: _sizeW,
+              child: Text(entry.isDir ? '—' : entry.size, style: ax.typo.body.copyWith(color: c.textMuted)),
+            ),
+            SizedBox(
+              width: _modW,
+              child: Text(entry.mtime, style: ax.typo.body.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
+            ),
+            SizedBox(
+              width: _actW,
+              child: entry.isDir
+                  ? AxIconButton(
+                      icon: Icons.terminal_rounded,
+                      tooltip: 'Open terminal in ${entry.name}',
+                      onPressed: () => context.read<AppState>().openTerminalInDir(entry.path),
+                    )
+                  : AxIconButton(
+                      icon: Icons.download_rounded,
+                      tooltip: 'Download ${entry.name}',
+                      onPressed: () => _download(context, entry),
+                    ),
+            ),
           ],
         ),
       ),
     );
   }
-}
 
-class _FileRow extends StatefulWidget {
-  final FileEntryModel entry;
-  final VoidCallback onTap;
-  final VoidCallback? onDownload;
-
-  const _FileRow({
-    required this.entry,
-    required this.onTap,
-    this.onDownload,
-  });
-
-  @override
-  State<_FileRow> createState() => _FileRowState();
-}
-
-class _FileRowState extends State<_FileRow> {
-  bool _hover = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final f = widget.entry;
-    final icon = f.isDir
-        ? Icons.folder_outlined
-        : (f.isLog
-            ? Icons.article_outlined
-            : (f.isSymlink
-                ? (f.isBroken ? Icons.link_off_rounded : Icons.link_rounded)
-                : Icons.insert_drive_file_outlined));
-    final iconColor = f.isDir
-        ? AxColors.info
-        : (f.isLog
-            ? AxColors.warn
-            : (f.isSymlink
-                ? (f.isBroken ? AxColors.bad : AxColors.accent)
-                : AxColors.fg3));
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 7),
-          decoration: BoxDecoration(
-            color: _hover ? AxColors.s2 : Colors.transparent,
-            border: const Border(bottom: BorderSide(color: Color(0x0BE8F0E6))),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Row(
-                  children: [
-                    Icon(icon, size: 14, color: iconColor),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              f.name,
-                              style: AxTextStyles.mono.copyWith(
-                                fontSize: 12,
-                                color: f.isBroken ? AxColors.bad : AxColors.fg,
-                                decoration: f.isBroken ? TextDecoration.lineThrough : null,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (f.target != null && f.target!.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Text(
-                              '→ ${f.target}${f.isBroken ? ' [broken]' : ''}',
-                              style: AxTextStyles.mono.copyWith(
-                                fontSize: 10,
-                                color: f.isBroken ? AxColors.bad : AxColors.fg3,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(child: Text(f.size, textAlign: TextAlign.right, style: AxTextStyles.mono.copyWith(fontSize: 11, color: AxColors.fg2))),
-              const SizedBox(width: 14),
-              Expanded(child: Text(f.perms, style: AxTextStyles.mono.copyWith(fontSize: 11, color: AxColors.fg3))),
-              const SizedBox(width: 14),
-              Expanded(child: Text(f.mtime, style: AxTextStyles.mono.copyWith(fontSize: 11, color: AxColors.fg3))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PreviewPane extends StatelessWidget {
-  final String path;
-  final FileContentResult? content;
-  final bool loading;
-  final VoidCallback onClose;
-  final VoidCallback? onDownload;
-
-  const _PreviewPane({
-    required this.path,
-    required this.content,
-    required this.loading,
-    required this.onClose,
-    this.onDownload,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final fileName = path.split('/').last;
-    final lines = content?.lines ?? const [];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AxColors.s1,
-        border: Border(top: BorderSide(color: AxColors.line2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-            child: Row(
-              children: [
-                Icon(Icons.description_outlined, size: 14, color: AxColors.accent),
-                const SizedBox(width: 8),
-                Text(fileName, style: AxTextStyles.mono.copyWith(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 9),
-                if (!loading && content != null)
-                  Text(
-                    '${content!.lineCount} lines${content!.truncated ? ' (first 400 shown)' : ''}',
-                    style: AxTextStyles.mono.copyWith(fontSize: 10, color: AxColors.fg3),
-                  ),
-                const Spacer(),
-                if (onDownload != null)
-                  IconButton(
-                    icon: const Icon(Icons.download_rounded, size: 14, color: AxColors.fg2),
-                    tooltip: 'Download file',
-                    onPressed: onDownload,
-                  ),
-                if (content != null && !content!.isBinary)
-                  IconButton(
-                    icon: const Icon(Icons.copy_rounded, size: 14, color: AxColors.fg3),
-                    tooltip: 'Copy preview to clipboard',
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: lines.join('\n')));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('File preview copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  ),
-                GestureDetector(
-                  onTap: onClose,
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(Icons.close_rounded, size: 16, color: AxColors.fg3),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 24),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: AxColors.accent),
-                ),
-              ),
-            )
-          else if (content != null && content!.isBinary)
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Center(
-                child: Column(
-                  children: [
-                    Text(
-                      'Binary file (${content!.mimeType}) cannot be previewed directly.',
-                      style: AxTextStyles.mono.copyWith(fontSize: 11, color: AxColors.fg3),
-                    ),
-                    if (onDownload != null) ...[
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.download_rounded, size: 14),
-                        label: const Text('Download File'),
-                        style: ElevatedButton.styleFrom(backgroundColor: AxColors.s2),
-                        onPressed: onDownload,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            )
-          else
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(15, 0, 15, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var i = 0; i < lines.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 1.5),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 32,
-                              child: Text(
-                                '${i + 1}',
-                                textAlign: TextAlign.right,
-                                style: AxTextStyles.mono.copyWith(
-                                  fontSize: 11,
-                                  color: AxColors.fg3.withValues(alpha: 0.55),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: SelectableText(
-                                lines[i],
-                                style: AxTextStyles.mono.copyWith(fontSize: 11, height: 1.5),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+  Future<void> _download(BuildContext context, FileEntryModel e) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await context.read<FilesService>().downloadToDisk(e.path);
+    messenger.showSnackBar(SnackBar(
+      content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed')),
+    ));
   }
 }
