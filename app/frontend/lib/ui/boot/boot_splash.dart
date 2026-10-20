@@ -13,16 +13,29 @@ import '../theme.dart';
 /// Set once the long first-launch animation has played on this device.
 const kBootSeenKey = 'boot_first_seen';
 
-const kBootFirstDuration = Duration(milliseconds: 4300);
+/// Length of the long animation's motion (orbs -> line -> wordmark).
+const kBootFirstDuration = Duration(milliseconds: 7000);
 const kBootShortDuration = Duration(milliseconds: 2000);
 const kBootReducedDuration = Duration(milliseconds: 900);
 
+/// After the motion, the finished wordmark stays on screen this long...
+const kBootHold = Duration(seconds: 3);
+
+/// ...then everything fades into the app.
+const kBootFade = Duration(milliseconds: 450);
+
+/// Total time the splash is on screen for [kind]. With reduce motion it is a
+/// brief fade with no hold.
+Duration bootTotalDuration(BootKind kind, {bool reduced = false}) =>
+    reduced ? kBootReducedDuration : (kind == BootKind.first ? kBootFirstDuration : kBootShortDuration) + kBootHold + kBootFade;
+
 /// Plays the start-up animation over the app while it loads underneath.
 ///
-/// The first time the app opens on a device it plays the long abstract
-/// animation (~4 s: light gathers, folds into a line, the line opens into
-/// the wordmark). Every later launch plays the short ~2 s wordmark. With
-/// "reduce motion" on, it is a brief fade.
+/// Tablets and computers play the long abstract animation (7 s: light
+/// gathers, folds into a line, the line opens into the wordmark) every time
+/// the app opens. Phones play it the first time only, then the short 2 s
+/// wordmark. Either way the finished wordmark then holds for 3 s before
+/// fading into the app. With "reduce motion" on, it is a brief fade.
 ///
 /// The app below keeps bootstrapping (tunnel, saved servers) during the
 /// animation, so the animation never adds to the real start-up time
@@ -54,10 +67,22 @@ class _BootGateState extends State<BootGate> {
   int _run = 0;
   int? _lastReplay;
 
+  bool _decided = false;
+
+  /// Phones get the short animation after the first launch.
+  static const kPhoneShortestSide = 600.0;
+
   @override
-  void initState() {
-    super.initState();
-    if (BootGate.enabled) _decide();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_decided || !BootGate.enabled) return;
+    _decided = true;
+    final phone = MediaQuery.sizeOf(context).shortestSide < kPhoneShortestSide;
+    if (phone) {
+      _decide();
+    } else {
+      _kind = BootKind.first;
+    }
   }
 
   Future<void> _decide() async {
@@ -128,12 +153,7 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
     if (_started) return;
     _started = true;
     _reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    _c.duration =
-        _reduced
-            ? kBootReducedDuration
-            : widget.kind == BootKind.first
-            ? kBootFirstDuration
-            : kBootShortDuration;
+    _c.duration = bootTotalDuration(widget.kind, reduced: _reduced);
     _c.forward().whenCompleteOrCancel(() {
       if (mounted) widget.onDone();
     });
@@ -156,15 +176,22 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, _) {
-          final t = _c.value;
-          // Everything fades out over the last tenth.
-          final out = 1 - _seg(t, 0.9, 1.0);
-          final Widget scene =
-              _reduced
-                  ? _reducedScene(t)
-                  : widget.kind == BootKind.first
-                  ? _firstScene(context, t)
-                  : _shortScene(context, t);
+          final Widget scene;
+          final double out;
+          if (_reduced) {
+            scene = _reducedScene(_c.value);
+            out = 1 - _seg(_c.value, 0.75, 1.0);
+          } else {
+            // Motion, then the finished wordmark holds for [kBootHold], then
+            // everything fades into the app.
+            final total = _c.duration!.inMilliseconds;
+            final motion = (widget.kind == BootKind.first ? kBootFirstDuration : kBootShortDuration).inMilliseconds;
+            final elapsed = _c.value * total;
+            final p = (elapsed / motion).clamp(0.0, 1.0);
+            out = 1 - _seg(elapsed, (total - kBootFade.inMilliseconds).toDouble(), total.toDouble());
+            // The long scene's keyframes finish at 0.88 (tagline in).
+            scene = widget.kind == BootKind.first ? _firstScene(context, p * 0.88) : _shortScene(context, p);
+          }
           // Sits above the Navigator (no Material ancestor): give the text
           // a proper default style.
           return Material(
@@ -178,8 +205,9 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
 
   Widget _reducedScene(double t) => Opacity(opacity: _seg(t, 0, 0.3), child: const AxWordmark(size: 40));
 
-  /// ~4.3 s: three soft orbs drift in and merge, fold into a line of light,
-  /// and the line opens to reveal the wordmark and the tagline.
+  /// ~7 s: three soft orbs drift in and merge, fold into a line of light,
+  /// and the line opens to reveal the wordmark and the tagline. [t] runs
+  /// 0 -> 0.88 over the motion.
   Widget _firstScene(BuildContext context, double t) {
     final c = context.ax.colors;
     const size = 44.0;
