@@ -27,26 +27,12 @@ class CPUMetrics {
   final List<CoreMetric> cores;
   final List<double> history;
 
-  const CPUMetrics({
-    required this.usagePercent,
-    required this.cores,
-    required this.history,
-  });
+  const CPUMetrics({required this.usagePercent, required this.cores, required this.history});
 
   factory CPUMetrics.fromJson(Map<String, dynamic> json) {
-    final coresList = (json['cores'] as List<dynamic>?)
-            ?.map((e) => CoreMetric.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [];
-    final hist = (json['history'] as List<dynamic>?)
-            ?.map((e) => (e as num).toDouble())
-            .toList() ??
-        [];
-    return CPUMetrics(
-      usagePercent: (json['usage_percent'] as num?)?.toDouble() ?? 0.0,
-      cores: coresList,
-      history: hist,
-    );
+    final coresList = (json['cores'] as List<dynamic>?)?.map((e) => CoreMetric.fromJson(e as Map<String, dynamic>)).toList() ?? [];
+    final hist = (json['history'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList() ?? [];
+    return CPUMetrics(usagePercent: (json['usage_percent'] as num?)?.toDouble() ?? 0.0, cores: coresList, history: hist);
   }
 }
 
@@ -76,10 +62,7 @@ class MemoryMetrics {
   });
 
   factory MemoryMetrics.fromJson(Map<String, dynamic> json) {
-    final hist = (json['history'] as List<dynamic>?)
-            ?.map((e) => (e as num).toDouble())
-            .toList() ??
-        [];
+    final hist = (json['history'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList() ?? [];
     return MemoryMetrics(
       totalBytes: (json['total_bytes'] as num?)?.toInt() ?? 0,
       usedBytes: (json['used_bytes'] as num?)?.toInt() ?? 0,
@@ -140,8 +123,7 @@ class MountMetric {
     );
   }
 
-  double get usagePercent =>
-      totalBytes > 0 ? (usedBytes / totalBytes) * 100.0 : 0.0;
+  double get usagePercent => totalBytes > 0 ? (usedBytes / totalBytes) * 100.0 : 0.0;
   double get totalGb => totalBytes / (1024 * 1024 * 1024);
   double get usedGb => usedBytes / (1024 * 1024 * 1024);
   double get freeGb => (freeBytes > 0 ? freeBytes : (totalBytes > usedBytes ? totalBytes - usedBytes : 0)) / (1024 * 1024 * 1024);
@@ -172,18 +154,11 @@ class DiskMetrics {
   });
 
   factory DiskMetrics.fromJson(Map<String, dynamic> json) {
-    final mountsList = (json['mounts'] as List<dynamic>?)
-            ?.map((e) => MountMetric.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [];
-    final hist = (json['history'] as List<dynamic>?)
-            ?.map((e) => (e as num).toDouble())
-            .toList() ??
-        [];
+    final mountsList = (json['mounts'] as List<dynamic>?)?.map((e) => MountMetric.fromJson(e as Map<String, dynamic>)).toList() ?? [];
+    final hist = (json['history'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList() ?? [];
     return DiskMetrics(
       readBytesPerSec: (json['read_bytes_per_sec'] as num?)?.toDouble() ?? 0.0,
-      writeBytesPerSec:
-          (json['write_bytes_per_sec'] as num?)?.toDouble() ?? 0.0,
+      writeBytesPerSec: (json['write_bytes_per_sec'] as num?)?.toDouble() ?? 0.0,
       totalBytes: (json['total_bytes'] as num?)?.toInt() ?? 0,
       usedBytes: (json['used_bytes'] as num?)?.toInt() ?? 0,
       freeBytes: (json['free_bytes'] as num?)?.toInt() ?? 0,
@@ -208,11 +183,7 @@ class NetInterfaceMetric {
   final double rxBytesPerSec;
   final double txBytesPerSec;
 
-  const NetInterfaceMetric({
-    required this.name,
-    required this.rxBytesPerSec,
-    required this.txBytesPerSec,
-  });
+  const NetInterfaceMetric({required this.name, required this.rxBytesPerSec, required this.txBytesPerSec});
 
   factory NetInterfaceMetric.fromJson(Map<String, dynamic> json) {
     return NetInterfaceMetric(
@@ -232,22 +203,12 @@ class NetworkMetrics {
   final List<NetInterfaceMetric> interfaces;
   final List<double> history;
 
-  const NetworkMetrics({
-    required this.rxBytesPerSec,
-    required this.txBytesPerSec,
-    required this.interfaces,
-    required this.history,
-  });
+  const NetworkMetrics({required this.rxBytesPerSec, required this.txBytesPerSec, required this.interfaces, required this.history});
 
   factory NetworkMetrics.fromJson(Map<String, dynamic> json) {
-    final ifaces = (json['interfaces'] as List<dynamic>?)
-            ?.map((e) => NetInterfaceMetric.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [];
-    final hist = (json['history'] as List<dynamic>?)
-            ?.map((e) => (e as num).toDouble())
-            .toList() ??
-        [];
+    final ifaces =
+        (json['interfaces'] as List<dynamic>?)?.map((e) => NetInterfaceMetric.fromJson(e as Map<String, dynamic>)).toList() ?? [];
+    final hist = (json['history'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList() ?? [];
     return NetworkMetrics(
       rxBytesPerSec: (json['rx_bytes_per_sec'] as num?)?.toDouble() ?? 0.0,
       txBytesPerSec: (json['tx_bytes_per_sec'] as num?)?.toDouble() ?? 0.0,
@@ -267,12 +228,7 @@ class HostInfo {
   final String kernel;
   final String arch;
 
-  const HostInfo({
-    this.hostname = '',
-    this.os = '',
-    this.kernel = '',
-    this.arch = '',
-  });
+  const HostInfo({this.hostname = '', this.os = '', this.kernel = '', this.arch = ''});
 
   factory HostInfo.fromJson(Map<String, dynamic> json) {
     return HostInfo(
@@ -308,14 +264,10 @@ class SystemMetrics {
       timestamp: (json['timestamp'] as num?)?.toInt() ?? 0,
       uptimeSeconds: (json['uptime_seconds'] as num?)?.toInt() ?? 0,
       host: HostInfo.fromJson((json['host'] as Map<String, dynamic>?) ?? const {}),
-      cpu: CPUMetrics.fromJson(
-          (json['cpu'] as Map<String, dynamic>?) ?? const {}),
-      memory: MemoryMetrics.fromJson(
-          (json['memory'] as Map<String, dynamic>?) ?? const {}),
-      disk: DiskMetrics.fromJson(
-          (json['disk'] as Map<String, dynamic>?) ?? const {}),
-      network: NetworkMetrics.fromJson(
-          (json['network'] as Map<String, dynamic>?) ?? const {}),
+      cpu: CPUMetrics.fromJson((json['cpu'] as Map<String, dynamic>?) ?? const {}),
+      memory: MemoryMetrics.fromJson((json['memory'] as Map<String, dynamic>?) ?? const {}),
+      disk: DiskMetrics.fromJson((json['disk'] as Map<String, dynamic>?) ?? const {}),
+      network: NetworkMetrics.fromJson((json['network'] as Map<String, dynamic>?) ?? const {}),
     );
   }
 

@@ -11,14 +11,15 @@ import '../../theme.dart';
 
 /// Opens an SSH connection; [Dartssh2Transport.connect] in the app, a fake in
 /// tests.
-typedef SshConnector = Future<SshTransport> Function({
-  required String host,
-  required int port,
-  required String username,
-  required String privateKeyPem,
-  required HostKeyPrompt onUnknownHostKey,
-  String? passphrase,
-});
+typedef SshConnector =
+    Future<SshTransport> Function({
+      required String host,
+      required int port,
+      required String username,
+      required String privateKeyPem,
+      required HostKeyPrompt onUnknownHostKey,
+      String? passphrase,
+    });
 
 /// Lets the user pick a private key file for [SshCredentialsForm.onPickKeyFile].
 /// Returns its text, or null when cancelled or the file is rejected (with a

@@ -10,13 +10,18 @@ import '../../services/devices_service.dart';
 import '../../services/devops_service.dart';
 import '../../services/files_service.dart';
 import '../../services/monitoring_service.dart';
+import '../../services/server_registry.dart';
 import '../../widgets/command_palette.dart';
 import '../../widgets/notif_panel.dart';
+import '../components/ax_glass.dart';
 import '../components/ax_icon_button.dart';
+import '../components/ax_wordmark.dart';
 import '../theme.dart';
+import 'desktop_mode.dart';
 import 'destinations.dart';
 import 'more_page.dart';
 import 'server_switcher.dart';
+import 'sidebar.dart';
 import 'status_strip.dart';
 
 const _kOpenPalette = SingleActivator(LogicalKeyboardKey.keyK, meta: true);
@@ -25,8 +30,12 @@ const _kOpenPaletteCtrl = SingleActivator(LogicalKeyboardKey.keyK, control: true
 /// Below this width the phone layout (bottom bar + More) is used.
 const double kPhoneBreakpoint = 720;
 
-/// At or above this width the rail shows labels next to the icons.
-const double kExtendedRailBreakpoint = 1100;
+/// At or above this width the sidebar shows labels next to the icons.
+const double kExtendedRailBreakpoint = 1000;
+
+/// Desktop mode needs at least this much room (tablets, phones held
+/// sideways, computers).
+const double kDesktopModeMinWidth = 900;
 
 const _phoneTabs = <AxSection>[AxSection.home, AxSection.apps, AxSection.files, AxSection.terminal];
 
@@ -37,13 +46,19 @@ bool sectionUsesMonitoring(AxSection? s) => s == AxSection.home || s == AxSectio
 bool sectionUsesContainers(AxSection? s) => s == AxSection.home || s == AxSection.apps;
 bool sectionUsesServices(AxSection? s) => s == AxSection.home || s == AxSection.services;
 
-/// Root shell: a compact status strip, the navigation (bottom bar on phones,
-/// rail on larger screens) and the destinations.
+/// Root shell. Everything sits on the Halo wallpaper ([AxBackdrop]).
+///
+/// - Phone: wordmark + server pill, the connection strip, the destination,
+///   and a floating glass bottom bar (Home, Apps, Files, Terminal, More).
+/// - Tablet / computer, Simple layout: a glass sidebar, the connection strip
+///   and one destination at a time.
+/// - Tablet / computer, Desktop mode: windows, a dock and a launcher
+///   ([DesktopModeView]).
 ///
 /// Destinations are built the first time they are visited and then kept
-/// alive (so scroll position and terminal sessions survive switching), but
-/// only the visible one polls the server. The command palette and
-/// notification panel are overlays on top.
+/// alive (so scroll position and terminal sessions survive switching, and
+/// moving between Simple and Desktop mode), but only the visible ones poll
+/// the server. The command palette and notification panel are overlays.
 class ArchangelShell extends StatefulWidget {
   const ArchangelShell({super.key});
 
@@ -53,6 +68,11 @@ class ArchangelShell extends StatefulWidget {
 
 class _ArchangelShellState extends State<ArchangelShell> {
   final Set<AxSection> _visited = {};
+  final DesktopWindows _desk = DesktopWindows();
+
+  /// One GlobalKey per destination (per server generation) so a destination
+  /// keeps its state when it moves between the Simple layout and a window.
+  final Map<AxSection, GlobalKey> _keys = {};
   AxSection? _lastSection;
   bool _showMore = false;
 
@@ -72,12 +92,24 @@ class _ArchangelShellState extends State<ArchangelShell> {
     _hadServer = _backend.isPaired;
     _lastPairing = _backend.pairingGeneration;
     _backend.addListener(_onBackendChanged);
+    _desk.addListener(_onDeskChanged);
   }
 
   @override
   void dispose() {
     _backend.removeListener(_onBackendChanged);
+    _desk.removeListener(_onDeskChanged);
+    _desk.dispose();
     super.dispose();
+  }
+
+  void _onDeskChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Widget _destination(AxSection s) {
+    final key = _keys.putIfAbsent(s, () => GlobalKey(debugLabel: 'dest-${s.name}-$_generation'));
+    return KeyedSubtree(key: key, child: buildDestination(s));
   }
 
   void _onBackendChanged() {
@@ -96,28 +128,31 @@ class _ArchangelShellState extends State<ArchangelShell> {
     context.read<AdminModeService>().reset();
     setState(() {
       _generation++;
+      _keys.clear();
       _showMore = false;
     });
     _lastPollKey = null; // re-apply polling for the new server
   }
 
-  /// Applies visibility-driven polling for the currently visible section.
-  void _syncPolling(AxSection? visible) {
-    final key = '$visible/$_generation';
+  /// Applies visibility-driven polling for the sections on screen (one in
+  /// the Simple layout, every open window in Desktop mode).
+  void _syncPolling(Set<AxSection> visible) {
+    final names = visible.map((s) => s.name).toList()..sort();
+    final key = '${names.join(',')}/$_generation';
     if (key == _lastPollKey) return;
     _lastPollKey = key;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final mon = context.read<MonitoringService>();
-      mon.setActive(sectionUsesMonitoring(visible));
+      mon.setActive(visible.any(sectionUsesMonitoring));
       // Activity shows live charts; Home only needs a summary.
-      if (visible == AxSection.activity) {
+      if (visible.contains(AxSection.activity)) {
         mon.setPollingRateMs(1000);
-      } else if (visible == AxSection.home) {
+      } else if (visible.contains(AxSection.home)) {
         mon.setPollingRateMs(5000);
       }
-      context.read<ContainersService>().setActive(sectionUsesContainers(visible));
-      context.read<DevopsService>().setActive(sectionUsesServices(visible));
+      context.read<ContainersService>().setActive(visible.any(sectionUsesContainers));
+      context.read<DevopsService>().setActive(visible.any(sectionUsesServices));
     });
   }
 
@@ -130,7 +165,8 @@ class _ArchangelShellState extends State<ArchangelShell> {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
 
-    if (app.section != _lastSection) {
+    final sectionChanged = app.section != _lastSection;
+    if (sectionChanged) {
       _lastSection = app.section;
       _showMore = false;
     }
@@ -139,66 +175,94 @@ class _ArchangelShellState extends State<ArchangelShell> {
       builder: (context, constraints) {
         final phone = constraints.maxWidth < kPhoneBreakpoint;
         final extended = constraints.maxWidth >= kExtendedRailBreakpoint;
+        final desktopAllowed = !phone && constraints.maxWidth >= kDesktopModeMinWidth;
+        final desktop = desktopAllowed && app.layout == AxLayout.desktop;
         final moreVisible = phone && _showMore;
-        final visible = moreVisible ? null : app.section;
-        if (visible != null) _visited.add(visible);
+
+        Set<AxSection> visible;
+        if (desktop) {
+          _desk.fitTo(Size(constraints.maxWidth, constraints.maxHeight - kDeskTopBarHeight - kDeskDockReserve));
+          _desk.ensureDefaults();
+          // Navigating from inside a screen (e.g. Home's quick actions)
+          // opens or raises that window.
+          if (sectionChanged && app.section != _desk.front) {
+            final target = app.section;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && app.section == target && _desk.front != target) _desk.open(target);
+            });
+          }
+          visible = _desk.visible;
+        } else {
+          visible = moreVisible ? <AxSection>{} : {app.section};
+        }
+        _visited.addAll(visible);
         _syncPolling(visible);
 
         final canExit = app.section == AxSection.home && !moreVisible && !app.paletteOpen && !app.notifOpen;
 
-        final content = _Destinations(
-          visited: _visited,
-          current: app.section,
-          generation: _generation,
-          showMore: moreVisible,
-          more: MorePage(onOpen: _open),
-        );
+        final Widget main;
+        if (desktop) {
+          main = DesktopModeView(
+            windows: _desk,
+            buildContent: _destination,
+            onFocus: (s) {
+              if (app.section != s) app.go(s);
+            },
+            onSimpleLayout: () => app.layout = AxLayout.simple,
+          );
+        } else {
+          final content = _Destinations(
+            visited: _visited,
+            current: app.section,
+            builder: _destination,
+            showMore: moreVisible,
+            more: MorePage(onOpen: _open),
+          );
+          main =
+              phone
+                  ? _PhoneFrame(
+                    showBack: axMoreSections.contains(app.section) && !moreVisible,
+                    onBack: () => setState(() => _showMore = true),
+                    child: content,
+                  )
+                  : Row(
+                    children: [
+                      AxSidebar(
+                        extended: extended,
+                        selected: app.section,
+                        onSelect: _open,
+                        onDesktopMode: desktopAllowed ? () => app.layout = AxLayout.desktop : null,
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            SafeArea(
+                              bottom: false,
+                              left: false,
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(context.ax.space.lg, context.ax.space.md, context.ax.space.md, 0),
+                                child: const StatusStrip(showServerName: false),
+                              ),
+                            ),
+                            Expanded(child: content),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+        }
 
         final Widget body = Stack(
           fit: StackFit.expand,
           children: [
-            Column(
-              children: [
-                SafeArea(
-                  bottom: false,
-                  left: !phone ? false : true,
-                  child: StatusStrip(
-                    showServerName: phone,
-                    leading: phone && axMoreSections.contains(app.section) && !moreVisible
-                        ? AxIconButton(
-                            icon: Icons.arrow_back,
-                            tooltip: 'Back to More',
-                            onPressed: () => setState(() => _showMore = true),
-                          )
-                        : null,
-                  ),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      if (!phone) _Rail(extended: extended, selected: app.section, onSelect: _open),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: app.closeNotif,
-                          behavior: HitTestBehavior.translucent,
-                          child: content,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            GestureDetector(onTap: app.closeNotif, behavior: HitTestBehavior.translucent, child: main),
             if (app.notifOpen) const NotifPanel(),
             if (app.paletteOpen) const Positioned.fill(child: CommandPalette()),
           ],
         );
 
         return CallbackShortcuts(
-          bindings: {
-            _kOpenPalette: app.openPalette,
-            _kOpenPaletteCtrl: app.openPalette,
-          },
+          bindings: {_kOpenPalette: app.openPalette, _kOpenPaletteCtrl: app.openPalette},
           child: Focus(
             autofocus: true,
             // Back: close overlay -> Home -> leave the app. (Dialogs and
@@ -216,37 +280,40 @@ class _ArchangelShellState extends State<ArchangelShell> {
                   app.go(AxSection.home);
                 }
               },
-              child: Scaffold(
-                backgroundColor: context.ax.colors.bg,
-                body: body,
-                bottomNavigationBar: phone
-                    ? NavigationBar(
-                        selectedIndex: moreVisible || app.section.index >= _phoneTabs.length
-                            ? _phoneTabs.length
-                            : app.section.index,
-                        onDestinationSelected: (i) {
-                          if (i == _phoneTabs.length) {
-                            setState(() => _showMore = true);
-                            app.closeNotif();
-                          } else {
-                            _open(_phoneTabs[i]);
-                          }
-                        },
-                        destinations: [
-                          for (final s in _phoneTabs)
-                            NavigationDestination(
-                              icon: Icon(axSectionIcons[s]),
-                              selectedIcon: Icon(axSectionSelectedIcons[s]),
-                              label: axSectionLabels[s]!,
+              child: AxBackdrop(
+                child: Scaffold(
+                  backgroundColor: Colors.transparent,
+                  body: body,
+                  bottomNavigationBar:
+                      phone
+                          ? _GlassNavBar(
+                            child: NavigationBar(
+                              selectedIndex: moreVisible || app.section.index >= _phoneTabs.length ? _phoneTabs.length : app.section.index,
+                              onDestinationSelected: (i) {
+                                if (i == _phoneTabs.length) {
+                                  setState(() => _showMore = true);
+                                  app.closeNotif();
+                                } else {
+                                  _open(_phoneTabs[i]);
+                                }
+                              },
+                              destinations: [
+                                for (final s in _phoneTabs)
+                                  NavigationDestination(
+                                    icon: Icon(axSectionIcons[s]),
+                                    selectedIcon: Icon(axSectionSelectedIcons[s]),
+                                    label: axSectionLabels[s]!,
+                                  ),
+                                const NavigationDestination(
+                                  icon: Icon(Icons.more_horiz),
+                                  selectedIcon: Icon(Icons.more_horiz),
+                                  label: 'More',
+                                ),
+                              ],
                             ),
-                          const NavigationDestination(
-                            icon: Icon(Icons.more_horiz),
-                            selectedIcon: Icon(Icons.more_horiz),
-                            label: 'More',
-                          ),
-                        ],
-                      )
-                    : null,
+                          )
+                          : null,
+                ),
               ),
             ),
           ),
@@ -256,20 +323,123 @@ class _ArchangelShellState extends State<ArchangelShell> {
   }
 }
 
+/// Phone header: the wordmark (or Back to More), the server pill, then the
+/// connection strip, above the destination.
+class _PhoneFrame extends StatelessWidget {
+  const _PhoneFrame({required this.showBack, required this.onBack, required this.child});
+
+  final bool showBack;
+  final VoidCallback onBack;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    return Column(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(ax.space.lg, ax.space.sm, ax.space.md, 0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    if (showBack) AxIconButton(icon: Icons.arrow_back, tooltip: 'Back to More', onPressed: onBack) else const AxWordmark(),
+                    SizedBox(width: ax.space.md),
+                    const Expanded(child: Align(alignment: Alignment.centerRight, child: _ServerPill())),
+                  ],
+                ),
+                SizedBox(height: ax.space.xs),
+                const StatusStrip(showServerName: false),
+              ],
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
+class _ServerPill extends StatelessWidget {
+  const _ServerPill();
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final name = context.watch<ServerRegistry>().active?.name;
+    if (name == null || name.isEmpty) return const ServerSwitcher(compact: true);
+    return Semantics(
+      button: true,
+      label: 'Server: $name. Switch server',
+      excludeSemantics: true,
+      onTap: () => showServerSheet(context),
+      child: Tooltip(
+        message: 'Switch server',
+        child: Material(
+          color: c.glassStrong,
+          shape: StadiumBorder(side: BorderSide(color: c.border)),
+          child: InkWell(
+            onTap: () => showServerSheet(context),
+            customBorder: const StadiumBorder(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: axMinTarget(context) - 8, maxWidth: 200),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: ax.space.md),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.dns_outlined, size: 15, color: c.accent),
+                    SizedBox(width: ax.space.xs + 2),
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ax.typo.mono.copyWith(color: c.text, fontSize: 12.5),
+                      ),
+                    ),
+                    Icon(Icons.expand_more, size: 16, color: c.textMuted),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The phone's floating frosted bottom bar.
+class _GlassNavBar extends StatelessWidget {
+  const _GlassNavBar({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.only(bottom: ax.space.sm),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(ax.space.md, ax.space.xs, ax.space.md, ax.space.xs),
+        child: AxGlass(strong: true, blur: true, shadow: true, radius: 24, child: child),
+      ),
+    );
+  }
+}
+
 /// Lazily built, kept-alive destinations. Unvisited ones are not built at
 /// all; the More page (phone) is the last stack entry.
 class _Destinations extends StatelessWidget {
-  const _Destinations({
-    required this.visited,
-    required this.current,
-    required this.generation,
-    required this.showMore,
-    required this.more,
-  });
+  const _Destinations({required this.visited, required this.current, required this.builder, required this.showMore, required this.more});
 
   final Set<AxSection> visited;
   final AxSection current;
-  final int generation;
+  final Widget Function(AxSection) builder;
   final bool showMore;
   final Widget more;
 
@@ -279,65 +449,9 @@ class _Destinations extends StatelessWidget {
       index: showMore ? AxSection.values.length : current.index,
       children: [
         for (final s in AxSection.values)
-          if (visited.contains(s))
-            KeyedSubtree(key: ValueKey('${s.name}-$generation'), child: buildDestination(s))
-          else
-            const SizedBox.shrink(),
+          if (visited.contains(s)) builder(s) else const SizedBox.shrink(),
         more,
       ],
-    );
-  }
-}
-
-class _Rail extends StatelessWidget {
-  const _Rail({required this.extended, required this.selected, required this.onSelect});
-
-  final bool extended;
-  final AxSection selected;
-  final void Function(AxSection) onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
-    return DecoratedBox(
-      decoration: BoxDecoration(border: Border(right: BorderSide(color: c.border))),
-      child: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: IntrinsicHeight(
-              child: NavigationRail(
-                extended: extended,
-                selectedIndex: selected.index,
-                labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
-                onDestinationSelected: (i) => onSelect(AxSection.values[i]),
-                leading: Padding(
-                  padding: EdgeInsets.only(bottom: ax.space.md, top: ax.space.sm),
-                  child: Column(
-                    children: [
-                      if (extended)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: ax.space.xs),
-                          child: Text('Archangel', style: ax.typo.title.copyWith(color: c.text)),
-                        ),
-                      SizedBox(width: extended ? 220 : null, child: ServerSwitcher(compact: !extended)),
-                    ],
-                  ),
-                ),
-                destinations: [
-                  for (final s in AxSection.values)
-                    NavigationRailDestination(
-                      icon: Icon(axSectionIcons[s]),
-                      selectedIcon: Icon(axSectionSelectedIcons[s]),
-                      label: Text(axSectionLabels[s]!),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

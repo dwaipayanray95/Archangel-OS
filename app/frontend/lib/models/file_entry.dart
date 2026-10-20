@@ -64,10 +64,7 @@ class DirectoryListingModel {
   });
 
   factory DirectoryListingModel.fromJson(Map<String, dynamic> json) {
-    final list = (json['entries'] as List<dynamic>?)
-            ?.map((e) => FileEntryModel.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [];
+    final list = (json['entries'] as List<dynamic>?)?.map((e) => FileEntryModel.fromJson(e as Map<String, dynamic>)).toList() ?? [];
     return DirectoryListingModel(
       path: json['path'] as String? ?? '/',
       parent: json['parent'] as String? ?? '/',

@@ -70,16 +70,11 @@ class DockerOverviewModel {
   });
 
   factory DockerOverviewModel.fromJson(Map<String, dynamic> json) {
-    final rawList = (json['containers'] as List<dynamic>?)
-            ?.map((e) => DockerContainerItem.fromJson(e as Map<String, dynamic>))
-            .toList() ??
-        [];
+    final rawList =
+        (json['containers'] as List<dynamic>?)?.map((e) => DockerContainerItem.fromJson(e as Map<String, dynamic>)).toList() ?? [];
 
     final rawStacks = (json['stacks'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
-    final rawMeta = (json['stack_meta'] as Map<String, dynamic>?)?.map(
-          (k, v) => MapEntry(k, v.toString()),
-        ) ??
-        {};
+    final rawMeta = (json['stack_meta'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, v.toString())) ?? {};
 
     return DockerOverviewModel(
       dockerAvailable: json['docker_available'] as bool? ?? false,
@@ -100,12 +95,7 @@ class DockerLogEntry {
   final String source;
   final String text;
 
-  const DockerLogEntry({
-    required this.ts,
-    required this.level,
-    required this.source,
-    required this.text,
-  });
+  const DockerLogEntry({required this.ts, required this.level, required this.source, required this.text});
 
   factory DockerLogEntry.fromJson(Map<String, dynamic> json) {
     return DockerLogEntry(

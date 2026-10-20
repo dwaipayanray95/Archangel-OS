@@ -7,12 +7,7 @@ class SemVer implements Comparable<SemVer> {
   final int patch;
   final String? preRelease;
 
-  const SemVer({
-    required this.major,
-    required this.minor,
-    required this.patch,
-    this.preRelease,
-  });
+  const SemVer({required this.major, required this.minor, required this.patch, this.preRelease});
 
   /// Parses a semver string like '0.5.4' or 'v0.3.15'.
   /// Returns null if string cannot be parsed.
@@ -43,12 +38,7 @@ class SemVer implements Comparable<SemVer> {
     final patch = parts.length > 2 ? int.tryParse(parts[2]) : 0;
     if (patch == null || patch < 0) return null;
 
-    return SemVer(
-      major: major,
-      minor: minor,
-      patch: patch,
-      preRelease: pre,
-    );
+    return SemVer(major: major, minor: minor, patch: patch, preRelease: pre);
   }
 
   @override

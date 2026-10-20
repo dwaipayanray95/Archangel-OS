@@ -16,12 +16,7 @@ import '../ui/ui.dart';
 /// dialog.
 ///
 /// Returns the entered passphrase, or null if the user cancelled.
-Future<String?> promptForPassphrase(
-  BuildContext context, {
-  required String title,
-  required String message,
-  bool confirm = false,
-}) {
+Future<String?> promptForPassphrase(BuildContext context, {required String title, required String message, bool confirm = false}) {
   return showDialog<String>(
     context: context,
     builder: (context) => _PassphrasePromptDialog(title: title, message: message, confirm: confirm),
@@ -32,10 +27,7 @@ Future<String?> promptForPassphrase(
 /// `(current, new)`, or null if cancelled. Whether `current` is correct
 /// is checked by the caller (decryption fails otherwise).
 Future<(String, String)?> promptToChangePassphrase(BuildContext context) {
-  return showDialog<(String, String)>(
-    context: context,
-    builder: (context) => const _ChangePassphraseDialog(),
-  );
+  return showDialog<(String, String)>(context: context, builder: (context) => const _ChangePassphraseDialog());
 }
 
 /// Shared by both dialogs.
@@ -47,8 +39,13 @@ String? _validateNewPassphrase(String value, String confirmation) {
   return null;
 }
 
-Widget _passphraseField(BuildContext context, TextEditingController controller,
-    {required String label, bool autofocus = false, VoidCallback? onSubmit}) {
+Widget _passphraseField(
+  BuildContext context,
+  TextEditingController controller, {
+  required String label,
+  bool autofocus = false,
+  VoidCallback? onSubmit,
+}) {
   final ax = context.ax;
   return TextField(
     controller: controller,

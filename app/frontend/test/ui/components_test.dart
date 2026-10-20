@@ -7,48 +7,60 @@ import 'package:archangel/ui/ui.dart';
 
 Widget _host(Widget child, {Brightness brightness = Brightness.dark, TargetPlatform? platform}) {
   final theme = buildTheme(brightness);
-  return MaterialApp(
-    theme: platform == null ? theme : theme.copyWith(platform: platform),
-    home: Scaffold(body: Center(child: child)),
-  );
+  return MaterialApp(theme: platform == null ? theme : theme.copyWith(platform: platform), home: Scaffold(body: Center(child: child)));
 }
 
 void main() {
   group('ConfirmDialog', () {
     Future<bool?> open(WidgetTester tester, {String? typeToConfirm, bool danger = true}) async {
       bool? result;
-      await tester.pumpWidget(_host(Builder(
-        builder: (context) => AxButton(
-          label: 'Open',
-          onPressed: () async {
-            result = await showConfirmDialog(
-              context,
-              title: 'Remove web-app?',
-              message: 'The app and its data on the server will be deleted. This cannot be undone.',
-              confirmLabel: 'Remove',
-              danger: danger,
-              typeToConfirm: typeToConfirm,
-            );
-          },
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder:
+                (context) => AxButton(
+                  label: 'Open',
+                  onPressed: () async {
+                    result = await showConfirmDialog(
+                      context,
+                      title: 'Remove web-app?',
+                      message: 'The app and its data on the server will be deleted. This cannot be undone.',
+                      confirmLabel: 'Remove',
+                      danger: danger,
+                      typeToConfirm: typeToConfirm,
+                    );
+                  },
+                ),
+          ),
         ),
-      )));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       return result;
     }
 
-    FilledButton confirmButton(WidgetTester tester) =>
-        tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Remove'));
+    FilledButton confirmButton(WidgetTester tester) => tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Remove'));
 
     testWidgets('shows title and consequence; confirm returns true', (tester) async {
       bool? result;
-      await tester.pumpWidget(_host(Builder(
-        builder: (context) => AxButton(
-          label: 'Open',
-          onPressed: () async => result = await showConfirmDialog(context,
-              title: 'Reboot?', message: 'Your server will be unavailable for a minute.', confirmLabel: 'Reboot'),
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder:
+                (context) => AxButton(
+                  label: 'Open',
+                  onPressed:
+                      () async =>
+                          result = await showConfirmDialog(
+                            context,
+                            title: 'Reboot?',
+                            message: 'Your server will be unavailable for a minute.',
+                            confirmLabel: 'Reboot',
+                          ),
+                ),
+          ),
         ),
-      )));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       expect(find.text('Reboot?'), findsOneWidget);
@@ -60,12 +72,17 @@ void main() {
 
     testWidgets('cancel returns false', (tester) async {
       bool? result;
-      await tester.pumpWidget(_host(Builder(
-        builder: (context) => AxButton(
-          label: 'Open',
-          onPressed: () async => result = await showConfirmDialog(context, title: 'Stop?', message: 'm', confirmLabel: 'Stop'),
+      await tester.pumpWidget(
+        _host(
+          Builder(
+            builder:
+                (context) => AxButton(
+                  label: 'Open',
+                  onPressed: () async => result = await showConfirmDialog(context, title: 'Stop?', message: 'm', confirmLabel: 'Stop'),
+                ),
+          ),
         ),
-      )));
+      );
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Cancel'));
@@ -100,11 +117,9 @@ void main() {
   group('LoadingState', () {
     testWidgets('shows the message, then an actionable still-waiting message after the delay', (tester) async {
       var retried = 0;
-      await tester.pumpWidget(_host(LoadingState(
-        message: 'Loading apps...',
-        stillWaitingAfter: const Duration(milliseconds: 500),
-        onRetry: () => retried++,
-      )));
+      await tester.pumpWidget(
+        _host(LoadingState(message: 'Loading apps...', stillWaitingAfter: const Duration(milliseconds: 500), onRetry: () => retried++)),
+      );
       expect(find.text('Loading apps...'), findsOneWidget);
       expect(find.text('Still waiting...'), findsNothing);
 
@@ -134,16 +149,20 @@ void main() {
 
   group('StatusBadge', () {
     testWidgets('always shows text and an icon, for every status', (tester) async {
-      await tester.pumpWidget(_host(const Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          StatusBadge.ok('Running'),
-          StatusBadge.warning('Disk almost full'),
-          StatusBadge.error('Stopped'),
-          StatusBadge.info('Update available'),
-          StatusBadge.neutral('Unknown'),
-        ],
-      )));
+      await tester.pumpWidget(
+        _host(
+          const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StatusBadge.ok('Running'),
+              StatusBadge.warning('Disk almost full'),
+              StatusBadge.error('Stopped'),
+              StatusBadge.info('Update available'),
+              StatusBadge.neutral('Unknown'),
+            ],
+          ),
+        ),
+      );
       for (final t in ['Running', 'Disk almost full', 'Stopped', 'Update available', 'Unknown']) {
         expect(find.text(t), findsOneWidget);
       }
@@ -161,13 +180,15 @@ void main() {
   group('touch targets and semantics', () {
     testWidgets('AxButton and AxIconButton are >= 48dp on Android and >= 36dp on desktop', (tester) async {
       Future<void> check(TargetPlatform p, double min) async {
-        await tester.pumpWidget(_host(
-          Column(mainAxisSize: MainAxisSize.min, children: [
-            AxButton(label: 'Go', onPressed: () {}),
-            AxIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: () {}),
-          ]),
-          platform: p,
-        ));
+        await tester.pumpWidget(
+          _host(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [AxButton(label: 'Go', onPressed: () {}), AxIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: () {})],
+            ),
+            platform: p,
+          ),
+        );
         await tester.pump();
         final button = tester.getSize(find.byType(FilledButton));
         final icon = tester.getSize(find.byType(IconButton));
@@ -200,10 +221,9 @@ void main() {
 
     testWidgets('AxListTile is at least one touch target tall and taps', (tester) async {
       var taps = 0;
-      await tester.pumpWidget(_host(
-        AxListTile(title: 'Settings', subtitle: 'Everything', onTap: () => taps++),
-        platform: TargetPlatform.android,
-      ));
+      await tester.pumpWidget(
+        _host(AxListTile(title: 'Settings', subtitle: 'Everything', onTap: () => taps++), platform: TargetPlatform.android),
+      );
       expect(tester.getSize(find.byType(ListTile)).height, greaterThanOrEqualTo(48));
       await tester.tap(find.text('Settings'));
       expect(taps, 1);
@@ -213,11 +233,15 @@ void main() {
   group('state views', () {
     testWidgets('ErrorState offers Retry and an optional explanation', (tester) async {
       var retried = 0;
-      await tester.pumpWidget(_host(ErrorState(
-        message: 'We could not reach your server.',
-        onRetry: () => retried++,
-        helpText: 'The secure connection to your server is probably off.',
-      )));
+      await tester.pumpWidget(
+        _host(
+          ErrorState(
+            message: 'We could not reach your server.',
+            onRetry: () => retried++,
+            helpText: 'The secure connection to your server is probably off.',
+          ),
+        ),
+      );
       expect(find.text('We could not reach your server.'), findsOneWidget);
       await tester.tap(find.text('Retry'));
       expect(retried, 1);
@@ -228,12 +252,9 @@ void main() {
 
     testWidgets('EmptyState shows its action', (tester) async {
       var tapped = false;
-      await tester.pumpWidget(_host(EmptyState(
-        title: 'No apps yet',
-        message: 'Run your first app.',
-        actionLabel: 'Run an app',
-        onAction: () => tapped = true,
-      )));
+      await tester.pumpWidget(
+        _host(EmptyState(title: 'No apps yet', message: 'Run your first app.', actionLabel: 'Run an app', onAction: () => tapped = true)),
+      );
       await tester.tap(find.text('Run an app'));
       expect(tapped, isTrue);
     });
@@ -246,12 +267,16 @@ void main() {
     });
 
     testWidgets('AxPage renders title, subtitle and actions', (tester) async {
-      await tester.pumpWidget(_host(AxPage(
-        title: 'Apps',
-        subtitle: 'What runs on your server',
-        actions: [AxButton(label: 'Run an app', onPressed: () {})],
-        child: const Text('body'),
-      )));
+      await tester.pumpWidget(
+        _host(
+          AxPage(
+            title: 'Apps',
+            subtitle: 'What runs on your server',
+            actions: [AxButton(label: 'Run an app', onPressed: () {})],
+            child: const Text('body'),
+          ),
+        ),
+      );
       expect(find.text('Apps'), findsOneWidget);
       expect(find.text('What runs on your server'), findsOneWidget);
       expect(find.text('Run an app'), findsOneWidget);
@@ -279,9 +304,13 @@ void main() {
       await tester.pumpWidget(_host(SingleChildScrollView(child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false))));
       expect(find.text('Load from file'), findsNothing);
 
-      await tester.pumpWidget(_host(SingleChildScrollView(
-        child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false, onPickKeyFile: () async => '  KEYDATA \n'),
-      )));
+      await tester.pumpWidget(
+        _host(
+          SingleChildScrollView(
+            child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false, onPickKeyFile: () async => '  KEYDATA \n'),
+          ),
+        ),
+      );
       await tester.tap(find.text('Load from file'));
       await tester.pump();
       expect(ctl.privateKeyText, 'KEYDATA');
@@ -290,9 +319,11 @@ void main() {
     testWidgets('remember switch and error text', (tester) async {
       final ctl = SshCredentialsController();
       addTearDown(ctl.dispose);
-      await tester.pumpWidget(_host(SingleChildScrollView(
-        child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false, errorText: 'Could not connect'),
-      )));
+      await tester.pumpWidget(
+        _host(
+          SingleChildScrollView(child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false, errorText: 'Could not connect')),
+        ),
+      );
       expect(find.text('Could not connect'), findsOneWidget);
       expect(ctl.rememberKey, isFalse);
       await tester.tap(find.byType(Switch));
@@ -303,15 +334,19 @@ void main() {
     testWidgets('can hide host, key passphrase and remember switch', (tester) async {
       final ctl = SshCredentialsController();
       addTearDown(ctl.dispose);
-      await tester.pumpWidget(_host(SingleChildScrollView(
-        child: SshCredentialsForm(
-          controller: ctl,
-          restoreSavedOnStart: false,
-          showHost: false,
-          showKeyPassphrase: false,
-          showRememberKey: false,
+      await tester.pumpWidget(
+        _host(
+          SingleChildScrollView(
+            child: SshCredentialsForm(
+              controller: ctl,
+              restoreSavedOnStart: false,
+              showHost: false,
+              showKeyPassphrase: false,
+              showRememberKey: false,
+            ),
+          ),
         ),
-      )));
+      );
       expect(find.text('Server address'), findsNothing);
       expect(find.byType(Switch), findsNothing);
       expect(find.byType(TextField), findsNWidgets(2)); // username + key

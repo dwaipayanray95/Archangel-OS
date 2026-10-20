@@ -54,7 +54,8 @@ void main() {
   group('session JSON', () {
     test('parses the list payload', () {
       final list = parseTerminalSessions(
-          '[{"name":"main","windows":2,"attached":true,"created_unix":1760000000},{"name":"shell-2","windows":1,"attached":false,"created_unix":0}]');
+        '[{"name":"main","windows":2,"attached":true,"created_unix":1760000000},{"name":"shell-2","windows":1,"attached":false,"created_unix":0}]',
+      );
       expect(list.map((s) => s.name), ['main', 'shell-2']);
       expect(list[0].windows, 2);
       expect(list[0].attached, isTrue);
@@ -102,8 +103,12 @@ void main() {
     test('tmux style repaint is rendered in place', () async {
       // Clear, status line at the bottom row, prompt with charset resets.
       final bottom = session.terminal.viewHeight;
-      ch.serverStdout(utf8.encode('\x1b[H\x1b[2J\x1b(B\x1b[m\x1b[1;1Harchangel@mk1:~\$ '
-          '\x1b[$bottom;1H\x1b[30;42m[main] 0:bash*\x1b(B\x1b[m\x1b[1;19H'));
+      ch.serverStdout(
+        utf8.encode(
+          '\x1b[H\x1b[2J\x1b(B\x1b[m\x1b[1;1Harchangel@mk1:~\$ '
+          '\x1b[$bottom;1H\x1b[30;42m[main] 0:bash*\x1b(B\x1b[m\x1b[1;19H',
+        ),
+      );
       await settle();
       final text = screenText(session);
       expect(text, contains('archangel@mk1:~\$'));
@@ -165,7 +170,7 @@ void main() {
       ch.sent.clear();
       session.terminal.resize(100, 30);
       expect(ch.resizes, [
-        {'type': 'resize', 'cols': 100, 'rows': 30}
+        {'type': 'resize', 'cols': 100, 'rows': 30},
       ]);
     });
 

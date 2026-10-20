@@ -88,15 +88,10 @@ class DevicesService extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      final res = await _client.get(
-        backend.devicesHttpUri(),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await _client.get(backend.devicesHttpUri(), headers: {'X-Archangel-Token': backend.token!});
       if (res.statusCode == 200) {
         final decoded = jsonDecode(res.body);
-        _devices = decoded is List
-            ? decoded.whereType<Map<String, dynamic>>().map(PairedDevice.fromJson).toList()
-            : <PairedDevice>[];
+        _devices = decoded is List ? decoded.whereType<Map<String, dynamic>>().map(PairedDevice.fromJson).toList() : <PairedDevice>[];
         _loaded = true;
         _error = null;
       } else {
@@ -157,7 +152,9 @@ class DevicesService extends ChangeNotifier {
       }
       if (res.statusCode == 409) {
         return DeviceCreateResult(
-            success: false, message: serverMessage(res, 'A device called "$clean" already exists. Pick another name.'));
+          success: false,
+          message: serverMessage(res, 'A device called "$clean" already exists. Pick another name.'),
+        );
       }
       return DeviceCreateResult(success: false, message: serverMessage(res, 'Could not add the device (HTTP ${res.statusCode})'));
     } catch (e) {
@@ -175,10 +172,9 @@ class DevicesService extends ChangeNotifier {
       return const ApiActionResult(success: false, message: 'Not connected to backend');
     }
     try {
-      final res = await _client.delete(
-        backend.deviceHttpUri(device.name, self: self),
-        headers: {'X-Archangel-Token': backend.token!},
-      ).timeout(const Duration(seconds: 15)); // a cut tunnel can hang rather than error
+      final res = await _client
+          .delete(backend.deviceHttpUri(device.name, self: self), headers: {'X-Archangel-Token': backend.token!})
+          .timeout(const Duration(seconds: 15)); // a cut tunnel can hang rather than error
       if (res.statusCode == 200) {
         if (!self) await refresh();
         return ApiActionResult(success: true, message: serverMessage(res, 'Revoked ${device.name}'));
@@ -192,7 +188,8 @@ class DevicesService extends ChangeNotifier {
         // back. A dropped connection here almost always means it worked.
         return const ApiActionResult(
           success: true,
-          message: 'The connection dropped while revoking this device - the server most likely removed it. '
+          message:
+              'The connection dropped while revoking this device - the server most likely removed it. '
               'This device has forgotten the pairing.',
         );
       }

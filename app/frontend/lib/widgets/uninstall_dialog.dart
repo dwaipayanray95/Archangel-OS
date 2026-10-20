@@ -21,11 +21,7 @@ const kUninstallConfirmWord = 'UNINSTALL';
 ///
 /// [connector] exists for tests; the app uses real SSH.
 Future<void> showUninstallDialog(BuildContext context, {SshConnector? connector}) {
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => UninstallDialog(connector: connector),
-  );
+  return showDialog<void>(context: context, barrierDismissible: false, builder: (context) => UninstallDialog(connector: connector));
 }
 
 class UninstallDialog extends StatefulWidget {
@@ -131,30 +127,32 @@ class _UninstallDialogState extends State<UninstallDialog> {
   void _runUninstall() {
     final service = VpsSetupService(_transport!);
     // The ports this server was installed with, not hard-coded defaults.
-    service.uninstall(appPort: _profile?.appPort ?? 8443, wgPort: _profile?.wgPort ?? 51820).listen(
-      (event) => setState(() => appendProgress(_log, event)),
-      onError: (Object e) => setState(() => _runError = e),
-      onDone: () async {
-        if (!mounted) return;
-        if (_runError == null) {
-          // The server this device was paired to no longer exists -
-          // clear local pairing state so the app doesn't keep showing
-          // "paired" against a dead server.
-          try {
-            await removeActiveServer(
-              registry: context.read<ServerRegistry>(),
-              wg: context.read<WireGuardController>(),
-              backend: context.read<ArchangeldConnection>(),
-            );
-          } catch (_) {
-            // The server is gone; the next saved server could not be
-            // opened. The pairing was cleared, so just finish.
-          }
-          if (!mounted) return;
-          setState(() => _step = _UninstallStep.done);
-        }
-      },
-    );
+    service
+        .uninstall(appPort: _profile?.appPort ?? 8443, wgPort: _profile?.wgPort ?? 51820)
+        .listen(
+          (event) => setState(() => appendProgress(_log, event)),
+          onError: (Object e) => setState(() => _runError = e),
+          onDone: () async {
+            if (!mounted) return;
+            if (_runError == null) {
+              // The server this device was paired to no longer exists -
+              // clear local pairing state so the app doesn't keep showing
+              // "paired" against a dead server.
+              try {
+                await removeActiveServer(
+                  registry: context.read<ServerRegistry>(),
+                  wg: context.read<WireGuardController>(),
+                  backend: context.read<ArchangeldConnection>(),
+                );
+              } catch (_) {
+                // The server is gone; the next saved server could not be
+                // opened. The pairing was cleared, so just finish.
+              }
+              if (!mounted) return;
+              setState(() => _step = _UninstallStep.done);
+            }
+          },
+        );
   }
 
   @override
@@ -175,42 +173,40 @@ class _UninstallDialogState extends State<UninstallDialog> {
         child: switch (_step) {
           _UninstallStep.confirm => _buildConfirmStep(ax),
           _UninstallStep.credentials => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'This signs in to your server over SSH, the same way setup did, to stop Archangel and remove it.',
-                  style: ax.typo.body.copyWith(color: c.textMuted),
-                ),
-                SizedBox(height: ax.space.lg),
-                SshCredentialsForm(
-                  controller: _creds,
-                  showRememberKey: false,
-                  enabled: !_connecting,
-                  errorText: _connectError,
-                  onPickKeyFile: () => pickSshKeyFile(context),
-                ),
-              ],
-            ),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'This signs in to your server over SSH, the same way setup did, to stop Archangel and remove it.',
+                style: ax.typo.body.copyWith(color: c.textMuted),
+              ),
+              SizedBox(height: ax.space.lg),
+              SshCredentialsForm(
+                controller: _creds,
+                showRememberKey: false,
+                enabled: !_connecting,
+                errorText: _connectError,
+                onPickKeyFile: () => pickSshKeyFile(context),
+              ),
+            ],
+          ),
           _UninstallStep.progress => SetupProgressLog(log: _log, error: _runError, errorTitle: 'Uninstall failed'),
           _UninstallStep.done => const SetupDoneView(title: 'Archangel and its secure connection have been removed from the server.'),
         },
       ),
       actions: switch (_step) {
         _UninstallStep.confirm => [
-            AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-            AxButton.danger(
-              label: 'Continue',
-              onPressed: _confirmTextValid ? () => setState(() => _step = _UninstallStep.credentials) : null,
-            ),
-          ],
+          AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+          AxButton.danger(
+            label: 'Continue',
+            onPressed: _confirmTextValid ? () => setState(() => _step = _UninstallStep.credentials) : null,
+          ),
+        ],
         _UninstallStep.credentials => [
-            AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-            AxButton.danger(label: 'Connect & uninstall', loading: _connecting, onPressed: _creds.restoring ? null : _connect),
-          ],
-        _UninstallStep.progress => [
-            if (_runError != null) AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop()),
-          ],
+          AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+          AxButton.danger(label: 'Connect & uninstall', loading: _connecting, onPressed: _creds.restoring ? null : _connect),
+        ],
+        _UninstallStep.progress => [if (_runError != null) AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop())],
         _UninstallStep.done => [AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop())],
       },
     );
@@ -229,10 +225,7 @@ class _UninstallDialogState extends State<UninstallDialog> {
           style: ax.typo.body.copyWith(color: c.danger),
         ),
         SizedBox(height: ax.space.sm),
-        Text(
-          'The server itself (its system, files and SSH access) is left untouched.',
-          style: ax.typo.body.copyWith(color: c.textMuted),
-        ),
+        Text('The server itself (its system, files and SSH access) is left untouched.', style: ax.typo.body.copyWith(color: c.textMuted)),
         SizedBox(height: ax.space.lg),
         TextField(
           controller: _confirmController,

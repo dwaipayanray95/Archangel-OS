@@ -55,9 +55,9 @@ class GetServerScreen extends StatelessWidget {
       ok = await launchUrl(providerGuideUri(p.slug), mode: LaunchMode.externalApplication);
     } catch (_) {}
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open the guide. Visit ${providerGuideUri(p.slug)} in a browser.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open the guide. Visit ${providerGuideUri(p.slug)} in a browser.')));
     }
   }
 
@@ -79,7 +79,8 @@ class GetServerScreen extends StatelessWidget {
           children: [
             const SetupHeading(
               title: 'What is a server?',
-              subtitle: 'Archangel runs on a small computer that is always on and always connected to the internet. '
+              subtitle:
+                  'Archangel runs on a small computer that is always on and always connected to the internet. '
                   'Companies rent these out by the month. It is called a VPS (virtual private server). '
                   'You rent one, and Archangel sets everything up on it for you.',
             ),
@@ -94,7 +95,8 @@ class GetServerScreen extends StatelessWidget {
                 ),
                 const HelpTip(
                   title: 'VPS',
-                  message: 'A VPS (virtual private server) is a slice of a big computer in a data centre that you rent. '
+                  message:
+                      'A VPS (virtual private server) is a slice of a big computer in a data centre that you rent. '
                       'It behaves like your own computer that you reach over the internet. '
                       'You can cancel any time and nothing is installed on your own devices.',
                 ),

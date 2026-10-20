@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:archangel/ui/components/ax_wordmark.dart';
+
 import 'test_utils.dart';
 
 void main() {
@@ -7,6 +9,6 @@ void main() {
     await pumpAppShell(tester);
 
     expect(find.text('Home'), findsWidgets);
-    expect(find.text('Archangel'), findsOneWidget);
+    expect(find.byType(AxWordmark), findsOneWidget);
   });
 }

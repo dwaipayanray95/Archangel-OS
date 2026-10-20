@@ -10,7 +10,6 @@ import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/ui/screens/activity/activity_logic.dart';
 import 'package:archangel/ui/theme.dart';
 
-
 class FakeMonitoring extends MonitoringService {
   FakeMonitoring({this.fakeMetrics, this.procs = const []});
   SystemMetrics? fakeMetrics;
@@ -56,30 +55,30 @@ class FakeBackend extends ArchangeldConnection {
 const _gb = 1024 * 1024 * 1024;
 
 SystemMetrics sampleMetrics() => SystemMetrics(
-      timestamp: 1,
-      uptimeSeconds: 100,
-      cpu: CPUMetrics(
-        usagePercent: 33,
-        cores: [for (var i = 0; i < 8; i++) CoreMetric(id: i, usagePercent: 10.0 * i, mhz: 3200)],
-        history: const [],
-      ),
-      memory: const MemoryMetrics(totalBytes: 8 * _gb, usedBytes: 4 * _gb, availableBytes: 4 * _gb, usagePercent: 50, history: []),
-      disk: const DiskMetrics(
-        readBytesPerSec: 2048,
-        writeBytesPerSec: 4096,
-        totalBytes: 100 * _gb,
-        usedBytes: 40 * _gb,
-        usagePercent: 40,
-        mounts: [MountMetric(mountPoint: '/', device: 'd', totalBytes: 100 * _gb, usedBytes: 40 * _gb)],
-        history: [],
-      ),
-      network: const NetworkMetrics(
-        rxBytesPerSec: 150000,
-        txBytesPerSec: 20000,
-        interfaces: [NetInterfaceMetric(name: 'eth0', rxBytesPerSec: 150000, txBytesPerSec: 20000)],
-        history: [],
-      ),
-    );
+  timestamp: 1,
+  uptimeSeconds: 100,
+  cpu: CPUMetrics(
+    usagePercent: 33,
+    cores: [for (var i = 0; i < 8; i++) CoreMetric(id: i, usagePercent: 10.0 * i, mhz: 3200)],
+    history: const [],
+  ),
+  memory: const MemoryMetrics(totalBytes: 8 * _gb, usedBytes: 4 * _gb, availableBytes: 4 * _gb, usagePercent: 50, history: []),
+  disk: const DiskMetrics(
+    readBytesPerSec: 2048,
+    writeBytesPerSec: 4096,
+    totalBytes: 100 * _gb,
+    usedBytes: 40 * _gb,
+    usagePercent: 40,
+    mounts: [MountMetric(mountPoint: '/', device: 'd', totalBytes: 100 * _gb, usedBytes: 40 * _gb)],
+    history: [],
+  ),
+  network: const NetworkMetrics(
+    rxBytesPerSec: 150000,
+    txBytesPerSec: 20000,
+    interfaces: [NetInterfaceMetric(name: 'eth0', rxBytesPerSec: 150000, txBytesPerSec: 20000)],
+    history: [],
+  ),
+);
 
 const procs = [
   LiveProcessInfo(pid: 101, name: 'postgres', user: 'postgres', cpu: 12.5, mem: 3, rssBytes: 300 * 1024 * 1024, state: 'S'),
@@ -95,14 +94,16 @@ Future<FakeMonitoring> pumpActivity(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   final mon = FakeMonitoring(fakeMetrics: sampleMetrics(), procs: procs);
-  await tester.pumpWidget(MultiProvider(
-    providers: [
-      ChangeNotifierProvider<AppState>.value(value: AppState()),
-      ChangeNotifierProvider<MonitoringService>.value(value: mon),
-      ChangeNotifierProvider<ArchangeldConnection>.value(value: FakeBackend()),
-    ],
-    child: MaterialApp(theme: buildTheme(brightness), home: const Scaffold(body: MonitoringScreen())),
-  ));
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AppState>.value(value: AppState()),
+        ChangeNotifierProvider<MonitoringService>.value(value: mon),
+        ChangeNotifierProvider<ArchangeldConnection>.value(value: FakeBackend()),
+      ],
+      child: MaterialApp(theme: buildTheme(brightness), home: const Scaffold(body: MonitoringScreen())),
+    ),
+  );
   await tester.pump(const Duration(milliseconds: 50));
   return mon;
 }
@@ -202,7 +203,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Stop process'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Programs you stop may lose unsaved work. System processes can make the server unstable.'), findsOneWidget);
+      expect(
+        find.textContaining('Programs you stop may lose unsaved work. System processes can make the server unstable.'),
+        findsOneWidget,
+      );
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(mon.kills, isEmpty);

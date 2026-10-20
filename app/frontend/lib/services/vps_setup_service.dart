@@ -195,18 +195,13 @@ fi''';
     final arch = switch (unameResult.stdout.trim()) {
       'x86_64' => 'amd64',
       'aarch64' || 'arm64' => 'arm64',
-      final other => throw VpsSetupException(
-          'detect',
-          'Unsupported server architecture "$other" - only x86_64/aarch64 servers are supported.',
-        ),
+      final other =>
+        throw VpsSetupException('detect', 'Unsupported server architecture "$other" - only x86_64/aarch64 servers are supported.'),
     };
 
     final aptResult = await _exec('command -v apt-get');
     if (!aptResult.ok) {
-      throw const VpsSetupException(
-        'detect',
-        'This wizard only supports Ubuntu/Debian servers (apt-get was not found on this host).',
-      );
+      throw const VpsSetupException('detect', 'This wizard only supports Ubuntu/Debian servers (apt-get was not found on this host).');
     }
     return arch;
   }
@@ -247,7 +242,10 @@ fi
 ''';
     final prepResult = await _exec(prepScript);
     if (!prepResult.ok) {
-      throw VpsSetupException('binary', 'Failed to prepare the archangel user and directories - exit ${prepResult.exitCode}: ${prepResult.stderr}');
+      throw VpsSetupException(
+        'binary',
+        'Failed to prepare the archangel user and directories - exit ${prepResult.exitCode}: ${prepResult.stderr}',
+      );
     }
 
     final downloadResult = await _exec('sudo curl -fsSL "$url" -o /opt/archangel/archangeld.download');
@@ -290,12 +288,7 @@ sudo chown root:root /opt/archangel/archangeld
   /// a missing entry, or any other failure fetching the sums - an
   /// unreachable/erroring checksum file is not the same as an old release,
   /// so it must not silently downgrade to "unverified".
-  Future<bool> _verifyChecksum({
-    required String sumsUrl,
-    required String arch,
-    required String filePath,
-    required String stage,
-  }) async {
+  Future<bool> _verifyChecksum({required String sumsUrl, required String arch, required String filePath, required String stage}) async {
     final sumsPath = '$filePath.SHA256SUMS';
     final fetch = await _exec('sudo rm -f "$sumsPath"; sudo curl -sSL -o "$sumsPath" -w \'%{http_code}\' "$sumsUrl"');
     final httpCode = fetch.stdout.trim();
@@ -575,10 +568,7 @@ sudo systemctl daemon-reload
     }
 
     if (liveVersion != targetVersion) {
-      yield SetupProgress(
-        'restart',
-        'New version did not come up correctly (saw "${liveVersion ?? 'no response'}") - rolling back...',
-      );
+      yield SetupProgress('restart', 'New version did not come up correctly (saw "${liveVersion ?? 'no response'}") - rolling back...');
       await _rollbackBinary();
       throw VpsSetupException(
         'restart',
@@ -669,10 +659,7 @@ fi
     yield const SetupProgress('remove', 'Stopping archangeld and WireGuard, and removing them from this server...');
     final result = await _exec('bash $_remoteScriptDir/uninstall.sh $appPort $wgPort');
     if (!result.ok) {
-      throw VpsSetupException(
-        'remove',
-        'exit ${result.exitCode}: ${result.stderr.isNotEmpty ? result.stderr : result.stdout}',
-      );
+      throw VpsSetupException('remove', 'exit ${result.exitCode}: ${result.stderr.isNotEmpty ? result.stderr : result.stdout}');
     }
     yield const SetupProgress('remove', 'archangeld and WireGuard removed.', stageComplete: true);
   }

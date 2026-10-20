@@ -203,10 +203,7 @@ class DevopsService extends ChangeNotifier {
     if (backend == null || !backend.isPaired || backend.token == null) return false;
 
     try {
-      final res = await http.post(
-        backend.devopsScheduledRunHttpUri(name),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.post(backend.devopsScheduledRunHttpUri(name), headers: {'X-Archangel-Token': backend.token!});
       fetchAll();
       _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to trigger $name.');
       _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;
@@ -224,10 +221,7 @@ class DevopsService extends ChangeNotifier {
     if (backend == null || !backend.isPaired || backend.token == null) return null;
 
     try {
-      final res = await http.post(
-        backend.devopsProxyTestHttpUri(domain),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.post(backend.devopsProxyTestHttpUri(domain), headers: {'X-Archangel-Token': backend.token!});
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         return data['message'] as String?;
@@ -243,10 +237,7 @@ class DevopsService extends ChangeNotifier {
     if (backend == null || !backend.isPaired || backend.token == null) return null;
 
     try {
-      final res = await http.post(
-        backend.devopsDeploymentRunHttpUri(name),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.post(backend.devopsDeploymentRunHttpUri(name), headers: {'X-Archangel-Token': backend.token!});
       Map<String, dynamic> data;
       try {
         data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -274,14 +265,8 @@ class DevopsService extends ChangeNotifier {
     try {
       final res = await http.post(
         backend.devopsDeploymentCreateHttpUri(),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Archangel-Token': backend.token!,
-        },
-        body: jsonEncode({
-          'name': name,
-          'content': content,
-        }),
+        headers: {'Content-Type': 'application/json', 'X-Archangel-Token': backend.token!},
+        body: jsonEncode({'name': name, 'content': content}),
       );
       fetchAll();
       String message = res.statusCode == 200 ? 'Success' : 'Failed to save script';
@@ -291,10 +276,7 @@ class DevopsService extends ChangeNotifier {
           message = data['message'] as String;
         }
       } catch (_) {}
-      return {
-        'success': res.statusCode == 200,
-        'message': message,
-      };
+      return {'success': res.statusCode == 200, 'message': message};
     } catch (e) {
       debugPrint('Error saving deployment: $e');
       return {'success': false, 'message': e.toString()};
@@ -306,10 +288,7 @@ class DevopsService extends ChangeNotifier {
     if (backend == null || !backend.isPaired || backend.token == null) return null;
 
     try {
-      final res = await http.get(
-        backend.devopsDeploymentContentHttpUri(name),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.get(backend.devopsDeploymentContentHttpUri(name), headers: {'X-Archangel-Token': backend.token!});
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         return data['content'] as String?;
@@ -325,10 +304,7 @@ class DevopsService extends ChangeNotifier {
     if (backend == null || !backend.isPaired || backend.token == null) return false;
 
     try {
-      final res = await http.delete(
-        backend.devopsDeploymentDeleteHttpUri(name),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.delete(backend.devopsDeploymentDeleteHttpUri(name), headers: {'X-Archangel-Token': backend.token!});
       fetchAll();
       _lastActionMessage = res.statusCode == 200 ? null : serverMessage(res, 'Failed to delete $name.');
       _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;

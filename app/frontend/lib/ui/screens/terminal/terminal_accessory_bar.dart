@@ -25,10 +25,7 @@ class TerminalAccessoryBar extends StatelessWidget {
       builder: (context, _) {
         return Container(
           key: const ValueKey('terminal-accessory-bar'),
-          decoration: BoxDecoration(
-            color: c.surface,
-            border: Border(top: BorderSide(color: c.border)),
-          ),
+          decoration: BoxDecoration(color: c.surface, border: Border(top: BorderSide(color: c.border))),
           padding: EdgeInsets.symmetric(horizontal: ax.space.xs, vertical: ax.space.xs),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -61,7 +58,7 @@ class TerminalAccessoryBar extends StatelessWidget {
 
 class _Key extends StatelessWidget {
   const _Key({this.label, this.icon, required this.tooltip, required this.onTap, this.active = false})
-      : assert(label != null || icon != null);
+    : assert(label != null || icon != null);
 
   final String? label;
   final IconData? icon;
@@ -98,9 +95,10 @@ class _Key extends StatelessWidget {
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: icon != null
-                        ? Icon(icon, size: 20, color: fg)
-                        : Text(label!, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: fg)),
+                    child:
+                        icon != null
+                            ? Icon(icon, size: 20, color: fg)
+                            : Text(label!, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: fg)),
                   ),
                 ),
               ),

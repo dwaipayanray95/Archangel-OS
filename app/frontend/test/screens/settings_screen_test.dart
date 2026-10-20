@@ -29,17 +29,17 @@ http.Response _json(Object body, [int status = 200]) =>
     http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'});
 
 ServerProfile _profile(String id, {int appPort = 8443, int wgPort = 51820, String? sshHost}) => ServerProfile(
-      id: id,
-      name: 'Server $id',
-      host: '10.0.0.${id.codeUnitAt(0) - 96}:$appPort',
-      token: 'tok-$id',
-      wgConfig: '',
-      sshHost: sshHost,
-      sshUser: 'deploy',
-      appPort: appPort,
-      wgPort: wgPort,
-      createdAt: DateTime.utc(2025),
-    );
+  id: id,
+  name: 'Server $id',
+  host: '10.0.0.${id.codeUnitAt(0) - 96}:$appPort',
+  token: 'tok-$id',
+  wgConfig: '',
+  sshHost: sshHost,
+  sshUser: 'deploy',
+  appPort: appPort,
+  wgPort: wgPort,
+  createdAt: DateTime.utc(2025),
+);
 
 class _Fake implements SshTransport {
   final commands = <String>[];
@@ -121,11 +121,7 @@ Future<_Harness> _pumpSettings(
         ChangeNotifierProvider(create: (_) => AdminModeService(client: adminClient)),
         ChangeNotifierProvider(create: (_) => UpdateCheckService()),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(brightness, AxAccent.green),
-        home: Scaffold(body: child),
-      ),
+      child: MaterialApp(debugShowCheckedModeBanner: false, theme: buildTheme(brightness, AxAccent.green), home: Scaffold(body: child)),
     ),
   );
   await _settle(tester);
@@ -192,13 +188,16 @@ void main() {
     testWidgets('happy path shows the QR code, the selectable code and the warning, then refreshes the list', (tester) async {
       const bundle = 'eyJ2IjoxLCJuYW1lIjoibWFyaWEifQ==';
       http.Request? created;
-      final h = await _pumpSettings(tester, devicesHandler: (req) async {
-        if (req.method == 'POST') {
-          created = req;
-          return _json({'success': true, 'name': 'Maria phone', 'bundle': bundle});
-        }
-        return _json([]);
-      });
+      final h = await _pumpSettings(
+        tester,
+        devicesHandler: (req) async {
+          if (req.method == 'POST') {
+            created = req;
+            return _json({'success': true, 'name': 'Maria phone', 'bundle': bundle});
+          }
+          return _json([]);
+        },
+      );
       await _tapText(tester, 'Add a device');
       expect(find.text('Device name'), findsOneWidget);
 
@@ -223,9 +222,12 @@ void main() {
     });
 
     testWidgets('403 shows the server\'s admin-mode message and keeps the form', (tester) async {
-      await _pumpSettings(tester, devicesHandler: (req) async => req.method == 'POST'
-          ? _json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403)
-          : _json([]));
+      await _pumpSettings(
+        tester,
+        devicesHandler:
+            (req) async =>
+                req.method == 'POST' ? _json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403) : _json([]),
+      );
       await _tapText(tester, 'Add a device');
       await tester.enterText(find.byType(TextField), 'tablet');
       await _tapText(tester, 'Create pairing code');
@@ -286,34 +288,41 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(MultiProvider(
-        providers: [
-          ChangeNotifierProvider<ServerRegistry>.value(value: registry),
-          ChangeNotifierProvider<WireGuardController>.value(value: wg),
-          ChangeNotifierProvider<ArchangeldConnection>.value(value: backend),
-        ],
-        child: MaterialApp(
-          theme: buildTheme(Brightness.dark, AxAccent.green),
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: TextButton(
-                onPressed: () => showUninstallDialog(context, connector: ({
-                  required host,
-                  required port,
-                  required username,
-                  required privateKeyPem,
-                  required onUnknownHostKey,
-                  passphrase,
-                }) async {
-                  connectedWith = {'host': host, 'user': username};
-                  return fake;
-                }),
-                child: const Text('open'),
-              ),
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<ServerRegistry>.value(value: registry),
+            ChangeNotifierProvider<WireGuardController>.value(value: wg),
+            ChangeNotifierProvider<ArchangeldConnection>.value(value: backend),
+          ],
+          child: MaterialApp(
+            theme: buildTheme(Brightness.dark, AxAccent.green),
+            home: Builder(
+              builder:
+                  (context) => Scaffold(
+                    body: TextButton(
+                      onPressed:
+                          () => showUninstallDialog(
+                            context,
+                            connector: ({
+                              required host,
+                              required port,
+                              required username,
+                              required privateKeyPem,
+                              required onUnknownHostKey,
+                              passphrase,
+                            }) async {
+                              connectedWith = {'host': host, 'user': username};
+                              return fake;
+                            },
+                          ),
+                      child: const Text('open'),
+                    ),
+                  ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('open'));
       await _settle(tester);
 
@@ -331,7 +340,10 @@ void main() {
       // The form starts from the profile's SSH address and user.
       expect(find.widgetWithText(TextField, '203.0.113.9'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'deploy'), findsOneWidget);
-      await tester.enterText(find.widgetWithText(TextField, 'Private key'), '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Private key'),
+        '-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n-----END OPENSSH PRIVATE KEY-----',
+      );
       await tester.tap(find.text('Connect & uninstall'));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300)));
       await _settle(tester);

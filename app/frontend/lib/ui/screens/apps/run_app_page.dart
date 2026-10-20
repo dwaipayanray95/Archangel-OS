@@ -12,12 +12,7 @@ class RunAppPage extends StatefulWidget {
   final ContainersService service;
 
   static Future<bool?> open(BuildContext context, ContainersService service) {
-    return Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => RunAppPage(service: service),
-      ),
-    );
+    return Navigator.of(context).push<bool>(MaterialPageRoute(fullscreenDialog: true, builder: (_) => RunAppPage(service: service)));
   }
 
   @override
@@ -63,11 +58,7 @@ class _RunAppPageState extends State<RunAppPage> {
   bool _busy = false;
   String? _error;
 
-  static const _examples = [
-    'nginx',
-    'louislam/uptime-kuma',
-    'vaultwarden/server',
-  ];
+  static const _examples = ['nginx', 'louislam/uptime-kuma', 'vaultwarden/server'];
 
   @override
   void dispose() {
@@ -92,21 +83,10 @@ class _RunAppPageState extends State<RunAppPage> {
       _error = null;
     });
     final ports = buildPortSpecs([
-      for (final r in _ports)
-        PortMapping(
-          containerPort: r.container.text,
-          hostPort: r.host.text,
-          visibility: r.visibility,
-        ),
+      for (final r in _ports) PortMapping(containerPort: r.container.text, hostPort: r.host.text, visibility: r.visibility),
     ]);
-    final volumes = buildVolumeSpecs([
-      for (final r in _folders)
-        FolderMapping(hostPath: r.host.text, containerPath: r.container.text),
-    ]);
-    final env = buildEnvSpecs([
-      for (final r in _settings)
-        SettingEntry(key: r.key.text, value: r.value.text),
-    ]);
+    final volumes = buildVolumeSpecs([for (final r in _folders) FolderMapping(hostPath: r.host.text, containerPath: r.container.text)]);
+    final env = buildEnvSpecs([for (final r in _settings) SettingEntry(key: r.key.text, value: r.value.text)]);
     final res = await widget.service.createContainer(
       image: _image.text.trim(),
       name: _name.text,
@@ -117,9 +97,7 @@ class _RunAppPageState extends State<RunAppPage> {
     );
     if (!mounted) return;
     if (res['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${res['message'] ?? 'Your app is starting.'}')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${res['message'] ?? 'Your app is starting.'}')));
       Navigator.of(context).pop(true);
     } else {
       setState(() {
@@ -154,12 +132,7 @@ class _RunAppPageState extends State<RunAppPage> {
                 // Not a lazy ListView: the form is short and every field must
                 // exist so validation covers rows scrolled out of view.
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    pad,
-                    ax.space.sm,
-                    pad,
-                    pad + MediaQuery.of(context).viewInsets.bottom,
-                  ),
+                  padding: EdgeInsets.fromLTRB(pad, ax.space.sm, pad, pad + MediaQuery.of(context).viewInsets.bottom),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -186,24 +159,13 @@ class _RunAppPageState extends State<RunAppPage> {
                           runSpacing: ax.space.sm,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Text(
-                              'Examples:',
-                              style: ax.typo.caption.copyWith(
-                                color: c.textMuted,
-                              ),
-                            ),
+                            Text('Examples:', style: ax.typo.caption.copyWith(color: c.textMuted)),
                             for (final e in _examples)
                               ActionChip(
-                                label: Text(
-                                  e,
-                                  style: ax.typo.caption.copyWith(
-                                    color: c.text,
-                                  ),
-                                ),
+                                label: Text(e, style: ax.typo.caption.copyWith(color: c.text)),
                                 backgroundColor: c.surfaceAlt,
                                 side: BorderSide(color: c.outline),
-                                onPressed:
-                                    () => setState(() => _image.text = e),
+                                onPressed: () => setState(() => _image.text = e),
                               ),
                           ],
                         ),
@@ -214,8 +176,7 @@ class _RunAppPageState extends State<RunAppPage> {
                           enableSuggestions: false,
                           decoration: const InputDecoration(
                             labelText: 'Name (optional)',
-                            helperText:
-                                'A short name to recognise it by. Leave blank to pick one for you.',
+                            helperText: 'A short name to recognise it by. Leave blank to pick one for you.',
                           ),
                           validator: (v) => validateAppName(v ?? ''),
                         ),
@@ -237,16 +198,14 @@ class _RunAppPageState extends State<RunAppPage> {
                               'No ports yet. Add one if you want to open the app from a browser.',
                               style: ax.typo.body.copyWith(color: c.textMuted),
                             ),
-                          for (var i = 0; i < _ports.length; i++)
-                            _portRow(context, i),
+                          for (var i = 0; i < _ports.length; i++) _portRow(context, i),
                           SizedBox(height: ax.space.sm),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: AxButton.secondary(
                               label: 'Add a port',
                               icon: Icons.add_rounded,
-                              onPressed:
-                                  () => setState(() => _ports.add(_PortRow())),
+                              onPressed: () => setState(() => _ports.add(_PortRow())),
                             ),
                           ),
                         ],
@@ -267,18 +226,14 @@ class _RunAppPageState extends State<RunAppPage> {
                               'No folders linked. Without one, the app’s data is lost if you remove it.',
                               style: ax.typo.body.copyWith(color: c.textMuted),
                             ),
-                          for (var i = 0; i < _folders.length; i++)
-                            _folderRow(context, i),
+                          for (var i = 0; i < _folders.length; i++) _folderRow(context, i),
                           SizedBox(height: ax.space.sm),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: AxButton.secondary(
                               label: 'Add a folder',
                               icon: Icons.add_rounded,
-                              onPressed:
-                                  () => setState(
-                                    () => _folders.add(_FolderRow()),
-                                  ),
+                              onPressed: () => setState(() => _folders.add(_FolderRow())),
                             ),
                           ),
                         ],
@@ -294,22 +249,15 @@ class _RunAppPageState extends State<RunAppPage> {
                         ),
                         [
                           if (_settings.isEmpty)
-                            Text(
-                              'No settings. Most apps work without any.',
-                              style: ax.typo.body.copyWith(color: c.textMuted),
-                            ),
-                          for (var i = 0; i < _settings.length; i++)
-                            _settingRow(context, i),
+                            Text('No settings. Most apps work without any.', style: ax.typo.body.copyWith(color: c.textMuted)),
+                          for (var i = 0; i < _settings.length; i++) _settingRow(context, i),
                           SizedBox(height: ax.space.sm),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: AxButton.secondary(
                               label: 'Add a setting',
                               icon: Icons.add_rounded,
-                              onPressed:
-                                  () => setState(
-                                    () => _settings.add(_SettingRow()),
-                                  ),
+                              onPressed: () => setState(() => _settings.add(_SettingRow())),
                             ),
                           ),
                         ],
@@ -319,21 +267,12 @@ class _RunAppPageState extends State<RunAppPage> {
                           value: _restart,
                           isExpanded: true,
                           dropdownColor: c.surfaceHigh,
-                          decoration: const InputDecoration(
-                            labelText: 'Restart behaviour',
-                          ),
+                          decoration: const InputDecoration(labelText: 'Restart behaviour'),
                           items: [
                             for (final (value, label) in restartChoices)
-                              DropdownMenuItem(
-                                value: value,
-                                child: Text(
-                                  label,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
+                              DropdownMenuItem(value: value, child: Text(label, overflow: TextOverflow.ellipsis)),
                           ],
-                          onChanged:
-                              (v) => setState(() => _restart = v ?? _restart),
+                          onChanged: (v) => setState(() => _restart = v ?? _restart),
                         ),
                       ]),
                       if (_error != null) ...[
@@ -349,12 +288,7 @@ class _RunAppPageState extends State<RunAppPage> {
                             children: [
                               Icon(Icons.error_outline, color: c.danger),
                               SizedBox(width: ax.space.sm),
-                              Expanded(
-                                child: Text(
-                                  _error!,
-                                  style: ax.typo.body.copyWith(color: c.text),
-                                ),
-                              ),
+                              Expanded(child: Text(_error!, style: ax.typo.body.copyWith(color: c.text))),
                             ],
                           ),
                         ),
@@ -378,12 +312,7 @@ class _RunAppPageState extends State<RunAppPage> {
     );
   }
 
-  Widget _section(
-    BuildContext context,
-    String title,
-    Widget? help,
-    List<Widget> children,
-  ) {
+  Widget _section(BuildContext context, String title, Widget? help, List<Widget> children) {
     final ax = context.ax;
     final c = ax.colors;
     return Padding(
@@ -393,15 +322,7 @@ class _RunAppPageState extends State<RunAppPage> {
         children: [
           Row(
             children: [
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    title,
-                    style: ax.typo.title.copyWith(color: c.text),
-                  ),
-                ),
-              ),
+              Expanded(child: Semantics(header: true, child: Text(title, style: ax.typo.title.copyWith(color: c.text)))),
               if (help != null) help,
             ],
           ),
@@ -412,38 +333,20 @@ class _RunAppPageState extends State<RunAppPage> {
     );
   }
 
-  Widget _rowFrame(
-    BuildContext context, {
-    required List<Widget> children,
-    required String removeTip,
-    required VoidCallback onRemove,
-  }) {
+  Widget _rowFrame(BuildContext context, {required List<Widget> children, required String removeTip, required VoidCallback onRemove}) {
     final ax = context.ax;
     final c = ax.colors;
     return Padding(
       padding: EdgeInsets.only(bottom: ax.space.md),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: c.surface,
-          borderRadius: BorderRadius.circular(ax.radii.md),
-          border: Border.all(color: c.border),
-        ),
+        decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
         child: Padding(
           padding: EdgeInsets.all(ax.space.md),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                ),
-              ),
-              AxIconButton(
-                icon: Icons.close_rounded,
-                tooltip: removeTip,
-                onPressed: onRemove,
-              ),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)),
+              AxIconButton(icon: Icons.close_rounded, tooltip: removeTip, onPressed: onRemove),
             ],
           ),
         ),
@@ -467,10 +370,7 @@ class _RunAppPageState extends State<RunAppPage> {
               child: TextFormField(
                 controller: r.container,
                 keyboardType: TextInputType.text,
-                decoration: const InputDecoration(
-                  labelText: 'Port inside the app',
-                  hintText: '80',
-                ),
+                decoration: const InputDecoration(labelText: 'Port inside the app', hintText: '80'),
                 validator: (v) => validateContainerPort(v ?? ''),
               ),
             ),
@@ -479,10 +379,7 @@ class _RunAppPageState extends State<RunAppPage> {
               child: TextFormField(
                 controller: r.host,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Port on your server',
-                  hintText: '8080',
-                ),
+                decoration: const InputDecoration(labelText: 'Port on your server', hintText: '8080'),
                 validator: (v) => validateHostPort(v ?? ''),
               ),
             ),
@@ -494,13 +391,7 @@ class _RunAppPageState extends State<RunAppPage> {
           isExpanded: true,
           dropdownColor: c.surfaceHigh,
           decoration: const InputDecoration(labelText: 'Who can reach it'),
-          items: [
-            for (final v in PortVisibility.values)
-              DropdownMenuItem(
-                value: v,
-                child: Text(v.label, overflow: TextOverflow.ellipsis),
-              ),
-          ],
+          items: [for (final v in PortVisibility.values) DropdownMenuItem(value: v, child: Text(v.label, overflow: TextOverflow.ellipsis))],
           onChanged: (v) => setState(() => r.visibility = v ?? r.visibility),
         ),
         if (r.visibility == PortVisibility.public) ...[
@@ -544,23 +435,15 @@ class _RunAppPageState extends State<RunAppPage> {
         TextFormField(
           controller: r.host,
           autocorrect: false,
-          decoration: const InputDecoration(
-            labelText: 'Folder on your server',
-            hintText: '/srv/myapp',
-          ),
-          validator:
-              (v) => validateFolderPath(v ?? '', what: 'Folder on your server'),
+          decoration: const InputDecoration(labelText: 'Folder on your server', hintText: '/srv/myapp'),
+          validator: (v) => validateFolderPath(v ?? '', what: 'Folder on your server'),
         ),
         SizedBox(height: ax.space.md),
         TextFormField(
           controller: r.container,
           autocorrect: false,
-          decoration: const InputDecoration(
-            labelText: 'Place inside the app',
-            hintText: '/data',
-          ),
-          validator:
-              (v) => validateFolderPath(v ?? '', what: 'Place inside the app'),
+          decoration: const InputDecoration(labelText: 'Place inside the app', hintText: '/data'),
+          validator: (v) => validateFolderPath(v ?? '', what: 'Place inside the app'),
         ),
       ],
     );
@@ -586,10 +469,7 @@ class _RunAppPageState extends State<RunAppPage> {
           controller: r.value,
           autocorrect: false,
           enableSuggestions: false,
-          decoration: const InputDecoration(
-            labelText: 'Value',
-            hintText: 'Europe/London',
-          ),
+          decoration: const InputDecoration(labelText: 'Value', hintText: 'Europe/London'),
         ),
       ],
     );

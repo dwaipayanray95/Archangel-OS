@@ -26,11 +26,7 @@ enum SyncServerMode {
 /// needing to touch a terminal or deploy script - or, with
 /// [SyncServerMode.enableAdminMode], to turn Admin mode back on.
 Future<void> showSyncServerConfigDialog(BuildContext context, {SyncServerMode mode = SyncServerMode.sync}) {
-  return showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => SyncServerConfigDialog(mode: mode),
-  );
+  return showDialog<void>(context: context, barrierDismissible: false, builder: (context) => SyncServerConfigDialog(mode: mode));
 }
 
 class SyncServerConfigDialog extends StatefulWidget {
@@ -112,7 +108,8 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
           final savePassphrase = await promptForPassphrase(
             context,
             title: 'Set a passphrase',
-            message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
+            message:
+                'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
             confirm: true,
           );
           if (savePassphrase != null) {
@@ -169,51 +166,50 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
         constraints: const BoxConstraints(maxWidth: 460),
         child: switch (_step) {
           _Step.credentials => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _isAdminMode
-                      ? 'Admin mode lets the terminal and Archangel run commands as root (sudo). '
-                          'Turning it on needs your SSH key, because the app can only turn it off by itself.'
-                      : 'Updates the server\'s service definition and permissions to the latest standard, '
-                          'including persistent terminal sessions. Admin mode (sudo) is left as it is - on or off.',
-                  style: ax.typo.body.copyWith(color: c.textMuted),
-                ),
-                SizedBox(height: ax.space.lg),
-                SshCredentialsForm(
-                  controller: _creds,
-                  enabled: !_connecting,
-                  errorText: _connectError,
-                  onPickKeyFile: () => pickSshKeyFile(context),
-                ),
-              ],
-            ),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _isAdminMode
+                    ? 'Admin mode lets the terminal and Archangel run commands as root (sudo). '
+                        'Turning it on needs your SSH key, because the app can only turn it off by itself.'
+                    : 'Updates the server\'s service definition and permissions to the latest standard, '
+                        'including persistent terminal sessions. Admin mode (sudo) is left as it is - on or off.',
+                style: ax.typo.body.copyWith(color: c.textMuted),
+              ),
+              SizedBox(height: ax.space.lg),
+              SshCredentialsForm(
+                controller: _creds,
+                enabled: !_connecting,
+                errorText: _connectError,
+                onPickKeyFile: () => pickSshKeyFile(context),
+              ),
+            ],
+          ),
           _Step.progress => SetupProgressLog(
-              log: _log,
-              error: _runError,
-              errorTitle: _isAdminMode ? 'Could not turn on Admin mode' : 'Repair failed',
-            ),
+            log: _log,
+            error: _runError,
+            errorTitle: _isAdminMode ? 'Could not turn on Admin mode' : 'Repair failed',
+          ),
           _Step.done => SetupDoneView(
-              title: _isAdminMode ? 'Admin mode is on' : 'Server configuration updated',
-              message: _isAdminMode
-                  ? 'The terminal and Archangel can run commands as root (sudo) again.'
-                  : 'The service definition and the /home/archangel folder are set up. Persistent terminal sessions are live.',
-            ),
+            title: _isAdminMode ? 'Admin mode is on' : 'Server configuration updated',
+            message:
+                _isAdminMode
+                    ? 'The terminal and Archangel can run commands as root (sudo) again.'
+                    : 'The service definition and the /home/archangel folder are set up. Persistent terminal sessions are live.',
+          ),
         },
       ),
       actions: switch (_step) {
         _Step.credentials => [
-            AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-            AxButton(
-              label: _isAdminMode ? 'Connect & turn on' : 'Connect & repair',
-              loading: _connecting,
-              onPressed: _creds.restoring ? null : _connect,
-            ),
-          ],
-        _Step.progress => [
-            if (_runError != null) AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop()),
-          ],
+          AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+          AxButton(
+            label: _isAdminMode ? 'Connect & turn on' : 'Connect & repair',
+            loading: _connecting,
+            onPressed: _creds.restoring ? null : _connect,
+          ),
+        ],
+        _Step.progress => [if (_runError != null) AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop())],
         _Step.done => [AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop())],
       },
     );

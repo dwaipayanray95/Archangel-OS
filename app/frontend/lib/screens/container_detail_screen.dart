@@ -102,10 +102,7 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
                             spacing: ax.space.md,
                             runSpacing: ax.space.sm,
                             crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              appStatusBadge(item),
-                              Text(item.image, style: ax.typo.mono.copyWith(color: c.textMuted)),
-                            ],
+                            children: [appStatusBadge(item), Text(item.image, style: ax.typo.mono.copyWith(color: c.textMuted))],
                           ),
                           SizedBox(height: ax.space.lg),
                           Wrap(
@@ -125,11 +122,7 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
                             runSpacing: ax.space.sm,
                             children: [
                               if (open != null)
-                                AxButton(
-                                  label: 'Open',
-                                  icon: Icons.open_in_new_rounded,
-                                  onPressed: () => openAppInBrowser(context, open),
-                                ),
+                                AxButton(label: 'Open', icon: Icons.open_in_new_rounded, onPressed: () => openAppInBrowser(context, open)),
                               if (item.running)
                                 AxButton.secondary(
                                   label: 'Stop',

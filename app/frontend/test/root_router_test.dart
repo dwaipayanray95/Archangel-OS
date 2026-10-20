@@ -14,12 +14,7 @@ import 'package:archangel/ui/theme.dart';
 // covering with a widget test.
 void main() {
   testWidgets('shows both setup options', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildTheme(Brightness.dark),
-        home: const SetupLandingScreen(),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(theme: buildTheme(Brightness.dark), home: const SetupLandingScreen()));
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Yes, set it up for me'), findsOneWidget);

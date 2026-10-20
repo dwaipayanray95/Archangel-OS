@@ -14,7 +14,6 @@ import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/ui/theme.dart';
 
-
 class FakeMonitoring extends MonitoringService {
   FakeMonitoring({this.fakeMetrics, this.fakeStatus = MonitoringStatus.connected, this.rebootResult});
   SystemMetrics? fakeMetrics;
@@ -58,15 +57,15 @@ class FakeContainers extends ContainersService {
   final List<DockerContainerItem> items;
   @override
   DockerOverviewModel? get overview => DockerOverviewModel(
-        dockerAvailable: true,
-        engineVersion: '27',
-        runningCount: items.where((c) => c.running).length,
-        stoppedCount: items.where((c) => !c.running).length,
-        totalImagesSize: '0 B',
-        containers: items,
-        stacks: const [],
-        stackMeta: const {},
-      );
+    dockerAvailable: true,
+    engineVersion: '27',
+    runningCount: items.where((c) => c.running).length,
+    stoppedCount: items.where((c) => !c.running).length,
+    totalImagesSize: '0 B',
+    containers: items,
+    stacks: const [],
+    stackMeta: const {},
+  );
   @override
   void init(ArchangeldConnection backend) {}
 }
@@ -88,20 +87,20 @@ class FakeUpdates extends UpdateCheckService {
 }
 
 DockerContainerItem container(String name, {required bool running}) => DockerContainerItem(
-      id: name,
-      name: name,
-      image: 'img',
-      stack: 'standalone',
-      state: running ? 'running' : 'exited',
-      status: '',
-      uptime: '',
-      cpu: 0,
-      memMb: 0,
-      memLabel: '',
-      ports: '',
-      cid: name,
-      running: running,
-    );
+  id: name,
+  name: name,
+  image: 'img',
+  stack: 'standalone',
+  state: running ? 'running' : 'exited',
+  status: '',
+  uptime: '',
+  cpu: 0,
+  memMb: 0,
+  memLabel: '',
+  ports: '',
+  cid: name,
+  running: running,
+);
 
 SystemMetrics metrics({double cpu = 12, double memPct = 50, List<MountMetric> mounts = const []}) {
   const gb = 1024 * 1024 * 1024;
@@ -111,7 +110,12 @@ SystemMetrics metrics({double cpu = 12, double memPct = 50, List<MountMetric> mo
     host: const HostInfo(hostname: 'box'),
     cpu: CPUMetrics(usagePercent: cpu, cores: const [CoreMetric(id: 0, usagePercent: 10)], history: const [10, 20, 30]),
     memory: MemoryMetrics(
-        totalBytes: 8 * gb, usedBytes: (4.1 * gb).round(), availableBytes: 4 * gb, usagePercent: memPct, history: const [40, 50]),
+      totalBytes: 8 * gb,
+      usedBytes: (4.1 * gb).round(),
+      availableBytes: 4 * gb,
+      usagePercent: memPct,
+      history: const [40, 50],
+    ),
     disk: DiskMetrics(
       readBytesPerSec: 0,
       writeBytesPerSec: 0,
@@ -143,20 +147,19 @@ Future<(AppState, FakeMonitoring)> pumpHome(
   addTearDown(tester.view.resetPhysicalSize);
   final app = AppState();
   final mon = FakeMonitoring(fakeMetrics: data, fakeStatus: status, rebootResult: rebootResult);
-  await tester.pumpWidget(MultiProvider(
-    providers: [
-      ChangeNotifierProvider<AppState>.value(value: app),
-      ChangeNotifierProvider<MonitoringService>.value(value: mon),
-      ChangeNotifierProvider<ArchangeldConnection>.value(value: FakeBackend(paired: paired, version: backendVersion)),
-      ChangeNotifierProvider<ContainersService>.value(value: FakeContainers(containers)),
-      ChangeNotifierProvider<DevopsService>.value(value: FakeDevops(services)),
-      ChangeNotifierProvider<UpdateCheckService>.value(value: FakeUpdates(latestBackend)),
-    ],
-    child: MaterialApp(
-      theme: buildTheme(brightness),
-      home: const Scaffold(body: OverviewScreen()),
+  await tester.pumpWidget(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AppState>.value(value: app),
+        ChangeNotifierProvider<MonitoringService>.value(value: mon),
+        ChangeNotifierProvider<ArchangeldConnection>.value(value: FakeBackend(paired: paired, version: backendVersion)),
+        ChangeNotifierProvider<ContainersService>.value(value: FakeContainers(containers)),
+        ChangeNotifierProvider<DevopsService>.value(value: FakeDevops(services)),
+        ChangeNotifierProvider<UpdateCheckService>.value(value: FakeUpdates(latestBackend)),
+      ],
+      child: MaterialApp(theme: buildTheme(brightness), home: const Scaffold(body: OverviewScreen())),
     ),
-  ));
+  );
   await tester.pump(const Duration(milliseconds: 50));
   return (app, mon);
 }
@@ -165,8 +168,8 @@ void main() {
   group('health sentence', () {
     test('healthy', () {
       final h = evaluateHealth(connected: true, metrics: metrics());
-      expect(h.headline, 'All good');
-      expect(h.detail, 'Your server is running smoothly.');
+      expect(h.headline, 'Your server is healthy and guarded.');
+      expect(h.detail, 'Nothing needs you right now.');
     });
     test('offline', () {
       expect(evaluateHealth(connected: false, metrics: null).headline, "Can't reach your server");
@@ -231,7 +234,7 @@ void main() {
         backendVersion: '0.4.0',
         latestBackend: '0.5.0',
       );
-      expect(find.text('All good'), findsOneWidget);
+      expect(find.text('Your server is healthy and guarded.'), findsOneWidget);
       expect(find.text('4.1 of 8 GB'), findsOneWidget);
       expect(find.text('Uptime'), findsOneWidget);
       expect(find.text('Needs attention'), findsOneWidget);

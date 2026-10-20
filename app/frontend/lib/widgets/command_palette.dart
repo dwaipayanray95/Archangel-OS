@@ -79,10 +79,8 @@ class _CommandPaletteState extends State<CommandPalette> {
     List<_PaletteItem> filter(List<_PaletteItem> items) =>
         query.isEmpty ? items : items.where((i) => i.label.toLowerCase().contains(query)).toList();
 
-    final groups = <String, List<_PaletteItem>>{
-      'Sections': filter(sections),
-      'Apps': filter(containerItems),
-    }..removeWhere((_, v) => v.isEmpty);
+    final groups = <String, List<_PaletteItem>>{'Sections': filter(sections), 'Apps': filter(containerItems)}
+      ..removeWhere((_, v) => v.isEmpty);
     _flat = [for (final g in groups.values) ...g];
     if (_selected >= _flat.length) _selected = _flat.isEmpty ? 0 : _flat.length - 1;
     var flatIndex = 0;
@@ -163,9 +161,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                             if (groups.isEmpty)
                               Padding(
                                 padding: EdgeInsets.symmetric(vertical: ax.space.xxl),
-                                child: Center(
-                                  child: Text('No match for "$query"', style: ax.typo.body.copyWith(color: c.textMuted)),
-                                ),
+                                child: Center(child: Text('No match for "$query"', style: ax.typo.body.copyWith(color: c.textMuted))),
                               )
                             else
                               for (final entry in groups.entries) ...[
@@ -176,8 +172,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                                     style: ax.typo.caption.copyWith(fontWeight: FontWeight.w600, letterSpacing: 1, color: c.textMuted),
                                   ),
                                 ),
-                                for (final item in entry.value)
-                                  _PaletteRow(item: item, selected: flatIndex++ == _selected),
+                                for (final item in entry.value) _PaletteRow(item: item, selected: flatIndex++ == _selected),
                               ],
                           ],
                         ),
@@ -189,11 +184,7 @@ class _CommandPaletteState extends State<CommandPalette> {
                       child: Wrap(
                         spacing: ax.space.lg,
                         runSpacing: ax.space.xs,
-                        children: [
-                          _hint(ax, '↑↓', 'navigate'),
-                          _hint(ax, '↵', 'open'),
-                          _hint(ax, 'esc', 'close'),
-                        ],
+                        children: [_hint(ax, '↑↓', 'navigate'), _hint(ax, '↵', 'open'), _hint(ax, 'esc', 'close')],
                       ),
                     ),
                   ],

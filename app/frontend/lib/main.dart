@@ -12,6 +12,7 @@ import 'services/monitoring_service.dart';
 import 'services/update_check_service.dart';
 import 'services/wireguard_controller.dart';
 import 'services/server_registry.dart';
+import 'ui/boot/boot_splash.dart';
 import 'ui/shell/archangel_shell.dart';
 import 'ui/theme.dart';
 
@@ -20,8 +21,8 @@ void main() {
   runApp(const ArchangelApp());
 }
 
-/// No Android-style stretch/glow overscroll — it clashes with this design's
-/// own motion language and the dark cockpit aesthetic's custom scrollbar.
+/// No Android-style stretch/glow overscroll: it clashes with the calm
+/// Halo motion language.
 class _NoOverscrollBehavior extends MaterialScrollBehavior {
   @override
   Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;
@@ -47,15 +48,19 @@ class ArchangelApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UpdateCheckService()..loadCache()),
       ],
       child: Consumer<AppState>(
-        builder: (context, app, _) => MaterialApp(
-          title: 'Archangel',
-          debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light, app.accentChoice),
-          darkTheme: buildTheme(Brightness.dark, app.accentChoice),
-          themeMode: app.themeMode,
-          scrollBehavior: _NoOverscrollBehavior(),
-          home: const _RootRouter(),
-        ),
+        builder:
+            (context, app, _) => MaterialApp(
+              title: 'Archangel OS',
+              debugShowCheckedModeBanner: false,
+              theme: buildTheme(Brightness.light, app.accentChoice),
+              darkTheme: buildTheme(Brightness.dark, app.accentChoice),
+              themeMode: app.themeMode,
+              scrollBehavior: _NoOverscrollBehavior(),
+              // The start-up animation plays over everything while the app
+              // bootstraps underneath.
+              builder: (context, child) => BootGate(child: child ?? const SizedBox.shrink()),
+              home: const _RootRouter(),
+            ),
       ),
     );
   }
@@ -77,10 +82,7 @@ class _RootRouter extends StatelessWidget {
     final registry = context.watch<ServerRegistry>();
 
     if (!wg.isBootstrapped || !backend.isLoaded || !registry.isLoaded) {
-      return Scaffold(
-        backgroundColor: context.ax.colors.bg,
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(backgroundColor: context.ax.colors.bg, body: const Center(child: CircularProgressIndicator()));
     }
 
     if (registry.isEmpty && !wg.isPaired && !backend.isPaired) {

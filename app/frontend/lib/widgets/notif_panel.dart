@@ -20,29 +20,25 @@ List<_NotifItem> _buildNotifItems(ContainersService contSvc, DevopsService devSv
   // Surface any warnings or active status from live containers
   final containers = contSvc.overview?.containers ?? [];
   for (final c in containers.take(3)) {
-    items.add(_NotifItem(
-      actor: c.name,
-      text: c.running ? 'running' : 'stopped',
-      detail: '${c.image} · ${c.uptime.isNotEmpty ? c.uptime : "idle"}',
-      status: c.running ? AxStatus.ok : AxStatus.warning,
-    ));
+    items.add(
+      _NotifItem(
+        actor: c.name,
+        text: c.running ? 'running' : 'stopped',
+        detail: '${c.image} · ${c.uptime.isNotEmpty ? c.uptime : "idle"}',
+        status: c.running ? AxStatus.ok : AxStatus.warning,
+      ),
+    );
   }
 
   // Surface systemd services / deployments
   for (final s in devSvc.services.take(2)) {
-    items.add(_NotifItem(
-      actor: s.name,
-      text: s.status,
-      detail: s.meta,
-      status: s.ok ? AxStatus.ok : AxStatus.error,
-    ));
+    items.add(_NotifItem(actor: s.name, text: s.status, detail: s.meta, status: s.ok ? AxStatus.ok : AxStatus.error));
   }
   return items;
 }
 
 /// True when the panel has something to list - drives the bell's accent dot.
-bool hasNotifications(ContainersService contSvc, DevopsService devSvc) =>
-    _buildNotifItems(contSvc, devSvc).isNotEmpty;
+bool hasNotifications(ContainersService contSvc, DevopsService devSvc) => _buildNotifItems(contSvc, devSvc).isNotEmpty;
 
 class NotifPanel extends StatelessWidget {
   const NotifPanel({super.key});
@@ -60,12 +56,12 @@ class NotifPanel extends StatelessWidget {
     final c = ax.colors;
 
     Color statusColor(AxStatus st) => switch (st) {
-          AxStatus.ok => c.success,
-          AxStatus.warning => c.warning,
-          AxStatus.error => c.danger,
-          AxStatus.info => c.info,
-          AxStatus.neutral => c.textMuted,
-        };
+      AxStatus.ok => c.success,
+      AxStatus.warning => c.warning,
+      AxStatus.error => c.danger,
+      AxStatus.info => c.info,
+      AxStatus.neutral => c.textMuted,
+    };
 
     return Positioned(
       top: 55,
@@ -74,10 +70,7 @@ class NotifPanel extends StatelessWidget {
         tween: Tween(begin: 0, end: 1),
         duration: const Duration(milliseconds: 230),
         curve: Curves.easeOutCubic,
-        builder: (context, t, child) => Opacity(
-          opacity: t,
-          child: Transform.translate(offset: Offset(0, (1 - t) * -12), child: child),
-        ),
+        builder: (context, t, child) => Opacity(opacity: t, child: Transform.translate(offset: Offset(0, (1 - t) * -12), child: child)),
         child: Semantics(
           container: true,
           label: 'Notifications',
@@ -99,8 +92,10 @@ class NotifPanel extends StatelessWidget {
                     padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.xs, ax.space.sm, ax.space.sm),
                     child: Row(
                       children: [
-                        Text('NOTIFICATIONS',
-                            style: ax.typo.caption.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1, color: c.textMuted)),
+                        Text(
+                          'NOTIFICATIONS',
+                          style: ax.typo.caption.copyWith(fontWeight: FontWeight.w700, letterSpacing: 1, color: c.textMuted),
+                        ),
                         const Spacer(),
                         Text(
                           items.isEmpty
@@ -146,7 +141,12 @@ class NotifPanel extends StatelessWidget {
                                       ],
                                     ),
                                   ),
-                                  Text(n.detail, style: ax.typo.caption.copyWith(color: c.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  Text(
+                                    n.detail,
+                                    style: ax.typo.caption.copyWith(color: c.textMuted),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ],
                               ),
                             ),

@@ -86,7 +86,11 @@ class _DevopsScreenState extends State<DevopsScreen> {
       if (!mounted) return;
       if (ok) {
         setState(() => _refusal = null);
-        final past = switch (action) { 'Start' => 'started', 'Stop' => 'stopped', _ => 'restarted' };
+        final past = switch (action) {
+          'Start' => 'started',
+          'Stop' => 'stopped',
+          _ => 'restarted',
+        };
         _toast('${row.name} $past.');
       } else {
         _showRefusal(svc, 'Could not ${action.toLowerCase()} ${row.name}.');
@@ -197,11 +201,11 @@ class _DevopsScreenState extends State<DevopsScreen> {
   }
 
   List<DevRowModel> _rowsFor(DevopsService svc) => switch (_tab) {
-        ServicesTab.services => svc.services,
-        ServicesTab.timers => svc.scheduled,
-        ServicesTab.web => svc.proxy,
-        ServicesTab.scripts => svc.deployments,
-      };
+    ServicesTab.services => svc.services,
+    ServicesTab.timers => svc.scheduled,
+    ServicesTab.web => svc.proxy,
+    ServicesTab.scripts => svc.deployments,
+  };
 
   List<RowAction> _actionsFor(DevRowModel row) {
     switch (_tab) {
@@ -241,7 +245,13 @@ class _DevopsScreenState extends State<DevopsScreen> {
       case ServicesTab.scripts:
         final busy = _busy.contains('script:${row.name}');
         return [
-          RowAction(label: 'Run', icon: Icons.play_arrow_rounded, kind: AxButtonKind.primary, loading: busy, onPressed: busy ? null : () => _runScript(row)),
+          RowAction(
+            label: 'Run',
+            icon: Icons.play_arrow_rounded,
+            kind: AxButtonKind.primary,
+            loading: busy,
+            onPressed: busy ? null : () => _runScript(row),
+          ),
           RowAction(label: 'Edit', icon: Icons.edit_outlined, onPressed: busy ? null : () => _editScript(row)),
           RowAction(label: 'Delete', icon: Icons.delete_outline_rounded, onPressed: busy ? null : () => _deleteScript(row)),
         ];
@@ -254,55 +264,59 @@ class _DevopsScreenState extends State<DevopsScreen> {
         return const TabIntro(
           text: 'Programs that keep running on your server, like your web server.',
           helpTitle: 'Background services',
-          helpText: 'A background service is a program that starts with your server and keeps running without anyone '
+          helpText:
+              'A background service is a program that starts with your server and keeps running without anyone '
               'logged in. Linux calls them “systemd services”. Stopping one switches that program off until you start it again.',
         );
       case ServicesTab.timers:
         return const TabIntro(
           text: 'Jobs your server runs on a schedule, like a nightly backup.',
           helpTitle: 'Scheduled tasks',
-          helpText: 'A scheduled task runs by itself at set times, for example every night. Linux calls these “systemd timers”. '
+          helpText:
+              'A scheduled task runs by itself at set times, for example every night. Linux calls these “systemd timers”. '
               '“Run now” starts the job straight away without changing its schedule.',
         );
       case ServicesTab.web:
         return const TabIntro(
           text: 'Website names that point to apps on your server.',
           helpTitle: 'Web addresses',
-          helpText: 'A web address (like notes.example.com) is sent to the right app on your server by a helper called Caddy, '
+          helpText:
+              'A web address (like notes.example.com) is sent to the right app on your server by a helper called Caddy, '
               'a “reverse proxy”. “Test” checks that the address answers.',
         );
       case ServicesTab.scripts:
         return const TabIntro(
           text: 'Saved sets of commands you can run on your server with one tap.',
           helpTitle: 'Scripts',
-          helpText: 'A script is a text file of commands, for example to update an app. Scripts run on your server as the '
+          helpText:
+              'A script is a text file of commands, for example to update an app. Scripts run on your server as the '
               '“archangel” user, so only run ones you trust.',
         );
     }
   }
 
   ({IconData icon, String title, String message}) _emptyText() => switch (_tab) {
-        ServicesTab.services => (
-            icon: Icons.settings_suggest_outlined,
-            title: 'No background services found',
-            message: 'Programs that run in the background on your server will show up here.',
-          ),
-        ServicesTab.timers => (
-            icon: Icons.schedule_rounded,
-            title: 'No scheduled tasks',
-            message: 'Jobs that run on a schedule on your server will show up here.',
-          ),
-        ServicesTab.web => (
-            icon: Icons.language_rounded,
-            title: 'No web addresses yet',
-            message: 'When an app on your server is given a website name, it will show up here.',
-          ),
-        ServicesTab.scripts => (
-            icon: Icons.terminal_rounded,
-            title: 'No scripts yet',
-            message: 'Save a set of commands as a script and run it whenever you like.',
-          ),
-      };
+    ServicesTab.services => (
+      icon: Icons.settings_suggest_outlined,
+      title: 'No background services found',
+      message: 'Programs that run in the background on your server will show up here.',
+    ),
+    ServicesTab.timers => (
+      icon: Icons.schedule_rounded,
+      title: 'No scheduled tasks',
+      message: 'Jobs that run on a schedule on your server will show up here.',
+    ),
+    ServicesTab.web => (
+      icon: Icons.language_rounded,
+      title: 'No web addresses yet',
+      message: 'When an app on your server is given a website name, it will show up here.',
+    ),
+    ServicesTab.scripts => (
+      icon: Icons.terminal_rounded,
+      title: 'No scripts yet',
+      message: 'Save a set of commands as a script and run it whenever you like.',
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -312,8 +326,7 @@ class _DevopsScreenState extends State<DevopsScreen> {
     final ax = context.ax;
 
     final actions = [
-      if (_tab == ServicesTab.scripts && conn.isPaired)
-        AxButton(label: 'New script', icon: Icons.add_rounded, onPressed: _newScript),
+      if (_tab == ServicesTab.scripts && conn.isPaired) AxButton(label: 'New script', icon: Icons.add_rounded, onPressed: _newScript),
     ];
 
     final Widget body;
@@ -352,49 +365,48 @@ class _DevopsScreenState extends State<DevopsScreen> {
         ],
       ];
       if (rows.isEmpty && svc.error != null) {
-        children.add(ErrorState(
-          title: 'Could not load this list',
-          message: 'Your server did not answer. Check that the secure connection is on, then try again.',
-          onRetry: svc.fetchAll,
-        ));
+        children.add(
+          ErrorState(
+            title: 'Could not load this list',
+            message: 'Your server did not answer. Check that the secure connection is on, then try again.',
+            onRetry: svc.fetchAll,
+          ),
+        );
       } else if (rows.isEmpty) {
         final e = _emptyText();
-        children.add(EmptyState(
-          icon: e.icon,
-          title: e.title,
-          message: e.message,
-          actionLabel: _tab == ServicesTab.scripts ? 'New script' : null,
-          onAction: _tab == ServicesTab.scripts ? _newScript : null,
-        ));
+        children.add(
+          EmptyState(
+            icon: e.icon,
+            title: e.title,
+            message: e.message,
+            actionLabel: _tab == ServicesTab.scripts ? 'New script' : null,
+            onAction: _tab == ServicesTab.scripts ? _newScript : null,
+          ),
+        );
       } else {
         children.add(_list(rows, wide));
       }
       body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
     }
 
-    return AxPage(
-      title: 'Services',
-      subtitle: 'What is running on your server',
-      scrollable: scroll,
-      actions: actions,
-      child: body,
-    );
+    return AxPage(title: 'Services', subtitle: 'What is running on your server', scrollable: scroll, actions: actions, child: body);
   }
 
   Widget _list(List<DevRowModel> rows, bool wide) {
     final ax = context.ax;
     final c = ax.colors;
     Widget row(DevRowModel r) => ServiceRow(
-          key: ValueKey('${_tab.name}:${r.name}'),
-          name: r.name,
-          details: rowDetails(r),
-          badge: rowBadge(_tab, r),
-          actions: _actionsFor(r),
-          wide: wide,
-          footer: _tab == ServicesTab.web && (_testing.contains(r.name) || _testResults.containsKey(r.name))
+      key: ValueKey('${_tab.name}:${r.name}'),
+      name: r.name,
+      details: rowDetails(r),
+      badge: rowBadge(_tab, r),
+      actions: _actionsFor(r),
+      wide: wide,
+      footer:
+          _tab == ServicesTab.web && (_testing.contains(r.name) || _testResults.containsKey(r.name))
               ? TestResultLine(testing: _testing.contains(r.name), result: _testResults[r.name])
               : null,
-        );
+    );
     if (wide) {
       return AxCard(
         padding: EdgeInsets.zero,
@@ -406,10 +418,6 @@ class _DevopsScreenState extends State<DevopsScreen> {
         ),
       );
     }
-    return Column(
-      children: [
-        for (final r in rows) Padding(padding: EdgeInsets.only(bottom: ax.space.md), child: row(r)),
-      ],
-    );
+    return Column(children: [for (final r in rows) Padding(padding: EdgeInsets.only(bottom: ax.space.md), child: row(r))]);
   }
 }

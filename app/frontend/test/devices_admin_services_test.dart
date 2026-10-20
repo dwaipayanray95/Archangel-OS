@@ -25,7 +25,10 @@ void main() {
 
   group('serverMessage', () {
     test('prefers the JSON message field', () {
-      expect(serverMessage(_json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403), 'x'), 'Admin mode is off - this action needs it');
+      expect(
+        serverMessage(_json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403), 'x'),
+        'Admin mode is off - this action needs it',
+      );
     });
     test('falls back to a short plain-text body, then to the fallback', () {
       expect(serverMessage(http.Response('Bad gateway', 502), 'x'), 'Bad gateway');
@@ -63,7 +66,9 @@ void main() {
 
     test('surfaces the server message when listing fails', () async {
       final conn = await _pairedConnection();
-      final svc = DevicesService(client: MockClient((_) async => _json({'success': false, 'message': 'failed to read paired devices'}, 500)));
+      final svc = DevicesService(
+        client: MockClient((_) async => _json({'success': false, 'message': 'failed to read paired devices'}, 500)),
+      );
       svc.init(conn);
       await pumpEventQueue();
       expect(svc.error, 'failed to read paired devices');
@@ -105,10 +110,12 @@ void main() {
       final conn = await _pairedConnection();
       var status = 403;
       var message = 'Admin mode is off - this action needs it';
-      final svc = DevicesService(client: MockClient((req) async {
-        if (req.method == 'DELETE') return _json({'success': false, 'message': message}, status);
-        return _json(<Object>[]);
-      }));
+      final svc = DevicesService(
+        client: MockClient((req) async {
+          if (req.method == 'DELETE') return _json({'success': false, 'message': message}, status);
+          return _json(<Object>[]);
+        }),
+      );
       svc.init(conn);
       await pumpEventQueue();
 
@@ -129,10 +136,12 @@ void main() {
 
     test('a dropped connection counts as success only for self-revoke', () async {
       final conn = await _pairedConnection();
-      final svc = DevicesService(client: MockClient((req) async {
-        if (req.method == 'DELETE') throw http.ClientException('connection reset');
-        return _json(<Object>[]);
-      }));
+      final svc = DevicesService(
+        client: MockClient((req) async {
+          if (req.method == 'DELETE') throw http.ClientException('connection reset');
+          return _json(<Object>[]);
+        }),
+      );
       svc.init(conn);
       await pumpEventQueue();
 
@@ -147,11 +156,13 @@ void main() {
   group('AdminModeService', () {
     test('parses status', () async {
       final conn = await _pairedConnection();
-      final svc = AdminModeService(client: MockClient((req) async {
-        expect(req.method, 'GET');
-        expect(req.url.path, '/api/v1/system/admin-mode');
-        return _json({'enabled': true, 'sudoers_path': '/etc/sudoers.d/archangel'});
-      }));
+      final svc = AdminModeService(
+        client: MockClient((req) async {
+          expect(req.method, 'GET');
+          expect(req.url.path, '/api/v1/system/admin-mode');
+          return _json({'enabled': true, 'sudoers_path': '/etc/sudoers.d/archangel'});
+        }),
+      );
       svc.init(conn);
       await pumpEventQueue();
       expect(svc.enabled, isTrue);
@@ -171,13 +182,15 @@ void main() {
     test('disable POSTs {"enabled": false} and applies the returned state', () async {
       final conn = await _pairedConnection();
       Map<String, dynamic>? posted;
-      final svc = AdminModeService(client: MockClient((req) async {
-        if (req.method == 'POST') {
-          posted = jsonDecode(req.body) as Map<String, dynamic>;
-          return _json({'enabled': false, 'sudoers_path': '/etc/sudoers.d/archangel'});
-        }
-        return _json({'enabled': true});
-      }));
+      final svc = AdminModeService(
+        client: MockClient((req) async {
+          if (req.method == 'POST') {
+            posted = jsonDecode(req.body) as Map<String, dynamic>;
+            return _json({'enabled': false, 'sudoers_path': '/etc/sudoers.d/archangel'});
+          }
+          return _json({'enabled': true});
+        }),
+      );
       svc.init(conn);
       await pumpEventQueue();
 
@@ -189,10 +202,12 @@ void main() {
 
     test('disable surfaces the server message on failure and keeps the old state', () async {
       final conn = await _pairedConnection();
-      final svc = AdminModeService(client: MockClient((req) async {
-        if (req.method == 'POST') return _json({'success': false, 'message': 'could not update sudoers'}, 500);
-        return _json({'enabled': true});
-      }));
+      final svc = AdminModeService(
+        client: MockClient((req) async {
+          if (req.method == 'POST') return _json({'success': false, 'message': 'could not update sudoers'}, 500);
+          return _json({'enabled': true});
+        }),
+      );
       svc.init(conn);
       await pumpEventQueue();
 

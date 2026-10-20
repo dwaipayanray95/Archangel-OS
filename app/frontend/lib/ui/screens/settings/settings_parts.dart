@@ -34,15 +34,9 @@ class SettingsSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              if (danger) ...[
-                Icon(Icons.warning_amber_rounded, color: c.danger),
-                SizedBox(width: ax.space.sm),
-              ],
+              if (danger) ...[Icon(Icons.warning_amber_rounded, color: c.danger), SizedBox(width: ax.space.sm)],
               Flexible(
-                child: Semantics(
-                  header: true,
-                  child: Text(title, style: ax.typo.title.copyWith(color: danger ? c.danger : c.text)),
-                ),
+                child: Semantics(header: true, child: Text(title, style: ax.typo.title.copyWith(color: danger ? c.danger : c.text))),
               ),
               if (help != null) help!,
               const Spacer(),

@@ -4,6 +4,7 @@ import '../ui/theme.dart';
 
 const _kThemeModeKey = 'appearance_theme_mode';
 const _kAccentKey = 'appearance_accent';
+const _kLayoutKey = 'appearance_layout';
 
 /// The app's destinations, in navigation order. On phones the last three
 /// live behind the "More" tab.
@@ -22,6 +23,16 @@ const axSectionLabels = <AxSection, String>{
 /// Destinations shown under "More" on phones.
 const axMoreSections = <AxSection>[AxSection.activity, AxSection.services, AxSection.settings];
 
+/// How the app is laid out on wide screens. Phones always use [simple].
+///
+/// - [simple]: one screen at a time with a sidebar.
+/// - [desktop]: Desktop mode - draggable windows, a dock and a launcher.
+enum AxLayout { simple, desktop }
+
+/// Which start-up animation to play: the long one the first time the app
+/// opens, the short wordmark one every other time.
+enum BootKind { first, short }
+
 /// The default theme mode: follow the operating system's light/dark setting.
 const kDefaultThemeMode = ThemeMode.system;
 
@@ -37,7 +48,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  AxAccent _accentChoice = AxAccent.green;
+  AxAccent _accentChoice = AxAccent.halo;
   AxAccent get accentChoice => _accentChoice;
   set accentChoice(AxAccent a) {
     if (_accentChoice == a) return;
@@ -64,12 +75,39 @@ class AppState extends ChangeNotifier {
     _save(_kThemeModeKey, m.name);
   }
 
+  AxLayout _layout = AxLayout.simple;
+  AxLayout get layout => _layout;
+  set layout(AxLayout l) {
+    if (_layout == l) return;
+    _layout = l;
+    notifyListeners();
+    _save(_kLayoutKey, l.name);
+  }
+
+  int _bootReplay = 0;
+  BootKind _bootReplayKind = BootKind.short;
+
+  /// Bumped by [replayBoot]; the boot gate plays [bootReplayKind] again.
+  int get bootReplay => _bootReplay;
+  BootKind get bootReplayKind => _bootReplayKind;
+
+  /// Plays the start-up animation again (Settings > Appearance).
+  void replayBoot(BootKind kind) {
+    _bootReplayKind = kind;
+    _bootReplay++;
+    notifyListeners();
+  }
+
   /// Restores the saved theme mode and accent (call once at startup).
   Future<void> loadAppearance() async {
     try {
       final store = LocalKvStore.instance;
       final mode = await store.read(_kThemeModeKey);
       final accent = await store.read(_kAccentKey);
+      final layout = await store.read(_kLayoutKey);
+      if (layout != null) {
+        _layout = AxLayout.values.firstWhere((l) => l.name == layout, orElse: () => AxLayout.simple);
+      }
       if (mode != null) {
         _themeMode = ThemeMode.values.firstWhere((m) => m.name == mode, orElse: () => kDefaultThemeMode);
       }

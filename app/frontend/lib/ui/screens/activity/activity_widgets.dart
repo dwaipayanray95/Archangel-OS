@@ -65,10 +65,7 @@ class ScrollableSegments<T> extends StatelessWidget {
                               Icon(icon!(v), size: 16, color: v == selected ? c.accent : c.textMuted),
                               SizedBox(width: ax.space.xs + 2),
                             ],
-                            Text(
-                              label(v),
-                              style: ax.typo.label.copyWith(color: v == selected ? c.text : c.textMuted),
-                            ),
+                            Text(label(v), style: ax.typo.label.copyWith(color: v == selected ? c.text : c.textMuted)),
                           ],
                         ),
                       ),
@@ -139,13 +136,10 @@ class LiveChart extends StatelessWidget {
                 ),
                 SizedBox(width: ax.space.sm),
                 Expanded(
-                  child: hasData
-                      ? CustomPaint(
-                          painter: _ChartPainter(series: series, maxY: maxY, grid: c.border, axis: c.outline),
-                        )
-                      : Center(
-                          child: Text('Collecting readings...', style: ax.typo.body.copyWith(color: c.textMuted)),
-                        ),
+                  child:
+                      hasData
+                          ? CustomPaint(painter: _ChartPainter(series: series, maxY: maxY, grid: c.border, axis: c.outline))
+                          : Center(child: Text('Collecting readings...', style: ax.typo.body.copyWith(color: c.textMuted))),
                 ),
               ],
             ),
@@ -183,12 +177,21 @@ class _ChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = grid
-      ..strokeWidth = 1;
+    final gridPaint =
+        Paint()
+          ..color = grid
+          ..strokeWidth = 1;
     for (final f in const [0.0, 0.5, 1.0]) {
       final y = size.height * (1 - f);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), f == 0 ? (Paint()..color = axis..strokeWidth = 1) : gridPaint);
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        f == 0
+            ? (Paint()
+              ..color = axis
+              ..strokeWidth = 1)
+            : gridPaint,
+      );
     }
     final top = maxY <= 0 ? 1.0 : maxY;
     for (final s in series) {
@@ -200,10 +203,11 @@ class _ChartPainter extends CustomPainter {
         final y = size.height * (1 - (s.values[i] / top).clamp(0.0, 1.0));
         i == 0 ? path.moveTo(0, y) : path.lineTo(i * dx, y);
       }
-      final fill = Path.from(path)
-        ..lineTo(size.width, size.height)
-        ..lineTo(0, size.height)
-        ..close();
+      final fill =
+          Path.from(path)
+            ..lineTo(size.width, size.height)
+            ..lineTo(0, size.height)
+            ..close();
       canvas.drawPath(
         fill,
         Paint()

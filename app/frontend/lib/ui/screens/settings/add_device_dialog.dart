@@ -11,11 +11,7 @@ import '../../ui.dart';
 /// refreshed when the dialog closes.
 Future<void> showAddDeviceDialog(BuildContext context) async {
   final devices = context.read<DevicesService>();
-  await showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const AddDeviceDialog(),
-  );
+  await showDialog<void>(context: context, barrierDismissible: false, builder: (_) => const AddDeviceDialog());
   await devices.refresh();
 }
 
@@ -78,12 +74,13 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
         constraints: const BoxConstraints(maxWidth: 420),
         child: result == null ? _nameStep(ax) : _codeStep(ax, result.bundle!),
       ),
-      actions: result == null
-          ? [
-              AxButton.ghost(label: 'Cancel', onPressed: _creating ? null : () => Navigator.of(context).pop()),
-              AxButton(label: 'Create pairing code', loading: _creating, onPressed: _create),
-            ]
-          : [AxButton(label: 'Done', onPressed: () => Navigator.of(context).pop())],
+      actions:
+          result == null
+              ? [
+                AxButton.ghost(label: 'Cancel', onPressed: _creating ? null : () => Navigator.of(context).pop()),
+                AxButton(label: 'Create pairing code', loading: _creating, onPressed: _create),
+              ]
+              : [AxButton(label: 'Done', onPressed: () => Navigator.of(context).pop())],
     );
   }
 
@@ -136,7 +133,11 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
       children: [
         Container(
           padding: EdgeInsets.all(ax.space.md),
-          decoration: BoxDecoration(color: c.warningWash, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.warning)),
+          decoration: BoxDecoration(
+            color: c.warningWash,
+            borderRadius: BorderRadius.circular(ax.radii.md),
+            border: Border.all(color: c.warning),
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -185,7 +186,11 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
         Container(
           padding: EdgeInsets.all(ax.space.md),
           constraints: const BoxConstraints(maxHeight: 120),
-          decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
+          decoration: BoxDecoration(
+            color: c.surfaceAlt,
+            borderRadius: BorderRadius.circular(ax.radii.md),
+            border: Border.all(color: c.border),
+          ),
           child: SingleChildScrollView(child: SelectableText(code, style: ax.typo.mono.copyWith(color: c.text))),
         ),
         SizedBox(height: ax.space.sm),

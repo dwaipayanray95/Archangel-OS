@@ -23,13 +23,13 @@ http.Response _json(Object body, [int status = 200]) =>
     http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'});
 
 ServerProfile _profile(String id, {String wg = ''}) => ServerProfile(
-      id: id,
-      name: 'Server $id',
-      host: '10.0.0.${id.codeUnitAt(0) - 96}:8443',
-      token: 'tok-$id',
-      wgConfig: wg,
-      createdAt: DateTime.utc(2025),
-    );
+  id: id,
+  name: 'Server $id',
+  host: '10.0.0.${id.codeUnitAt(0) - 96}:8443',
+  token: 'tok-$id',
+  wgConfig: wg,
+  createdAt: DateTime.utc(2025),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -55,8 +55,10 @@ void main() {
     });
 
     test('keeps failing while the tunnel is up -> server not responding', () {
-      expect(d(TunnelStatus.connected, reachable: false, failures: kHealthFailuresBeforeNotResponding),
-          ConnectionPhase.serverNotResponding);
+      expect(
+        d(TunnelStatus.connected, reachable: false, failures: kHealthFailuresBeforeNotResponding),
+        ConnectionPhase.serverNotResponding,
+      );
     });
 
     test('tunnel coming up or going down is starting', () {
@@ -73,11 +75,11 @@ void main() {
 
   group('connectionText', () {
     test('words for every phase', () {
-      expect(connectionText(ConnectionPhase.starting), 'Starting secure connection…');
-      expect(connectionText(ConnectionPhase.reaching), 'Secure connection up — reaching your server…');
+      expect(connectionText(ConnectionPhase.starting), 'Starting…');
+      expect(connectionText(ConnectionPhase.reaching), 'Reaching your server…');
       expect(connectionText(ConnectionPhase.connected, serverName: 'Home'), 'Connected to Home');
       expect(connectionText(ConnectionPhase.connected), 'Connected');
-      expect(connectionText(ConnectionPhase.serverNotResponding), "Secure connection is up but your server isn't answering");
+      expect(connectionText(ConnectionPhase.serverNotResponding), "Your server isn't answering");
       expect(connectionText(ConnectionPhase.offline), 'Not connected');
       expect(connectionText(ConnectionPhase.notPaired), 'No server yet');
     });
@@ -102,20 +104,19 @@ void main() {
       tester.view.physicalSize = const Size(390, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => AppState()),
-          ChangeNotifierProvider<ServerRegistry>.value(value: registry),
-          ChangeNotifierProvider<WireGuardController>.value(value: wg),
-          ChangeNotifierProvider<ArchangeldConnection>.value(value: backend),
-          ChangeNotifierProvider(create: (_) => ContainersService()),
-          ChangeNotifierProvider(create: (_) => DevopsService()),
-        ],
-        child: MaterialApp(
-          theme: buildTheme(Brightness.light, AxAccent.green),
-          home: const Scaffold(body: StatusStrip()),
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => AppState()),
+            ChangeNotifierProvider<ServerRegistry>.value(value: registry),
+            ChangeNotifierProvider<WireGuardController>.value(value: wg),
+            ChangeNotifierProvider<ArchangeldConnection>.value(value: backend),
+            ChangeNotifierProvider(create: (_) => ContainersService()),
+            ChangeNotifierProvider(create: (_) => DevopsService()),
+          ],
+          child: MaterialApp(theme: buildTheme(Brightness.light, AxAccent.green), home: const Scaffold(body: StatusStrip())),
         ),
-      ));
+      );
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
@@ -123,13 +124,16 @@ void main() {
     }
 
     testWidgets('says "Connected to <server>" once health answers, with the tunnel off in this app', (tester) async {
-      await pumpStrip(tester, MockClient((req) async {
-        expect(req.url.path, '/api/v1/health');
-        expect(req.headers.containsKey('X-Archangel-Token'), isFalse); // unauthenticated
-        return _json({'status': 'ok', 'version': '0.5.0'});
-      }));
+      await pumpStrip(
+        tester,
+        MockClient((req) async {
+          expect(req.url.path, '/api/v1/health');
+          expect(req.headers.containsKey('X-Archangel-Token'), isFalse); // unauthenticated
+          return _json({'status': 'ok', 'version': '0.5.0'});
+        }),
+      );
       expect(find.text('Connected to Server a'), findsOneWidget);
-      expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+      expect(find.byIcon(Icons.verified_user_outlined), findsOneWidget);
       expect(find.text('Secure connection on'), findsNothing);
     });
 
@@ -142,7 +146,7 @@ void main() {
 
     testWidgets('starting shows a spinner and the starting words before the first answer', (tester) async {
       await pumpStrip(tester, MockClient((_) => Future<http.Response>.delayed(const Duration(seconds: 5), () => _json({}))));
-      expect(find.text('Starting secure connection…'), findsOneWidget);
+      expect(find.text('Starting…'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       // Dispose the strip (stops its timer), then let the pending request drain.
       await tester.pumpWidget(const SizedBox());
@@ -155,10 +159,12 @@ void main() {
 
     test('records success and failures, and resets when re-paired', () async {
       var ok = true;
-      final c = ArchangeldConnection(client: MockClient((_) async {
-        if (!ok) throw http.ClientException('down');
-        return _json({'version': '1.2.3'});
-      }));
+      final c = ArchangeldConnection(
+        client: MockClient((_) async {
+          if (!ok) throw http.ClientException('down');
+          return _json({'version': '1.2.3'});
+        }),
+      );
       await c.pair(host: '10.0.0.1:8443', token: 't');
       await pumpEventQueue();
       expect(c.reachable, isNull); // the version fetch from pair() is separate
@@ -212,13 +218,15 @@ void main() {
 
     test('POSTs the name and returns the one-time bundle', () async {
       http.Request? post;
-      final s = await svc(MockClient((req) async {
-        if (req.method == 'POST') {
-          post = req;
-          return _json({'success': true, 'name': 'Maria phone', 'bundle': 'QUJD'});
-        }
-        return _json([]);
-      }));
+      final s = await svc(
+        MockClient((req) async {
+          if (req.method == 'POST') {
+            post = req;
+            return _json({'success': true, 'name': 'Maria phone', 'bundle': 'QUJD'});
+          }
+          return _json([]);
+        }),
+      );
       final r = await s.create('  Maria phone ');
       expect(r.success, isTrue);
       expect(r.bundle, 'QUJD');
@@ -228,9 +236,12 @@ void main() {
     });
 
     test('403 and 409 messages come from the server', () async {
-      final s403 = await svc(MockClient((req) async => req.method == 'POST'
-          ? _json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403)
-          : _json([])));
+      final s403 = await svc(
+        MockClient(
+          (req) async =>
+              req.method == 'POST' ? _json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403) : _json([]),
+        ),
+      );
       expect((await s403.create('x')).message, 'Admin mode is off - this action needs it');
 
       final s409 = await svc(MockClient((req) async => req.method == 'POST' ? _json({'success': false}, 409) : _json([])));
@@ -241,10 +252,12 @@ void main() {
 
     test('invalid names are rejected before any request', () async {
       var posts = 0;
-      final s = await svc(MockClient((req) async {
-        if (req.method == 'POST') posts++;
-        return _json([]);
-      }));
+      final s = await svc(
+        MockClient((req) async {
+          if (req.method == 'POST') posts++;
+          return _json([]);
+        }),
+      );
       for (final bad in ['', '   ', '-dash', 'a' * 33, 'semi;colon']) {
         expect((await s.create(bad)).success, isFalse, reason: bad);
       }

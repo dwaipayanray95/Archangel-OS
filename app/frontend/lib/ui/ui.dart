@@ -2,6 +2,8 @@
 export 'theme.dart';
 export 'components/ax_button.dart';
 export 'components/ax_card.dart';
+export 'components/ax_glass.dart';
+export 'components/ax_wordmark.dart';
 export 'components/ax_icon_button.dart';
 export 'components/ax_list_tile.dart';
 export 'components/ax_page.dart';

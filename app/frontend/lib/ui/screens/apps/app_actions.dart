@@ -27,10 +27,7 @@ String appMemoryText(DockerContainerItem c) => c.running && c.memLabel.isNotEmpt
 /// "3 running, 1 stopped" - counts in words. Empty server: "No apps yet".
 String appCountsSummary(int running, int stopped) {
   if (running == 0 && stopped == 0) return 'No apps yet';
-  final parts = <String>[
-    if (running > 0) '$running running',
-    if (stopped > 0) '$stopped stopped',
-  ];
+  final parts = <String>[if (running > 0) '$running running', if (stopped > 0) '$stopped stopped'];
   return parts.join(', ');
 }
 
@@ -44,9 +41,7 @@ Future<void> openAppInBrowser(BuildContext context, Uri uri) async {
     ok = false;
   }
   if (!ok) {
-    messenger.showSnackBar(SnackBar(
-      content: Text('Could not open $uri. Make sure the secure connection is on.'),
-    ));
+    messenger.showSnackBar(SnackBar(content: Text('Could not open $uri. Make sure the secure connection is on.')));
   }
 }
 
@@ -56,12 +51,7 @@ void _toast(BuildContext context, String message) {
 
 /// Starts, stops or restarts [c]. Stop and restart ask first. Returns true
 /// when the server accepted the action. Failures show the server's message.
-Future<bool> runAppAction(
-  BuildContext context,
-  ContainersService svc,
-  DockerContainerItem c,
-  String action,
-) async {
+Future<bool> runAppAction(BuildContext context, ContainersService svc, DockerContainerItem c, String action) async {
   if (action == 'stop') {
     final yes = await showConfirmDialog(
       context,
@@ -96,7 +86,8 @@ Future<bool> removeApp(BuildContext context, ContainersService svc, DockerContai
   final yes = await showConfirmDialog(
     context,
     title: 'Remove ${c.name}?',
-    message: 'This deletes the app "${c.name}". Data saved in folders you shared with it is kept '
+    message:
+        'This deletes the app "${c.name}". Data saved in folders you shared with it is kept '
         'on your server. Anything stored only inside the app is lost.',
     confirmLabel: 'Remove app',
     danger: true,

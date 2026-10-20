@@ -12,10 +12,7 @@ import 'passphrase_prompt_dialog.dart';
 /// an actual update/uninstall flow just to rotate it. Doesn't connect over
 /// SSH at all - purely local secure-storage management.
 Future<void> showManageSshKeyDialog(BuildContext context) {
-  return showDialog<void>(
-    context: context,
-    builder: (context) => const ManageSshKeyDialog(),
-  );
+  return showDialog<void>(context: context, builder: (context) => const ManageSshKeyDialog());
 }
 
 class ManageSshKeyDialog extends StatefulWidget {
@@ -73,7 +70,8 @@ class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
     final passphrase = await promptForPassphrase(
       context,
       title: 'Set a passphrase',
-      message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
+      message:
+          'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
       confirm: true,
     );
     if (!mounted || passphrase == null) return;
@@ -92,7 +90,8 @@ class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
     final ok = await showConfirmDialog(
       context,
       title: 'Forget the saved SSH key?',
-      message: 'The key is deleted from this device. The next time you update or repair your server you will have to enter it again. Your server is not changed.',
+      message:
+          'The key is deleted from this device. The next time you update or repair your server you will have to enter it again. Your server is not changed.',
       confirmLabel: 'Forget key',
       danger: true,
     );
@@ -111,43 +110,42 @@ class _ManageSshKeyDialogState extends State<ManageSshKeyDialog> {
       title: Text('Saved SSH key', style: ax.typo.title.copyWith(color: c.text)),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
-        child: _checking
-            ? Padding(
-                padding: EdgeInsets.symmetric(vertical: ax.space.xl),
-                child: const Center(child: CircularProgressIndicator()),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _hadSavedKey
-                        ? 'A key is saved on this device (protected by your passphrase) so you don\'t have to enter it for updates. '
-                            'Unlock it below to replace it, or forget it entirely.'
-                        : 'No key is saved yet. Add one below so you don\'t have to enter it every time you update or repair your server.',
-                    style: ax.typo.body.copyWith(color: c.textMuted),
-                  ),
-                  SizedBox(height: ax.space.lg),
-                  SshCredentialsForm(
-                    controller: _creds,
-                    // Unlocking asks for the passphrase, so only do it when a key exists.
-                    restoreSavedOnStart: _hadSavedKey,
-                    showKeyPassphrase: false,
-                    showRememberKey: false,
-                    enabled: !_saving,
-                    errorText: _error,
-                    onPickKeyFile: () => pickSshKeyFile(context),
-                  ),
-                ],
-              ),
+        child:
+            _checking
+                ? Padding(padding: EdgeInsets.symmetric(vertical: ax.space.xl), child: const Center(child: CircularProgressIndicator()))
+                : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _hadSavedKey
+                          ? 'A key is saved on this device (protected by your passphrase) so you don\'t have to enter it for updates. '
+                              'Unlock it below to replace it, or forget it entirely.'
+                          : 'No key is saved yet. Add one below so you don\'t have to enter it every time you update or repair your server.',
+                      style: ax.typo.body.copyWith(color: c.textMuted),
+                    ),
+                    SizedBox(height: ax.space.lg),
+                    SshCredentialsForm(
+                      controller: _creds,
+                      // Unlocking asks for the passphrase, so only do it when a key exists.
+                      restoreSavedOnStart: _hadSavedKey,
+                      showKeyPassphrase: false,
+                      showRememberKey: false,
+                      enabled: !_saving,
+                      errorText: _error,
+                      onPickKeyFile: () => pickSshKeyFile(context),
+                    ),
+                  ],
+                ),
       ),
-      actions: _checking
-          ? null
-          : [
-              if (_hadSavedKey) AxButton.ghost(label: 'Forget saved key', onPressed: _saving ? null : _forget),
-              AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-              AxButton(label: 'Save', loading: _saving, onPressed: _creds.restoring ? null : _save),
-            ],
+      actions:
+          _checking
+              ? null
+              : [
+                if (_hadSavedKey) AxButton.ghost(label: 'Forget saved key', onPressed: _saving ? null : _forget),
+                AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+                AxButton(label: 'Save', loading: _saving, onPressed: _creds.restoring ? null : _save),
+              ],
     );
   }
 }

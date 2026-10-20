@@ -20,14 +20,15 @@ Future<bool> showConfirmDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (context) => ConfirmDialog(
-      title: title,
-      message: message,
-      confirmLabel: confirmLabel,
-      cancelLabel: cancelLabel,
-      danger: danger,
-      typeToConfirm: typeToConfirm,
-    ),
+    builder:
+        (context) => ConfirmDialog(
+          title: title,
+          message: message,
+          confirmLabel: confirmLabel,
+          cancelLabel: cancelLabel,
+          danger: danger,
+          typeToConfirm: typeToConfirm,
+        ),
   );
   return result ?? false;
 }
@@ -80,10 +81,7 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
       scrollable: true,
       title: Row(
         children: [
-          if (widget.danger) ...[
-            Icon(Icons.warning_amber_rounded, color: c.danger),
-            SizedBox(width: ax.space.sm),
-          ],
+          if (widget.danger) ...[Icon(Icons.warning_amber_rounded, color: c.danger), SizedBox(width: ax.space.sm)],
           Expanded(child: Text(widget.title, style: ax.typo.title.copyWith(color: c.text))),
         ],
       ),
@@ -101,9 +99,7 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
                 autofocus: true,
                 autocorrect: false,
                 enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: 'Type "${widget.typeToConfirm}" to confirm',
-                ),
+                decoration: InputDecoration(labelText: 'Type "${widget.typeToConfirm}" to confirm'),
                 onSubmitted: (_) {
                   if (_matches) Navigator.of(context).pop(true);
                 },
@@ -114,10 +110,7 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
       ),
       actionsOverflowButtonSpacing: ax.space.sm,
       actions: [
-        AxButton.ghost(
-          label: widget.cancelLabel,
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
+        AxButton.ghost(label: widget.cancelLabel, onPressed: () => Navigator.of(context).pop(false)),
         widget.danger
             ? AxButton.danger(label: widget.confirmLabel, onPressed: _matches ? () => Navigator.of(context).pop(true) : null)
             : AxButton(label: widget.confirmLabel, onPressed: _matches ? () => Navigator.of(context).pop(true) : null),

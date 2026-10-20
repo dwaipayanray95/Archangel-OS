@@ -19,11 +19,7 @@ import 'passphrase_prompt_dialog.dart';
 /// VpsSetupService.updateBackend's doc comment for why this goes over SSH
 /// rather than a self-update HTTP endpoint (archangeld runs unprivileged
 /// on purpose - it can't rewrite its own binary or restart itself).
-Future<void> showBackendUpdateDialog(
-  BuildContext context, {
-  required String targetVersion,
-  required String releaseTag,
-}) {
+Future<void> showBackendUpdateDialog(BuildContext context, {required String targetVersion, required String releaseTag}) {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
@@ -124,7 +120,8 @@ class _BackendUpdateDialogState extends State<BackendUpdateDialog> {
           final savePassphrase = await promptForPassphrase(
             context,
             title: 'Set a passphrase',
-            message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
+            message:
+                'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
             confirm: true,
           );
           if (savePassphrase != null) {
@@ -190,35 +187,33 @@ class _BackendUpdateDialogState extends State<BackendUpdateDialog> {
         constraints: const BoxConstraints(maxWidth: 460),
         child: switch (_step) {
           _UpdateStep.credentials => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'This signs in to your server over SSH, the same way setup did, to install the new '
-                  'version and restart the Archangel service. Your connection from this app only drops for a moment.',
-                  style: ax.typo.body.copyWith(color: c.textMuted),
-                ),
-                SizedBox(height: ax.space.lg),
-                SshCredentialsForm(
-                  controller: _creds,
-                  enabled: !_connecting,
-                  errorText: _connectError,
-                  onPickKeyFile: () => pickSshKeyFile(context),
-                ),
-              ],
-            ),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'This signs in to your server over SSH, the same way setup did, to install the new '
+                'version and restart the Archangel service. Your connection from this app only drops for a moment.',
+                style: ax.typo.body.copyWith(color: c.textMuted),
+              ),
+              SizedBox(height: ax.space.lg),
+              SshCredentialsForm(
+                controller: _creds,
+                enabled: !_connecting,
+                errorText: _connectError,
+                onPickKeyFile: () => pickSshKeyFile(context),
+              ),
+            ],
+          ),
           _UpdateStep.progress => SetupProgressLog(log: _log, error: _runError, errorTitle: 'Update failed'),
           _UpdateStep.done => SetupDoneView(title: 'Your server is now running v${widget.targetVersion}.'),
         },
       ),
       actions: switch (_step) {
         _UpdateStep.credentials => [
-            AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-            AxButton(label: 'Connect & update', loading: _connecting, onPressed: _creds.restoring ? null : _connect),
-          ],
-        _UpdateStep.progress => [
-            if (_runError != null) AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop()),
-          ],
+          AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+          AxButton(label: 'Connect & update', loading: _connecting, onPressed: _creds.restoring ? null : _connect),
+        ],
+        _UpdateStep.progress => [if (_runError != null) AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop())],
         _UpdateStep.done => [AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(context).pop())],
       },
     );

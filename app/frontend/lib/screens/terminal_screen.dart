@@ -146,11 +146,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   Future<void> _showSessions(ArchangeldConnection backend) async {
     final picked = await showDialog<String>(
       context: context,
-      builder: (_) => SessionsDialog(
-        backend: backend,
-        openNames: _sessions.map((s) => s.name).toSet(),
-        initial: _serverSessions,
-      ),
+      builder: (_) => SessionsDialog(backend: backend, openNames: _sessions.map((s) => s.name).toSet(), initial: _serverSessions),
     );
     if (picked != null && mounted) _openSession(backend, name: picked);
     if (mounted) _refreshServerSessions(backend);
@@ -161,10 +157,12 @@ class _TerminalScreenState extends State<TerminalScreen> {
     final text = selectedTerminalText(session, _controllerFor(session));
     final messenger = ScaffoldMessenger.of(context);
     if (text == null) {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('Select some text first: drag across it (press and hold on a phone).'),
-        duration: Duration(seconds: 3),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Select some text first: drag across it (press and hold on a phone).'),
+          duration: Duration(seconds: 3),
+        ),
+      );
       return;
     }
     Clipboard.setData(ClipboardData(text: text));
@@ -190,8 +188,9 @@ class _TerminalScreenState extends State<TerminalScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (!isSafeShellPath(pendingDir)) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('This folder name contains control characters; open it manually.')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('This folder name contains control characters; open it manually.')));
           return;
         }
         if (_sessions.isNotEmpty) {

@@ -16,28 +16,28 @@ class HealthStatus {
 
   /// The big plain-language sentence on Home.
   String get headline => switch (level) {
-        HealthLevel.unreachable => "Can't reach your server",
-        HealthLevel.checking => 'Checking on your server...',
-        HealthLevel.warning => problems.join(' · '),
-        HealthLevel.healthy => 'All good',
-      };
+    HealthLevel.unreachable => "Can't reach your server",
+    HealthLevel.checking => 'Checking on your server...',
+    HealthLevel.warning => problems.join(' · '),
+    HealthLevel.healthy => 'Your server is healthy and guarded.',
+  };
 
   /// A short follow-up line under the headline.
   String get detail => switch (level) {
-        HealthLevel.unreachable => 'Check that the secure connection is on, or open Settings.',
-        HealthLevel.checking => 'Waiting for the first reading.',
-        HealthLevel.warning => 'Something is running low. See "Needs attention" below.',
-        HealthLevel.healthy => 'Your server is running smoothly.',
-      };
+    HealthLevel.unreachable => 'Check that the secure connection is on, or open Settings.',
+    HealthLevel.checking => 'Waiting for the first reading.',
+    HealthLevel.warning => 'Something is running low. See "Needs attention" below.',
+    HealthLevel.healthy => 'Nothing needs you right now.',
+  };
 
   String? get hint => level == HealthLevel.unreachable ? 'Check the tunnel is connected (top bar) or open Settings.' : null;
 
   String get pill => switch (level) {
-        HealthLevel.unreachable => 'Offline',
-        HealthLevel.checking => 'Connecting',
-        HealthLevel.warning => 'Needs attention',
-        HealthLevel.healthy => 'Healthy',
-      };
+    HealthLevel.unreachable => 'Offline',
+    HealthLevel.checking => 'Connecting',
+    HealthLevel.warning => 'Needs attention',
+    HealthLevel.healthy => 'Healthy',
+  };
 }
 
 /// Usage at or above this percentage counts as a problem.
@@ -100,25 +100,29 @@ List<AttentionItem> buildAttentionItems({
   final items = <AttentionItem>[];
 
   for (final c in containers.where((c) => !c.running)) {
-    items.add(AttentionItem(
-      id: 'app:${c.id.isNotEmpty ? c.id : c.name}',
-      title: '${c.name} is stopped',
-      detail: 'This app is not running. Open Apps to start it again.',
-      status: AxStatus.warning,
-      target: AxSection.apps,
-      actionLabel: 'Open Apps',
-    ));
+    items.add(
+      AttentionItem(
+        id: 'app:${c.id.isNotEmpty ? c.id : c.name}',
+        title: '${c.name} is stopped',
+        detail: 'This app is not running. Open Apps to start it again.',
+        status: AxStatus.warning,
+        target: AxSection.apps,
+        actionLabel: 'Open Apps',
+      ),
+    );
   }
 
   for (final s in services.where((s) => !s.ok)) {
-    items.add(AttentionItem(
-      id: 'service:${s.name}',
-      title: '${s.name} has a problem',
-      detail: s.status.isNotEmpty ? 'Status: ${s.status}. Open Services to look into it.' : 'Open Services to look into it.',
-      status: AxStatus.error,
-      target: AxSection.services,
-      actionLabel: 'Open Services',
-    ));
+    items.add(
+      AttentionItem(
+        id: 'service:${s.name}',
+        title: '${s.name} has a problem',
+        detail: s.status.isNotEmpty ? 'Status: ${s.status}. Open Services to look into it.' : 'Open Services to look into it.',
+        status: AxStatus.error,
+        target: AxSection.services,
+        actionLabel: 'Open Services',
+      ),
+    );
   }
 
   if (metrics != null) {
@@ -132,26 +136,30 @@ List<AttentionItem> buildAttentionItems({
       }
     }
     for (final (mount, pct) in full) {
-      items.add(AttentionItem(
-        id: 'disk:$mount',
-        title: 'Disk $mount is ${pct.round()}% full',
-        detail: 'When a disk fills up, apps can stop working. Free up some space soon.',
-        status: AxStatus.error,
-        target: AxSection.activity,
-        actionLabel: 'See disk usage',
-      ));
+      items.add(
+        AttentionItem(
+          id: 'disk:$mount',
+          title: 'Disk $mount is ${pct.round()}% full',
+          detail: 'When a disk fills up, apps can stop working. Free up some space soon.',
+          status: AxStatus.error,
+          target: AxSection.activity,
+          actionLabel: 'See disk usage',
+        ),
+      );
     }
   }
 
   if (isUpdateAvailable(current: backendVersion, latest: latestBackend)) {
-    items.add(AttentionItem(
-      id: 'update:backend',
-      title: 'Archangel server update available',
-      detail: 'Version $latestBackend is ready (you have $backendVersion). Open Settings to update.',
-      status: AxStatus.info,
-      target: AxSection.settings,
-      actionLabel: 'Open Settings',
-    ));
+    items.add(
+      AttentionItem(
+        id: 'update:backend',
+        title: 'Archangel server update available',
+        detail: 'Version $latestBackend is ready (you have $backendVersion). Open Settings to update.',
+        status: AxStatus.info,
+        target: AxSection.settings,
+        actionLabel: 'Open Settings',
+      ),
+    );
   }
   return items;
 }
@@ -166,9 +174,10 @@ double worstDiskPercent(DiskMetrics disk) {
 }
 
 /// The status for a usage percentage.
-AxStatus usageStatus(double percent) => percent >= kUsageLimit
-    ? AxStatus.error
-    : percent >= 75
+AxStatus usageStatus(double percent) =>
+    percent >= kUsageLimit
+        ? AxStatus.error
+        : percent >= 75
         ? AxStatus.warning
         : AxStatus.ok;
 

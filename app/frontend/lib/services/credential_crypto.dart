@@ -43,13 +43,7 @@ class _Envelope {
   /// PBKDF2 iteration count the key was derived with. Envelopes written
   /// before this field existed used [_legacyPbkdf2Iterations].
   final int iterations;
-  const _Envelope({
-    required this.salt,
-    required this.nonce,
-    required this.cipherText,
-    required this.mac,
-    required this.iterations,
-  });
+  const _Envelope({required this.salt, required this.nonce, required this.cipherText, required this.mac, required this.iterations});
 
   Uint8List encode() {
     final map = {

@@ -39,10 +39,7 @@ void main() {
   });
 
   test('reports each problem in plain words', () {
-    final h = evaluateHealth(
-      connected: true,
-      metrics: metrics(cpu: 95, mem: 91, mounts: [mount('/', 94), mount('/data', 10)]),
-    );
+    final h = evaluateHealth(connected: true, metrics: metrics(cpu: 95, mem: 91, mounts: [mount('/', 94), mount('/data', 10)]));
     expect(h.level, HealthLevel.warning);
     expect(h.problems, ['CPU is 95% busy', 'Memory is 91% used', 'Disk / is 94% full']);
   });

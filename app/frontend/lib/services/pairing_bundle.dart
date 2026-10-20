@@ -15,12 +15,7 @@ class PairingBundle {
   final String token;
   final TunnelConfig tunnel;
 
-  const PairingBundle({
-    required this.name,
-    required this.host,
-    required this.token,
-    required this.tunnel,
-  });
+  const PairingBundle({required this.name, required this.host, required this.token, required this.tunnel});
 
   /// Parses a bundle string as printed/QR-encoded by `archangeld pair`.
   /// Throws [FormatException] with a human-readable message on anything
@@ -36,9 +31,7 @@ class PairingBundle {
       final decodedBytes = base64.decode(_normalizeBase64(trimmed));
       json = jsonDecode(utf8.decode(decodedBytes)) as Map<String, dynamic>;
     } catch (e) {
-      throw const FormatException(
-        'Not a valid pairing code - paste the exact string `archangeld pair` printed, or scan its QR code.',
-      );
+      throw const FormatException('Not a valid pairing code - paste the exact string `archangeld pair` printed, or scan its QR code.');
     }
 
     if (json['v'] != 1) {

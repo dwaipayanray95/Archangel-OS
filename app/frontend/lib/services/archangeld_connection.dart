@@ -20,9 +20,7 @@ const kArchangeldTokenKey = 'archangeld_token';
 const kReachabilityGraceFailures = 3;
 
 class ArchangeldConnection extends ChangeNotifier {
-  ArchangeldConnection({http.Client? client, LocalKvStore? store})
-      : _client = client,
-        _store = store ?? LocalKvStore.instance;
+  ArchangeldConnection({http.Client? client, LocalKvStore? store}) : _client = client, _store = store ?? LocalKvStore.instance;
 
   final LocalKvStore _store;
 
@@ -34,8 +32,7 @@ class ArchangeldConnection extends ChangeNotifier {
   /// Injected in tests; null means the plain top-level `http` functions.
   final http.Client? _client;
 
-  Future<http.Response> _get(Uri uri, Duration timeout) =>
-      (_client == null ? http.get(uri) : _client.get(uri)).timeout(timeout);
+  Future<http.Response> _get(Uri uri, Duration timeout) => (_client == null ? http.get(uri) : _client.get(uri)).timeout(timeout);
 
   /// Result of the latest [checkReachable]: true = the server answered
   /// /api/v1/health, false = it did not, null = not checked yet since the
@@ -225,10 +222,7 @@ class ArchangeldConnection extends ChangeNotifier {
     if (!isPaired) {
       throw StateError('Not paired with a backend');
     }
-    return Uri.parse('ws://$_host/ws/terminal').replace(queryParameters: {
-      'token': _token,
-      if (session != null) 'session': session,
-    });
+    return Uri.parse('ws://$_host/ws/terminal').replace(queryParameters: {'token': _token, if (session != null) 'session': session});
   }
 
   /// `ws://<host>/ws/stats?token=...` - real-time metrics stream.
@@ -292,10 +286,7 @@ class ArchangeldConnection extends ChangeNotifier {
     if (!isPaired) {
       throw StateError('Not paired with a backend');
     }
-    return Uri.parse('http://$_host/api/v1/files/read').replace(queryParameters: {
-      'path': path,
-      'lines': lines.toString(),
-    });
+    return Uri.parse('http://$_host/api/v1/files/read').replace(queryParameters: {'path': path, 'lines': lines.toString()});
   }
 
   /// `http://<host>/api/v1/files/download?path=...`

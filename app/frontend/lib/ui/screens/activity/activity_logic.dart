@@ -97,9 +97,10 @@ enum ProcessSort { cpu, memory, name }
 /// Filters by name / user / PID and sorts (biggest first, or A-Z for name).
 List<LiveProcessInfo> filterAndSortProcesses(List<LiveProcessInfo> all, {String query = '', ProcessSort sort = ProcessSort.cpu}) {
   final q = query.trim().toLowerCase();
-  final list = q.isEmpty
-      ? List<LiveProcessInfo>.of(all)
-      : all.where((p) => p.name.toLowerCase().contains(q) || p.user.toLowerCase().contains(q) || p.pid.toString() == q).toList();
+  final list =
+      q.isEmpty
+          ? List<LiveProcessInfo>.of(all)
+          : all.where((p) => p.name.toLowerCase().contains(q) || p.user.toLowerCase().contains(q) || p.pid.toString() == q).toList();
   switch (sort) {
     case ProcessSort.cpu:
       list.sort((a, b) => b.cpu.compareTo(a.cpu));

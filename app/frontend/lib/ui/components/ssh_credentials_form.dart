@@ -9,8 +9,8 @@ import 'help_tip.dart';
 /// creates one, reads it when the user presses Connect, and disposes it.
 class SshCredentialsController extends ChangeNotifier {
   SshCredentialsController({String username = 'ubuntu', bool rememberKey = false})
-      : username = TextEditingController(text: username),
-        _rememberKey = rememberKey;
+    : username = TextEditingController(text: username),
+      _rememberKey = rememberKey;
 
   final host = TextEditingController();
   final TextEditingController username;
@@ -50,8 +50,7 @@ class SshCredentialsController extends ChangeNotifier {
     return null;
   }
 
-  SavedSshCredentials toSavedCredentials() =>
-      SavedSshCredentials(host: hostText, username: usernameText, privateKeyPem: privateKeyText);
+  SavedSshCredentials toSavedCredentials() => SavedSshCredentials(host: hostText, username: usernameText, privateKeyPem: privateKeyText);
 
   void fillFrom(SavedSshCredentials creds) {
     host.text = creds.host;
@@ -219,7 +218,8 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
             keyboardType: TextInputType.url,
             help: const HelpTip(
               title: 'Server address',
-              message: 'The public IP address (like 203.0.113.5) or domain name of your server. '
+              message:
+                  'The public IP address (like 203.0.113.5) or domain name of your server. '
                   'Your hosting provider shows it on the server\'s page.',
             ),
           ),
@@ -249,7 +249,8 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
           mono: true,
           help: const HelpTip(
             title: 'Private key',
-            message: 'An SSH key is like a long password stored in a file. The "private" half stays on your computer. '
+            message:
+                'An SSH key is like a long password stored in a file. The "private" half stays on your computer. '
                 'If you created the server with a key, open that file in a text editor and paste everything it contains. '
                 'It is only used to connect to your server and is never sent anywhere else.',
           ),

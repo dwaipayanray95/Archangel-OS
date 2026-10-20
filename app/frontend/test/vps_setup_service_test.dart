@@ -12,10 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// without a real SSH connection (there is no real VPS reachable from
 /// this sandbox or most CI).
 class FakeSshTransport implements SshTransport {
-  FakeSshTransport({
-    this.responses = const [],
-    this.defaultResult = const SshExecResult(exitCode: 0, stdout: '', stderr: ''),
-  });
+  FakeSshTransport({this.responses = const [], this.defaultResult = const SshExecResult(exitCode: 0, stdout: '', stderr: '')});
 
   final List<(Pattern, SshExecResult)> responses;
   final SshExecResult defaultResult;
@@ -60,21 +57,22 @@ String _fakeBundle({String name = 'test-device'}) {
 const _config = VpsSetupConfig(deviceName: 'test-device');
 
 /// Canned answer to the `curl -w '%{http_code}'` that fetches SHA256SUMS.
-(Pattern, SshExecResult) _sumsResponse(String httpCode) =>
-    (RegExp(r'http_code'), SshExecResult(exitCode: 0, stdout: httpCode, stderr: ''));
+(Pattern, SshExecResult) _sumsResponse(String httpCode) => (RegExp(r'http_code'), SshExecResult(exitCode: 0, stdout: httpCode, stderr: ''));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('VpsSetupService.run', () {
     test('skips WireGuard setup when wg0.conf already exists', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
       await service.run(_config).toList();
@@ -84,13 +82,15 @@ void main() {
     });
 
     test('runs WireGuard setup when wg0.conf is missing', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'aarch64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 1, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'aarch64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 1, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
       await service.run(_config).toList();
@@ -99,14 +99,16 @@ void main() {
     });
 
     test('does not overwrite an existing config.yaml', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'test -f /etc/archangel/config.yaml'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'test -f /etc/archangel/config.yaml'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
       await service.run(_config).toList();
@@ -127,18 +129,17 @@ void main() {
       // but this test proves the service itself is safe even if that
       // validation were bypassed.
       const marker = 'pwned-marker-file';
-      final maliciousConfig = VpsSetupConfig(
-        deviceName: 'test-device',
-        wgSubnet: "10.10.0\nCONF\ntouch /tmp/$marker\n#",
+      final maliciousConfig = VpsSetupConfig(deviceName: 'test-device', wgSubnet: "10.10.0\nCONF\ntouch /tmp/$marker\n#");
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'test -f /etc/archangel/config.yaml'), const SshExecResult(exitCode: 1, stdout: '', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
       );
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'test -f /etc/archangel/config.yaml'), const SshExecResult(exitCode: 1, stdout: '', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
       final service = VpsSetupService(ssh);
 
       await service.run(maliciousConfig).toList();
@@ -151,56 +152,52 @@ void main() {
     });
 
     test('rejects an unsupported server architecture', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'sparc64', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'sparc64', stderr: ''))],
+      );
       final service = VpsSetupService(ssh);
 
-      await expectLater(
-        service.run(_config),
-        emitsThrough(emitsError(isA<VpsSetupException>())),
-      );
+      await expectLater(service.run(_config), emitsThrough(emitsError(isA<VpsSetupException>())));
     });
 
     test('rejects a non-Debian/Ubuntu server', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'command -v apt-get'), const SshExecResult(exitCode: 1, stdout: '', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'command -v apt-get'), const SshExecResult(exitCode: 1, stdout: '', stderr: '')),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
-      await expectLater(
-        service.run(_config),
-        emitsThrough(emitsError(isA<VpsSetupException>())),
-      );
+      await expectLater(service.run(_config), emitsThrough(emitsError(isA<VpsSetupException>())));
     });
 
     test('surfaces a failed pair call as an exception', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'boom')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'boom')),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
-      await expectLater(
-        service.run(_config),
-        emitsThrough(emitsError(isA<VpsSetupException>())),
-      );
+      await expectLater(service.run(_config), emitsThrough(emitsError(isA<VpsSetupException>())));
     });
 
     test('parses the pairing bundle and exposes it as result', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(name: 'my-mac'), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(name: 'my-mac'), stderr: '')),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
       await service.run(_config).toList();
@@ -213,13 +210,15 @@ void main() {
     });
 
     test('verifies the download against SHA256SUMS from the latest release', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
+      );
       final events = await VpsSetupService(ssh).run(_config).toList();
 
       expect(ssh.commands.any((c) => c.contains('releases/latest/download/SHA256SUMS')), isTrue);
@@ -234,13 +233,15 @@ void main() {
     });
 
     test('warns and continues when the release has no SHA256SUMS (404)', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('404'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('404'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
+      );
       final events = await VpsSetupService(ssh).run(_config).toList();
 
       expect(events.any((e) => e.message == 'Release has no checksums - skipped verification'), isTrue);
@@ -249,12 +250,14 @@ void main() {
     });
 
     test('fails and never installs the binary on a checksum mismatch', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/opt/archangel/archangeld.download: FAILED')),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/opt/archangel/archangeld.download: FAILED')),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+        ],
+      );
 
       await expectLater(
         VpsSetupService(ssh).run(_config),
@@ -264,11 +267,13 @@ void main() {
     });
 
     test('fails (does not skip) when SHA256SUMS errors with something other than 404', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('500'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('500'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+        ],
+      );
 
       await expectLater(
         VpsSetupService(ssh).run(_config),
@@ -277,13 +282,15 @@ void main() {
     });
 
     test('first-time setup grants Admin mode (sudoers) by default', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
-        (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-        (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
+          (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
+          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(), stderr: '')),
+        ],
+      );
       await VpsSetupService(ssh).run(_config).toList();
 
       // A fresh server (no archangeld yet) gets the grant unconditionally; a
@@ -301,10 +308,9 @@ void main() {
 
   group('VpsSetupService.updateBackend', () {
     test('sync step installs terminal prerequisites and orders Docker after WireGuard', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+      );
       await VpsSetupService(ssh).syncServiceAndPermissions().toList();
       final sync = ssh.commands.firstWhere((c) => c.contains('archangel.service'));
       expect(sync, contains('dbus-user-session'));
@@ -313,25 +319,25 @@ void main() {
     });
 
     test('backs up, downloads, restarts, and confirms via the health poll', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+      );
       final service = VpsSetupService(ssh);
       var polls = 0;
 
-      final events = await service
-          .updateBackend(
-            targetVersion: '0.3.0',
-            releaseTag: 'v0.3.0-b',
-            githubRepoSlug: 'owner/repo',
-            fetchLiveVersion: () async {
-              polls++;
-              return '0.3.0'; // "comes up correctly" on the first poll
-            },
-            pollInterval: Duration.zero,
-          )
-          .toList();
+      final events =
+          await service
+              .updateBackend(
+                targetVersion: '0.3.0',
+                releaseTag: 'v0.3.0-b',
+                githubRepoSlug: 'owner/repo',
+                fetchLiveVersion: () async {
+                  polls++;
+                  return '0.3.0'; // "comes up correctly" on the first poll
+                },
+                pollInterval: Duration.zero,
+              )
+              .toList();
 
       expect(ssh.commands.any((c) => c.contains('cp -f /opt/archangel/archangeld /opt/archangel/archangeld.bak')), isTrue);
       expect(ssh.commands.any((c) => c.contains('releases/download/v0.3.0-b/archangeld-amd64')), isTrue);
@@ -342,10 +348,9 @@ void main() {
     });
 
     test('rolls back automatically if the new version never comes up', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+      );
       final service = VpsSetupService(ssh);
 
       await expectLater(
@@ -369,13 +374,18 @@ void main() {
     }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('fails without touching the live binary if the download does not report the expected version', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-        // Simulates the remote version-check failing inside the download
-        // script (exit 1 before the `mv` that would install it).
-        (RegExp(r'curl -fsSL'), const SshExecResult(exitCode: 1, stdout: '', stderr: "downloaded binary reports version '0.2.2', expected 0.3.0")),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+          // Simulates the remote version-check failing inside the download
+          // script (exit 1 before the `mv` that would install it).
+          (
+            RegExp(r'curl -fsSL'),
+            const SshExecResult(exitCode: 1, stdout: '', stderr: "downloaded binary reports version '0.2.2', expected 0.3.0"),
+          ),
+        ],
+      );
       final service = VpsSetupService(ssh);
 
       await expectLater(
@@ -392,19 +402,19 @@ void main() {
     });
 
     test('verifies the download against the tagged release SHA256SUMS before installing', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'aarch64', stderr: '')),
-      ]);
-      final events = await VpsSetupService(ssh)
-          .updateBackend(
-            targetVersion: '0.3.0',
-            releaseTag: 'v0.3.0-b',
-            githubRepoSlug: 'owner/repo',
-            fetchLiveVersion: () async => '0.3.0',
-            pollInterval: Duration.zero,
-          )
-          .toList();
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'aarch64', stderr: ''))],
+      );
+      final events =
+          await VpsSetupService(ssh)
+              .updateBackend(
+                targetVersion: '0.3.0',
+                releaseTag: 'v0.3.0-b',
+                githubRepoSlug: 'owner/repo',
+                fetchLiveVersion: () async => '0.3.0',
+                pollInterval: Duration.zero,
+              )
+              .toList();
 
       expect(ssh.commands.any((c) => c.contains('releases/download/v0.3.0-b/SHA256SUMS')), isTrue);
       final verify = ssh.commands.firstWhere((c) => c.contains('sha256sum -c -'));
@@ -417,19 +427,19 @@ void main() {
     });
 
     test('warns and continues when the release has no SHA256SUMS (404)', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('404'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-      ]);
-      final events = await VpsSetupService(ssh)
-          .updateBackend(
-            targetVersion: '0.3.0',
-            releaseTag: 'v0.3.0-b',
-            githubRepoSlug: 'owner/repo',
-            fetchLiveVersion: () async => '0.3.0',
-            pollInterval: Duration.zero,
-          )
-          .toList();
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('404'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+      );
+      final events =
+          await VpsSetupService(ssh)
+              .updateBackend(
+                targetVersion: '0.3.0',
+                releaseTag: 'v0.3.0-b',
+                githubRepoSlug: 'owner/repo',
+                fetchLiveVersion: () async => '0.3.0',
+                pollInterval: Duration.zero,
+              )
+              .toList();
 
       expect(events.any((e) => e.message == 'Release has no checksums - skipped verification'), isTrue);
       expect(ssh.commands.any((c) => c.contains('sha256sum -c -')), isFalse);
@@ -437,11 +447,13 @@ void main() {
     });
 
     test('aborts before touching the live binary on a checksum mismatch', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/opt/archangel/archangeld.new: FAILED')),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'sha256sum -c -'), const SshExecResult(exitCode: 1, stdout: '', stderr: '/opt/archangel/archangeld.new: FAILED')),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+        ],
+      );
 
       await expectLater(
         VpsSetupService(ssh).updateBackend(
@@ -458,10 +470,9 @@ void main() {
     });
 
     test('only re-applies the sudoers grant if it already exists (never silently re-enables Admin mode)', () async {
-      final ssh = FakeSshTransport(responses: [
-        _sumsResponse('200'),
-        (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+      );
       await VpsSetupService(ssh)
           .updateBackend(
             targetVersion: '0.3.0',
@@ -504,9 +515,9 @@ void main() {
     });
 
     test('surfaces a failed validation as an exception', () async {
-      final ssh = FakeSshTransport(responses: [
-        (RegExp(r'visudo'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'sudoers validation failed - grant removed')),
-      ]);
+      final ssh = FakeSshTransport(
+        responses: [(RegExp(r'visudo'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'sudoers validation failed - grant removed'))],
+      );
       await expectLater(
         VpsSetupService(ssh).enableAdminMode(),
         emitsThrough(emitsError(isA<VpsSetupException>().having((e) => e.message, 'message', contains('validation failed')))),
@@ -526,15 +537,10 @@ void main() {
     });
 
     test('surfaces a failed script run as an exception without claiming success', () async {
-      final ssh = FakeSshTransport(responses: [
-        (RegExp(r'uninstall\.sh'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'boom')),
-      ]);
+      final ssh = FakeSshTransport(responses: [(RegExp(r'uninstall\.sh'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'boom'))]);
       final service = VpsSetupService(ssh);
 
-      await expectLater(
-        service.uninstall(appPort: 8443, wgPort: 51820),
-        emitsThrough(emitsError(isA<VpsSetupException>())),
-      );
+      await expectLater(service.uninstall(appPort: 8443, wgPort: 51820), emitsThrough(emitsError(isA<VpsSetupException>())));
     });
   });
 }

@@ -22,12 +22,12 @@ class StatusBadge extends StatelessWidget {
   final IconData? icon;
 
   static IconData defaultIcon(AxStatus s) => switch (s) {
-        AxStatus.ok => Icons.check_circle_outline,
-        AxStatus.warning => Icons.warning_amber_rounded,
-        AxStatus.error => Icons.error_outline,
-        AxStatus.info => Icons.info_outline,
-        AxStatus.neutral => Icons.remove_circle_outline,
-      };
+    AxStatus.ok => Icons.check_circle_outline,
+    AxStatus.warning => Icons.warning_amber_rounded,
+    AxStatus.error => Icons.error_outline,
+    AxStatus.info => Icons.info_outline,
+    AxStatus.neutral => Icons.remove_circle_outline,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -56,9 +56,7 @@ class StatusBadge extends StatelessWidget {
           children: [
             Icon(icon ?? defaultIcon(status), size: 16, color: fg),
             SizedBox(width: ax.space.xs + 2),
-            Flexible(
-              child: Text(label, style: ax.typo.caption.copyWith(color: fg, fontWeight: FontWeight.w700)),
-            ),
+            Flexible(child: Text(label, style: ax.typo.caption.copyWith(color: fg, fontWeight: FontWeight.w700))),
           ],
         ),
       ),

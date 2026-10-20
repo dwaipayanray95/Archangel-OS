@@ -36,11 +36,7 @@ class ServicesTabBar extends StatelessWidget {
     final target = axMinTarget(context);
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: c.surface,
-        borderRadius: BorderRadius.circular(ax.radii.lg),
-        border: Border.all(color: c.border),
-      ),
+      decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(ax.radii.lg), border: Border.all(color: c.border)),
       child: Wrap(
         spacing: 4,
         runSpacing: 4,
@@ -67,10 +63,7 @@ class ServicesTabBar extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (t == selected) ...[
-                            Icon(Icons.check_rounded, size: 16, color: c.text),
-                            SizedBox(width: ax.space.xs),
-                          ],
+                          if (t == selected) ...[Icon(Icons.check_rounded, size: 16, color: c.text), SizedBox(width: ax.space.xs)],
                           Text(
                             t.label,
                             style: ax.typo.label.copyWith(
@@ -213,23 +206,18 @@ class ServiceRow extends StatelessWidget {
   final bool wide;
   final Widget? footer;
 
-  Widget _button(RowAction a) => AxButton(
-        label: a.label,
-        icon: a.icon,
-        kind: a.kind,
-        loading: a.loading,
-        onPressed: a.onPressed,
-        semanticsLabel: '${a.label} $name',
-      );
+  Widget _button(RowAction a) =>
+      AxButton(label: a.label, icon: a.icon, kind: a.kind, loading: a.loading, onPressed: a.onPressed, semanticsLabel: '${a.label} $name');
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
     final nameText = Text(name, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis, maxLines: 2);
-    final detailText = details.isEmpty
-        ? null
-        : Text(details, style: ax.typo.caption.copyWith(color: c.textMuted), maxLines: 2, overflow: TextOverflow.ellipsis);
+    final detailText =
+        details.isEmpty
+            ? null
+            : Text(details, style: ax.typo.caption.copyWith(color: c.textMuted), maxLines: 2, overflow: TextOverflow.ellipsis);
 
     if (wide) {
       return Padding(
@@ -250,7 +238,20 @@ class ServiceRow extends StatelessWidget {
                     alignment: WrapAlignment.end,
                     spacing: ax.space.xs,
                     runSpacing: ax.space.xs,
-                    children: [for (final a in actions) _button(a.kind == AxButtonKind.secondary ? RowAction(label: a.label, icon: a.icon, onPressed: a.onPressed, kind: AxButtonKind.ghost, loading: a.loading) : a)],
+                    children: [
+                      for (final a in actions)
+                        _button(
+                          a.kind == AxButtonKind.secondary
+                              ? RowAction(
+                                label: a.label,
+                                icon: a.icon,
+                                onPressed: a.onPressed,
+                                kind: AxButtonKind.ghost,
+                                loading: a.loading,
+                              )
+                              : a,
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -329,11 +330,13 @@ class TestResultLine extends StatelessWidget {
     final ax = context.ax;
     final c = ax.colors;
     if (testing) {
-      return Row(children: [
-        SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent)),
-        SizedBox(width: ax.space.sm),
-        Text('Testing...', style: ax.typo.caption.copyWith(color: c.textMuted)),
-      ]);
+      return Row(
+        children: [
+          SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent)),
+          SizedBox(width: ax.space.sm),
+          Text('Testing...', style: ax.typo.caption.copyWith(color: c.textMuted)),
+        ],
+      );
     }
     final failed = result == null;
     return Semantics(

@@ -39,7 +39,8 @@ class ServersSection extends StatelessWidget {
     final ok = await showConfirmDialog(
       context,
       title: 'Remove "${p.name}"?',
-      message: 'This only forgets the server on this device. The server itself keeps running and is not changed, '
+      message:
+          'This only forgets the server on this device. The server itself keeps running and is not changed, '
           'and this device stays in its list of paired devices until you revoke it.',
       confirmLabel: 'Remove',
       danger: true,
@@ -86,9 +87,8 @@ class ServersSection extends StatelessWidget {
             child: AxButton.secondary(
               label: 'Add a server',
               icon: Icons.add,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true)),
-              ),
+              onPressed:
+                  () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
             ),
           ),
         ],
@@ -132,10 +132,7 @@ class _ServerRow extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: ax.space.sm,
             runSpacing: ax.space.xs,
-            children: [
-              Text(profile.name, style: ax.typo.label.copyWith(color: c.text)),
-              if (active) const StatusBadge.ok('Active'),
-            ],
+            children: [Text(profile.name, style: ax.typo.label.copyWith(color: c.text)), if (active) const StatusBadge.ok('Active')],
           ),
           SizedBox(height: ax.space.xs),
           Text(profile.host, style: ax.typo.mono.copyWith(color: c.textMuted)),
@@ -193,10 +190,7 @@ class _RenameDialogState extends State<_RenameDialog> {
           decoration: const InputDecoration(labelText: 'Server name'),
         ),
       ),
-      actions: [
-        AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
-        AxButton(label: 'Save', onPressed: _submit),
-      ],
+      actions: [AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()), AxButton(label: 'Save', onPressed: _submit)],
     );
   }
 }

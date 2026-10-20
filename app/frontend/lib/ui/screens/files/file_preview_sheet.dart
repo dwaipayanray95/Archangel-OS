@@ -19,22 +19,21 @@ Future<void> showFilePreviewSheet(BuildContext context, FileEntryModel entry) as
     showDragHandle: true,
     isScrollControlled: true,
     constraints: const BoxConstraints(maxWidth: 720),
-    builder: (sheetContext) => ChangeNotifierProvider<FilesService>.value(
-      value: files,
-      child: _PreviewBody(
-        entry: entry,
-        onDownload: () async {
-          final res = await files.downloadToDisk(entry.path);
-          messenger.showSnackBar(SnackBar(
-            content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed')),
-          ));
-        },
-        onTerminal: () {
-          Navigator.of(sheetContext).pop();
-          app.openTerminalInDir(parentDirOf(entry.path));
-        },
-      ),
-    ),
+    builder:
+        (sheetContext) => ChangeNotifierProvider<FilesService>.value(
+          value: files,
+          child: _PreviewBody(
+            entry: entry,
+            onDownload: () async {
+              final res = await files.downloadToDisk(entry.path);
+              messenger.showSnackBar(SnackBar(content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed'))));
+            },
+            onTerminal: () {
+              Navigator.of(sheetContext).pop();
+              app.openTerminalInDir(parentDirOf(entry.path));
+            },
+          ),
+        ),
   );
   files.closePreview();
 }
@@ -64,10 +63,7 @@ class _PreviewBodyState extends State<_PreviewBody> {
 
     Widget preview;
     if (loading) {
-      preview = Padding(
-        padding: EdgeInsets.all(ax.space.xl),
-        child: Center(child: CircularProgressIndicator(color: c.accent)),
-      );
+      preview = Padding(padding: EdgeInsets.all(ax.space.xl), child: Center(child: CircularProgressIndicator(color: c.accent)));
     } else if (content.isBinary) {
       preview = Padding(
         padding: EdgeInsets.all(ax.space.lg),
@@ -133,11 +129,7 @@ class _PreviewBodyState extends State<_PreviewBody> {
                     if (mounted) setState(() => _downloading = false);
                   },
                 ),
-                AxButton.secondary(
-                  label: 'Open terminal here',
-                  icon: Icons.terminal_rounded,
-                  onPressed: widget.onTerminal,
-                ),
+                AxButton.secondary(label: 'Open terminal here', icon: Icons.terminal_rounded, onPressed: widget.onTerminal),
               ],
             ),
           ],

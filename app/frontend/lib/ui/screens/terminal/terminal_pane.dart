@@ -21,13 +21,7 @@ String? selectedTerminalText(TerminalSession session, TerminalController control
 /// bar. Banners sit above the emulator rather than over it so the
 /// [TerminalView] stays mounted and keeps reporting its size.
 class TerminalPane extends StatelessWidget {
-  const TerminalPane({
-    super.key,
-    required this.session,
-    required this.controller,
-    required this.fontSize,
-    this.focusNode,
-  });
+  const TerminalPane({super.key, required this.session, required this.controller, required this.fontSize, this.focusNode});
 
   final TerminalSession session;
   final TerminalController controller;
@@ -99,49 +93,53 @@ class _Banners extends StatelessWidget {
     final children = <Widget>[];
 
     if (session.notice != null) {
-      children.add(_Banner(
-        key: const ValueKey('terminal-notice'),
-        color: c.warningWash,
-        fg: c.warning,
-        icon: Icons.warning_amber_rounded,
-        text: session.notice!,
-        trailing: AxIconButton(
-          icon: Icons.close,
-          tooltip: 'Dismiss notice',
-          color: c.warning,
-          onPressed: session.dismissNotice,
+      children.add(
+        _Banner(
+          key: const ValueKey('terminal-notice'),
+          color: c.warningWash,
+          fg: c.warning,
+          icon: Icons.warning_amber_rounded,
+          text: session.notice!,
+          trailing: AxIconButton(icon: Icons.close, tooltip: 'Dismiss notice', color: c.warning, onPressed: session.dismissNotice),
         ),
-      ));
+      );
     }
 
     if (status == SessionStatus.error || status == SessionStatus.closed) {
       final isError = status == SessionStatus.error;
-      children.add(_Banner(
-        key: const ValueKey('terminal-status-banner'),
-        color: isError ? c.dangerWash : c.surfaceAlt,
-        fg: isError ? c.danger : c.textMuted,
-        icon: isError ? Icons.error_outline : Icons.info_outline,
-        text: isError ? (session.error ?? 'The connection failed.') : 'This session ended (exit code ${session.exitCode ?? 0}).',
-        trailing: AxButton.secondary(label: 'Reconnect', icon: Icons.refresh, onPressed: session.reconnect),
-      ));
+      children.add(
+        _Banner(
+          key: const ValueKey('terminal-status-banner'),
+          color: isError ? c.dangerWash : c.surfaceAlt,
+          fg: isError ? c.danger : c.textMuted,
+          icon: isError ? Icons.error_outline : Icons.info_outline,
+          text: isError ? (session.error ?? 'The connection failed.') : 'This session ended (exit code ${session.exitCode ?? 0}).',
+          trailing: AxButton.secondary(label: 'Reconnect', icon: Icons.refresh, onPressed: session.reconnect),
+        ),
+      );
     } else if (status == SessionStatus.connecting) {
-      children.add(_Banner(
-        key: const ValueKey('terminal-connecting'),
-        color: c.surfaceAlt,
-        fg: c.textMuted,
-        icon: Icons.sync,
-        text: 'Connecting to your server...',
-      ));
+      children.add(
+        _Banner(
+          key: const ValueKey('terminal-connecting'),
+          color: c.surfaceAlt,
+          fg: c.textMuted,
+          icon: Icons.sync,
+          text: 'Connecting to your server...',
+        ),
+      );
     } else if (!session.hasOutput) {
-      children.add(_Banner(
-        key: const ValueKey('terminal-waiting'),
-        color: c.surfaceAlt,
-        fg: c.textMuted,
-        icon: Icons.hourglass_empty,
-        text: session.noDataTimedOut
-            ? 'Still nothing from your server. Check that the secure connection is on, or open Settings.'
-            : 'Waiting for the shell to start...',
-      ));
+      children.add(
+        _Banner(
+          key: const ValueKey('terminal-waiting'),
+          color: c.surfaceAlt,
+          fg: c.textMuted,
+          icon: Icons.hourglass_empty,
+          text:
+              session.noDataTimedOut
+                  ? 'Still nothing from your server. Check that the secure connection is on, or open Settings.'
+                  : 'Waiting for the shell to start...',
+        ),
+      );
     }
 
     if (children.isEmpty) return const SizedBox.shrink();

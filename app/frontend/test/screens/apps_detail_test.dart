@@ -10,7 +10,6 @@ import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/ui/screens/apps/log_view.dart';
 import 'package:archangel/ui/theme.dart';
 
-
 class _Svc extends ContainersService {
   final logs = <DockerLogEntry>[
     const DockerLogEntry(ts: '10:00:01', level: 'INFO', source: 'web', text: 'listening on :80'),

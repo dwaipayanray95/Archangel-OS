@@ -37,29 +37,32 @@ class _OnceFailing extends ArchangeldConnection {
     }
     return inner.pair(host: host, token: token);
   }
+
   @override
   String? get token => inner.token;
 }
 
 ServerProfile _keyed(String id, String host, String key) => ServerProfile(
-      id: id,
-      name: 'Server $id',
-      host: host,
-      token: 'tok-$id',
-      wgConfig: '[Interface]\nPrivateKey = k$id\nAddress = 10.0.0.2/32\n[Peer]\nPublicKey = $key\nEndpoint = 1.2.3.4:51820\n',
-      createdAt: DateTime.utc(2025, 1, 1),
-    );
+  id: id,
+  name: 'Server $id',
+  host: host,
+  token: 'tok-$id',
+  wgConfig: '[Interface]\nPrivateKey = k$id\nAddress = 10.0.0.2/32\n[Peer]\nPublicKey = $key\nEndpoint = 1.2.3.4:51820\n',
+  createdAt: DateTime.utc(2025, 1, 1),
+);
 
 ServerProfile _profile(String id, String host, {String? name}) => ServerProfile(
-      id: id,
-      name: name ?? 'Server $id',
-      host: host,
-      token: 'tok-$id',
-      wgConfig: '[Interface]\nPrivateKey = k$id\nAddress = 10.0.0.2/32\n',
-      createdAt: DateTime.utc(2025, 1, 1),
-    );
+  id: id,
+  name: name ?? 'Server $id',
+  host: host,
+  token: 'tok-$id',
+  wgConfig: '[Interface]\nPrivateKey = k$id\nAddress = 10.0.0.2/32\n',
+  createdAt: DateTime.utc(2025, 1, 1),
+);
 
-String _bundleCode({String name = 'laptop', String host = '10.8.0.1:8443', String token = 'tok', String pub = 'pub'}) => base64.encode(utf8.encode(jsonEncode({
+String _bundleCode({String name = 'laptop', String host = '10.8.0.1:8443', String token = 'tok', String pub = 'pub'}) => base64.encode(
+  utf8.encode(
+    jsonEncode({
       'v': 1,
       'name': name,
       'host': host,
@@ -71,7 +74,9 @@ String _bundleCode({String name = 'laptop', String host = '10.8.0.1:8443', Strin
         'endpoint': '203.0.113.5:51820',
         'allowed_ips': ['10.8.0.0/24'],
       },
-    })));
+    }),
+  ),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -317,8 +322,18 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta', pub: 'pubA')));
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb', pub: 'pubB')));
+      final a = await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta', pub: 'pubA')),
+      );
+      await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb', pub: 'pubB')),
+      );
       expect(backend.token, 'tb');
 
       await switchToServer(a.id, registry: r, wg: wg, backend: backend);
@@ -332,8 +347,18 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta', pub: 'pubA')));
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb', pub: 'pubB')));
+      final a = await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(host: '10.8.0.1:8443', token: 'ta', pub: 'pubA')),
+      );
+      await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(host: '10.9.0.1:8443', token: 'tb', pub: 'pubB')),
+      );
 
       await removeActiveServer(registry: r, wg: wg, backend: backend);
       expect(r.activeId, a.id);
@@ -351,7 +376,12 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')));
+      final a = await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')),
+      );
       await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')));
       expect(r.profiles, hasLength(2));
       final gen = backend.pairingGeneration;
@@ -377,7 +407,12 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')));
+      final a = await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')),
+      );
       // fail only the first pair() call (the new server), allow the restore
       final failing = _OnceFailing(backend);
       await expectLater(
@@ -394,7 +429,12 @@ void main() {
       await r.load();
       final wg = _CountingWg();
       final backend = ArchangeldConnection();
-      final a = await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')));
+      final a = await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')),
+      );
       await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')));
       await switchToServer(a.id, registry: r, wg: wg, backend: backend);
       expect(wg.connects, 0);

@@ -54,10 +54,7 @@ class AdminModeService extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      final res = await _client.get(
-        backend.adminModeHttpUri(),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await _client.get(backend.adminModeHttpUri(), headers: {'X-Archangel-Token': backend.token!});
       if (res.statusCode == 200) {
         _apply(jsonDecode(res.body));
         _error = null;

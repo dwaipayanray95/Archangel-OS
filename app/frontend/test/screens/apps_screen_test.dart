@@ -10,7 +10,6 @@ import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/ui/screens/apps/run_app_page.dart';
 import 'package:archangel/ui/theme.dart';
 
-
 class _FakeContainers extends ContainersService {
   _FakeContainers(this._ov);
   final DockerOverviewModel? _ov;
@@ -75,15 +74,15 @@ const _db = DockerContainerItem(
 );
 
 DockerOverviewModel _overview({bool docker = true, List<DockerContainerItem> apps = const [_web, _db]}) => DockerOverviewModel(
-      dockerAvailable: docker,
-      engineVersion: '27.0',
-      runningCount: apps.where((a) => a.running).length,
-      stoppedCount: apps.where((a) => !a.running).length,
-      totalImagesSize: '1 GB',
-      containers: apps,
-      stacks: const [],
-      stackMeta: const {},
-    );
+  dockerAvailable: docker,
+  engineVersion: '27.0',
+  runningCount: apps.where((a) => a.running).length,
+  stoppedCount: apps.where((a) => !a.running).length,
+  totalImagesSize: '1 GB',
+  containers: apps,
+  stacks: const [],
+  stackMeta: const {},
+);
 
 Future<void> _pump(
   WidgetTester tester,

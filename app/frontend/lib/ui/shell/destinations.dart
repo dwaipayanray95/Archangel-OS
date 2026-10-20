@@ -32,11 +32,11 @@ const axSectionSelectedIcons = <AxSection, IconData>{
 /// The screen hosted by each destination. For now these are the existing
 /// screens; the Phase 2 screen rewrites replace them one by one.
 Widget buildDestination(AxSection section) => switch (section) {
-      AxSection.home => const OverviewScreen(),
-      AxSection.apps => const ContainersScreen(),
-      AxSection.files => const FilesScreen(),
-      AxSection.terminal => const TerminalScreen(),
-      AxSection.activity => const MonitoringScreen(),
-      AxSection.services => const DevopsScreen(),
-      AxSection.settings => const SettingsScreen(),
-    };
+  AxSection.home => const OverviewScreen(),
+  AxSection.apps => const ContainersScreen(),
+  AxSection.files => const FilesScreen(),
+  AxSection.terminal => const TerminalScreen(),
+  AxSection.activity => const MonitoringScreen(),
+  AxSection.services => const DevopsScreen(),
+  AxSection.settings => const SettingsScreen(),
+};

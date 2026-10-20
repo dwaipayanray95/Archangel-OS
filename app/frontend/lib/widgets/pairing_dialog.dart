@@ -36,132 +36,131 @@ Future<bool> showPairingDialog(BuildContext context) async {
 
   await showDialog<void>(
     context: context,
-    builder: (context) => StatefulBuilder(
-      builder: (context, setState) {
-        final ax = context.ax;
-        final c = ax.colors;
+    builder:
+        (context) => StatefulBuilder(
+          builder: (context, setState) {
+            final ax = context.ax;
+            final c = ax.colors;
 
-        Future<void> submit(String raw) async {
-          if (busy) return;
-          if (raw.trim().isEmpty) {
-            setState(() => error = 'Paste the pairing code first.');
-            return;
-          }
-          setState(() {
-            busy = true;
-            error = null;
-          });
-          try {
-            final bundle = PairingBundle.parse(raw);
-            await pairNewServer(registry: registry, wg: wg, backend: backend, bundle: bundle);
-            paired = true;
-            if (context.mounted) {
-              Navigator.of(context).pop();
-              if (Platform.isMacOS && !wg.isMacosHelperInstalled) {
-                _promptEnableSeamlessTunnel(context, wg);
+            Future<void> submit(String raw) async {
+              if (busy) return;
+              if (raw.trim().isEmpty) {
+                setState(() => error = 'Paste the pairing code first.');
+                return;
+              }
+              setState(() {
+                busy = true;
+                error = null;
+              });
+              try {
+                final bundle = PairingBundle.parse(raw);
+                await pairNewServer(registry: registry, wg: wg, backend: backend, bundle: bundle);
+                paired = true;
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  if (Platform.isMacOS && !wg.isMacosHelperInstalled) {
+                    _promptEnableSeamlessTunnel(context, wg);
+                  }
+                }
+              } on FormatException catch (e) {
+                if (context.mounted) setState(() => error = 'That does not look like a pairing code. ${e.message}');
+              } catch (e) {
+                if (context.mounted) setState(() => error = 'Pairing failed: $e');
+              } finally {
+                if (!paired && context.mounted) setState(() => busy = false);
               }
             }
-          } on FormatException catch (e) {
-            if (context.mounted) setState(() => error = 'That does not look like a pairing code. ${e.message}');
-          } catch (e) {
-            if (context.mounted) setState(() => error = 'Pairing failed: $e');
-          } finally {
-            if (!paired && context.mounted) setState(() => busy = false);
-          }
-        }
 
-        Future<void> scan() async {
-          final result = await Navigator.of(context).push<String>(
-            MaterialPageRoute(builder: (_) => const _QrScanPage()),
-          );
-          if (result != null) {
-            controller.text = result;
-            await submit(result);
-          }
-        }
+            Future<void> scan() async {
+              final result = await Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const _QrScanPage()));
+              if (result != null) {
+                controller.text = result;
+                await submit(result);
+              }
+            }
 
-        const command = 'sudo /opt/archangel/archangeld pair <name>';
-        return AlertDialog(
-          backgroundColor: c.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.lg), side: BorderSide(color: c.border)),
-          title: Text('Pair with a code', style: ax.typo.title.copyWith(color: c.text)),
-          content: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'A pairing code connects this device to a server that already runs Archangel. '
-                    'You can create one on another device that is already paired: open Settings, then Devices, '
-                    'then "Add a device". Or sign in to the server and run this (use any name for this device):',
-                    style: ax.typo.body.copyWith(color: c.textMuted),
-                  ),
-                  SizedBox(height: ax.space.sm),
-                  Container(
-                    padding: EdgeInsets.only(left: ax.space.md),
-                    decoration: BoxDecoration(
-                      color: c.surfaceAlt,
-                      borderRadius: BorderRadius.circular(ax.radii.sm),
-                      border: Border.all(color: c.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(child: SelectableText(command, style: ax.typo.mono.copyWith(color: c.text))),
-                        AxIconButton(
-                          icon: Icons.copy,
-                          tooltip: 'Copy command',
-                          onPressed: () => Clipboard.setData(const ClipboardData(text: command)),
+            const command = 'sudo /opt/archangel/archangeld pair <name>';
+            return AlertDialog(
+              backgroundColor: c.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.lg), side: BorderSide(color: c.border)),
+              title: Text('Pair with a code', style: ax.typo.title.copyWith(color: c.text)),
+              content: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 460),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'A pairing code connects this device to a server that already runs Archangel. '
+                        'You can create one on another device that is already paired: open Settings, then Devices, '
+                        'then "Add a device". Or sign in to the server and run this (use any name for this device):',
+                        style: ax.typo.body.copyWith(color: c.textMuted),
+                      ),
+                      SizedBox(height: ax.space.sm),
+                      Container(
+                        padding: EdgeInsets.only(left: ax.space.md),
+                        decoration: BoxDecoration(
+                          color: c.surfaceAlt,
+                          borderRadius: BorderRadius.circular(ax.radii.sm),
+                          border: Border.all(color: c.border),
                         ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: ax.space.md),
-                  TextField(
-                    controller: controller,
-                    maxLines: 6,
-                    enabled: !busy,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    style: ax.typo.mono.copyWith(color: c.text),
-                    decoration: const InputDecoration(
-                      labelText: 'Pairing code',
-                      hintText: 'Paste the pairing code here',
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  if (Platform.isAndroid) ...[
-                    SizedBox(height: ax.space.sm),
-                    AxButton.ghost(label: 'Scan QR code instead', icon: Icons.qr_code_scanner, onPressed: busy ? null : scan),
-                  ],
-                  if (error != null)
-                    Padding(
-                      padding: EdgeInsets.only(top: ax.space.md),
-                      child: Semantics(
-                        liveRegion: true,
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.error_outline, size: 18, color: c.danger),
-                            SizedBox(width: ax.space.sm),
-                            Expanded(child: Text(error!, style: ax.typo.body.copyWith(color: c.danger))),
+                            Expanded(child: SelectableText(command, style: ax.typo.mono.copyWith(color: c.text))),
+                            AxIconButton(
+                              icon: Icons.copy,
+                              tooltip: 'Copy command',
+                              onPressed: () => Clipboard.setData(const ClipboardData(text: command)),
+                            ),
                           ],
                         ),
                       ),
-                    ),
-                ],
+                      SizedBox(height: ax.space.md),
+                      TextField(
+                        controller: controller,
+                        maxLines: 6,
+                        enabled: !busy,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        style: ax.typo.mono.copyWith(color: c.text),
+                        decoration: const InputDecoration(
+                          labelText: 'Pairing code',
+                          hintText: 'Paste the pairing code here',
+                          alignLabelWithHint: true,
+                        ),
+                      ),
+                      if (Platform.isAndroid) ...[
+                        SizedBox(height: ax.space.sm),
+                        AxButton.ghost(label: 'Scan QR code instead', icon: Icons.qr_code_scanner, onPressed: busy ? null : scan),
+                      ],
+                      if (error != null)
+                        Padding(
+                          padding: EdgeInsets.only(top: ax.space.md),
+                          child: Semantics(
+                            liveRegion: true,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.error_outline, size: 18, color: c.danger),
+                                SizedBox(width: ax.space.sm),
+                                Expanded(child: Text(error!, style: ax.typo.body.copyWith(color: c.danger))),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-          actionsOverflowButtonSpacing: ax.space.sm,
-          actions: [
-            AxButton.secondary(label: 'Cancel', onPressed: busy ? null : () => Navigator.of(context).pop()),
-            AxButton(label: 'Pair', loading: busy, onPressed: () => submit(controller.text)),
-          ],
-        );
-      },
-    ),
+              actionsOverflowButtonSpacing: ax.space.sm,
+              actions: [
+                AxButton.secondary(label: 'Cancel', onPressed: busy ? null : () => Navigator.of(context).pop()),
+                AxButton(label: 'Pair', loading: busy, onPressed: () => submit(controller.text)),
+              ],
+            );
+          },
+        ),
   );
   controller.dispose();
   return paired;
@@ -227,10 +226,7 @@ class _QrScanPageState extends State<_QrScanPage> {
     final c = ax.colors;
     return Scaffold(
       backgroundColor: c.bg,
-      appBar: AppBar(
-        backgroundColor: c.bg,
-        title: Text('Scan pairing QR code', style: ax.typo.title.copyWith(color: c.text)),
-      ),
+      appBar: AppBar(backgroundColor: c.bg, title: Text('Scan pairing QR code', style: ax.typo.title.copyWith(color: c.text))),
       body: Stack(
         children: [
           MobileScanner(onDetect: _onDetect),

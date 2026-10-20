@@ -40,14 +40,14 @@ class FakeTerminalChannel extends StreamChannelMixin implements WebSocketChannel
 
   /// Decoded stdin payloads, in order.
   List<String> get stdin => [
-        for (final f in sent)
-          if (f['type'] == 'stdin') utf8.decode(base64.decode(f['data'] as String)),
-      ];
+    for (final f in sent)
+      if (f['type'] == 'stdin') utf8.decode(base64.decode(f['data'] as String)),
+  ];
 
   List<Map<String, dynamic>> get resizes => [
-        for (final f in sent)
-          if (f['type'] == 'resize') f,
-      ];
+    for (final f in sent)
+      if (f['type'] == 'resize') f,
+  ];
 }
 
 class _FakeSink implements WebSocketSink {

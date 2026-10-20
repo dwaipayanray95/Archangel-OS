@@ -113,16 +113,20 @@ class WireGuardController extends ChangeNotifier {
   void _onStageChanged(VpnStage stage) {
     _status = switch (stage) {
       VpnStage.connected => TunnelStatus.connected,
-      VpnStage.connecting || VpnStage.preparing || VpnStage.authenticating || VpnStage.waitingConnection || VpnStage.reconnect =>
-        TunnelStatus.connecting,
+      VpnStage.connecting ||
+      VpnStage.preparing ||
+      VpnStage.authenticating ||
+      VpnStage.waitingConnection ||
+      VpnStage.reconnect => TunnelStatus.connecting,
       VpnStage.disconnecting || VpnStage.exiting => TunnelStatus.disconnecting,
       VpnStage.disconnected || VpnStage.noConnection => TunnelStatus.disconnected,
       VpnStage.denied => TunnelStatus.error,
     };
     if (stage == VpnStage.denied) {
-      _lastError = Platform.isWindows
-          ? 'Permission denied creating the tunnel service - Archangel needs to run as Administrator on Windows.'
-          : 'Permission denied starting the VPN tunnel.';
+      _lastError =
+          Platform.isWindows
+              ? 'Permission denied creating the tunnel service - Archangel needs to run as Administrator on Windows.'
+              : 'Permission denied starting the VPN tunnel.';
     }
     notifyListeners();
   }

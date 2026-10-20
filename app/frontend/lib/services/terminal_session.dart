@@ -236,8 +236,7 @@ class TerminalSession extends ChangeNotifier {
   int _rows = 32;
   Timer? _pingTimer;
 
-  TerminalSession({required this.label, WebSocketChannel Function(Uri uri)? channelFactory})
-      : _channelFactory = channelFactory;
+  TerminalSession({required this.label, WebSocketChannel Function(Uri uri)? channelFactory}) : _channelFactory = channelFactory;
 
   Terminal _newTerminal() {
     final t = Terminal(maxLines: terminalScrollbackLines);
@@ -350,28 +349,30 @@ class TerminalSession extends ChangeNotifier {
       cancelOnError: true,
     );
 
-    channel.ready.then((_) {
-      if (gen != _gen || _disposed) return;
-      if (_status != SessionStatus.connected) {
-        _status = SessionStatus.connected;
-        notifyListeners();
-      }
-      resize(_cols, _rows);
-      // Periodic ping every 45s to avoid backend 10m idle timeout during quiet sessions
-      _pingTimer?.cancel();
-      _pingTimer = Timer.periodic(const Duration(seconds: 45), (_) {
-        if (_status == SessionStatus.connected) {
-          channel.sink.add(jsonEncode({'type': 'ping'}));
-        }
-      });
-    }).catchError((Object e) {
-      if (gen != _gen || _disposed) return;
-      if (_status != SessionStatus.error) {
-        _status = SessionStatus.error;
-        _error = 'Could not open connection: $e';
-        notifyListeners();
-      }
-    });
+    channel.ready
+        .then((_) {
+          if (gen != _gen || _disposed) return;
+          if (_status != SessionStatus.connected) {
+            _status = SessionStatus.connected;
+            notifyListeners();
+          }
+          resize(_cols, _rows);
+          // Periodic ping every 45s to avoid backend 10m idle timeout during quiet sessions
+          _pingTimer?.cancel();
+          _pingTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+            if (_status == SessionStatus.connected) {
+              channel.sink.add(jsonEncode({'type': 'ping'}));
+            }
+          });
+        })
+        .catchError((Object e) {
+          if (gen != _gen || _disposed) return;
+          if (_status != SessionStatus.error) {
+            _status = SessionStatus.error;
+            _error = 'Could not open connection: $e';
+            notifyListeners();
+          }
+        });
   }
 
   void reconnect() {
@@ -458,10 +459,7 @@ class TerminalSession extends ChangeNotifier {
 
   void sendInput(String text) {
     if (_disposed || _channel == null || text.isEmpty) return;
-    _channel!.sink.add(jsonEncode({
-      'type': 'stdin',
-      'data': base64.encode(utf8.encode(text)),
-    }));
+    _channel!.sink.add(jsonEncode({'type': 'stdin', 'data': base64.encode(utf8.encode(text))}));
   }
 
   void resize(int cols, int rows) {

@@ -45,14 +45,7 @@ class _StateFrame extends StatelessWidget {
 
 /// "Nothing here yet" with a way forward.
 class EmptyState extends StatelessWidget {
-  const EmptyState({
-    super.key,
-    required this.title,
-    this.message,
-    this.icon = Icons.inbox_outlined,
-    this.actionLabel,
-    this.onAction,
-  });
+  const EmptyState({super.key, required this.title, this.message, this.icon = Icons.inbox_outlined, this.actionLabel, this.onAction});
 
   final String title;
   final String? message;
@@ -75,14 +68,7 @@ class EmptyState extends StatelessWidget {
 /// Something went wrong: what happened in plain words, a Retry button and an
 /// optional "What does this mean?" explanation.
 class ErrorState extends StatelessWidget {
-  const ErrorState({
-    super.key,
-    required this.message,
-    this.title = 'Something went wrong',
-    this.onRetry,
-    this.helpTitle,
-    this.helpText,
-  });
+  const ErrorState({super.key, required this.message, this.title = 'Something went wrong', this.onRetry, this.helpTitle, this.helpText});
 
   final String title;
   final String message;
@@ -100,8 +86,7 @@ class ErrorState extends StatelessWidget {
       message: message,
       children: [
         if (onRetry != null) AxButton(label: 'Retry', icon: Icons.refresh, onPressed: onRetry),
-        if (helpText != null)
-          HelpLink(label: 'What does this mean?', title: helpTitle ?? 'What does this mean?', message: helpText!),
+        if (helpText != null) HelpLink(label: 'What does this mean?', title: helpTitle ?? 'What does this mean?', message: helpText!),
       ],
     );
   }
@@ -153,23 +138,20 @@ class _LoadingStateState extends State<LoadingState> {
     final c = context.ax.colors;
     return Semantics(
       liveRegion: true,
-      child: _slow
-          ? _StateFrame(
-              icon: const Icon(Icons.hourglass_empty),
-              iconColor: c.warning,
-              title: 'Still waiting...',
-              message: widget.stillWaitingMessage,
-              children: [if (widget.onRetry != null) AxButton(label: 'Try again', icon: Icons.refresh, onPressed: widget.onRetry)],
-            )
-          : _StateFrame(
-              icon: SizedBox(
-                width: 32,
-                height: 32,
-                child: CircularProgressIndicator(strokeWidth: 3, color: c.accent),
+      child:
+          _slow
+              ? _StateFrame(
+                icon: const Icon(Icons.hourglass_empty),
+                iconColor: c.warning,
+                title: 'Still waiting...',
+                message: widget.stillWaitingMessage,
+                children: [if (widget.onRetry != null) AxButton(label: 'Try again', icon: Icons.refresh, onPressed: widget.onRetry)],
+              )
+              : _StateFrame(
+                icon: SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: c.accent)),
+                iconColor: c.accent,
+                title: widget.message,
               ),
-              iconColor: c.accent,
-              title: widget.message,
-            ),
     );
   }
 }

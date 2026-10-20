@@ -10,7 +10,6 @@ import 'package:archangel/services/files_service.dart';
 import 'package:archangel/ui/screens/files/file_helpers.dart';
 import 'package:archangel/ui/theme.dart';
 
-
 class _FakeFiles extends FilesService {
   _FakeFiles({this.fakeListing, this.fakeError});
   DirectoryListingModel? fakeListing;
@@ -37,22 +36,22 @@ class _FakeFiles extends FilesService {
 }
 
 FileEntryModel _e(String name, {String kind = 'file'}) => FileEntryModel(
-      name: name,
-      path: '/home/archangel/$name',
-      kind: kind,
-      sizeBytes: 1200,
-      size: kind == 'dir' ? '—' : '1.2 KB',
-      perms: 'rw-r--r--',
-      mtime: 'Sep 02 06:14',
-    );
+  name: name,
+  path: '/home/archangel/$name',
+  kind: kind,
+  sizeBytes: 1200,
+  size: kind == 'dir' ? '—' : '1.2 KB',
+  perms: 'rw-r--r--',
+  mtime: 'Sep 02 06:14',
+);
 
 DirectoryListingModel _listing() => DirectoryListingModel(
-      path: '/home/archangel/projects/deep/nested/folder/structure',
-      parent: '/home/archangel',
-      entries: [_e('notes.txt'), _e('photos', kind: 'dir'), _e('.hidden')],
-      totalEntries: 3,
-      readable: true,
-    );
+  path: '/home/archangel/projects/deep/nested/folder/structure',
+  parent: '/home/archangel',
+  entries: [_e('notes.txt'), _e('photos', kind: 'dir'), _e('.hidden')],
+  totalEntries: 3,
+  readable: true,
+);
 
 Future<void> _pump(WidgetTester tester, _FakeFiles svc, Size size, {Brightness b = Brightness.dark}) async {
   tester.view.physicalSize = size;

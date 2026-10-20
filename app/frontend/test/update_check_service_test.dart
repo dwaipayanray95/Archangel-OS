@@ -37,10 +37,7 @@ http.Client _fakeGithub({required Map<String, dynamic> manifest, String tag = 'v
         jsonEncode({
           'html_url': 'https://github.com/dwaipayanray95/Project-Archangel/releases/tag/$tag',
           'assets': [
-            {
-              'name': 'version-manifest.json',
-              'browser_download_url': 'https://example.com/version-manifest.json',
-            },
+            {'name': 'version-manifest.json', 'browser_download_url': 'https://example.com/version-manifest.json'},
           ],
         }),
         200,
@@ -59,9 +56,7 @@ void main() {
 
   group('UpdateCheckService', () {
     test('a fresh fetch populates all three fields and the release URL', () async {
-      final svc = UpdateCheckService(
-        client: _fakeGithub(manifest: {'archangel': '0.4.0', 'frontend': '0.4.0', 'backend': '0.3.0'}),
-      );
+      final svc = UpdateCheckService(client: _fakeGithub(manifest: {'archangel': '0.4.0', 'frontend': '0.4.0', 'backend': '0.3.0'}));
 
       await svc.checkForUpdates();
 
@@ -112,10 +107,7 @@ void main() {
             200,
           );
         }
-        return http.Response(
-          jsonEncode({'archangel': manifestVersion, 'frontend': manifestVersion, 'backend': manifestVersion}),
-          200,
-        );
+        return http.Response(jsonEncode({'archangel': manifestVersion, 'frontend': manifestVersion, 'backend': manifestVersion}), 200);
       });
       final svc = UpdateCheckService(client: client);
 

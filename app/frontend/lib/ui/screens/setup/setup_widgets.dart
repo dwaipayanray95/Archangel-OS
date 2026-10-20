@@ -47,10 +47,7 @@ class SetupHeading extends StatelessWidget {
       children: [
         Semantics(header: true, child: Text(title, style: ax.typo.headline.copyWith(color: c.text))),
         if (subtitle != null)
-          Padding(
-            padding: EdgeInsets.only(top: ax.space.sm),
-            child: Text(subtitle!, style: ax.typo.body.copyWith(color: c.textMuted)),
-          ),
+          Padding(padding: EdgeInsets.only(top: ax.space.sm), child: Text(subtitle!, style: ax.typo.body.copyWith(color: c.textMuted))),
       ],
     );
   }
@@ -73,10 +70,7 @@ class SetupBullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 18, color: iconColor ?? c.accent),
-          ),
+          Padding(padding: const EdgeInsets.only(top: 2), child: Icon(icon, size: 18, color: iconColor ?? c.accent)),
           SizedBox(width: ax.space.md),
           Expanded(child: Text(text, style: ax.typo.body.copyWith(color: c.text))),
         ],
@@ -90,7 +84,8 @@ Future<void> showSshKeyHelp(BuildContext context) {
   return showHelpSheet(
     context,
     title: 'How do I get an SSH key?',
-    message: 'An SSH key is a pair of files that work like a very long password. The "private" file stays with you; '
+    message:
+        'An SSH key is a pair of files that work like a very long password. The "private" file stays with you; '
         'the "public" half is installed on your server so it recognises you.\n\n'
         'If your hosting provider gave you a key when you created the server, it is the file you downloaded '
         '(often ending in .pem or .key). That file is the private key.\n\n'
@@ -175,10 +170,7 @@ class ProviderFirewallHelp extends StatelessWidget {
           expandedCrossAxisAlignment: CrossAxisAlignment.start,
           iconColor: c.accent,
           collapsedIconColor: c.textMuted,
-          title: Text(
-            'How do I open UDP port $port at my provider?',
-            style: ax.typo.label.copyWith(color: c.text),
-          ),
+          title: Text('How do I open UDP port $port at my provider?', style: ax.typo.label.copyWith(color: c.text)),
           children: [
             for (final (provider, list) in steps) ...[
               Padding(

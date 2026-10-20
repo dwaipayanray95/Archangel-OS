@@ -88,9 +88,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     final metrics = mon.metrics;
     Widget body;
     if (_tab == ActivityTab.processes) {
-      body = mon.processes.isEmpty && metrics == null
-          ? _waiting(mon)
-          : ProcessesView(processes: mon.processes, totalCount: mon.totalProcesses);
+      body =
+          mon.processes.isEmpty && metrics == null
+              ? _waiting(mon)
+              : ProcessesView(processes: mon.processes, totalCount: mon.totalProcesses);
     } else if (metrics == null) {
       body = _waiting(mon);
     } else {
@@ -112,13 +113,14 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
           ScrollableSegments<ActivityTab>(
             values: ActivityTab.values,
             selected: _tab,
-            label: (t) => switch (t) {
-              ActivityTab.cpu => 'CPU',
-              ActivityTab.memory => 'Memory',
-              ActivityTab.disk => 'Disk',
-              ActivityTab.network => 'Network',
-              ActivityTab.processes => 'Processes',
-            },
+            label:
+                (t) => switch (t) {
+                  ActivityTab.cpu => 'CPU',
+                  ActivityTab.memory => 'Memory',
+                  ActivityTab.disk => 'Disk',
+                  ActivityTab.network => 'Network',
+                  ActivityTab.processes => 'Processes',
+                },
             onSelect: (t) => setState(() => _tab = t),
           ),
           SizedBox(height: ax.space.lg),
@@ -132,10 +134,10 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
     final failed = mon.status == MonitoringStatus.error || mon.status == MonitoringStatus.disconnected;
     return failed
         ? ErrorState(
-            title: "Can't reach your server",
-            message: 'Check that the secure connection is on and the server is running, then try again.',
-            onRetry: _retry,
-          )
+          title: "Can't reach your server",
+          message: 'Check that the secure connection is on and the server is running, then try again.',
+          onRetry: _retry,
+        )
         : LoadingState(message: 'Connecting to your server...', onRetry: _retry);
   }
 }
@@ -206,10 +208,7 @@ class _Facts extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(k, style: ax.typo.caption.copyWith(color: c.textMuted)),
-              Text(v, style: ax.typo.label.copyWith(color: c.text)),
-            ],
+            children: [Text(k, style: ax.typo.caption.copyWith(color: c.textMuted)), Text(v, style: ax.typo.label.copyWith(color: c.text))],
           ),
       ],
     );
@@ -233,7 +232,8 @@ class _CpuTab extends StatelessWidget {
           title: 'Processor (CPU)',
           help: const HelpTip(
             title: 'CPU',
-            message: 'The CPU is the processor, the part of the server that does the work. '
+            message:
+                'The CPU is the processor, the part of the server that does the work. '
                 'Near 100% for a long time means the server is struggling to keep up.',
           ),
           child: Column(
@@ -243,8 +243,9 @@ class _CpuTab extends StatelessWidget {
                 value: '${cpu.usagePercent.round()}%',
                 caption: 'busy',
                 badge: StatusBadge(
-                    label: usageBadgeLabel(cpu.usagePercent, high: 'Very busy', mid: 'Busy', ok: 'Fine'),
-                    status: usageStatus(cpu.usagePercent)),
+                  label: usageBadgeLabel(cpu.usagePercent, high: 'Very busy', mid: 'Busy', ok: 'Fine'),
+                  status: usageStatus(cpu.usagePercent),
+                ),
               ),
               SizedBox(height: ax.space.md),
               LiveChart(
@@ -264,21 +265,27 @@ class _CpuTab extends StatelessWidget {
               title: 'Core',
               message: 'Modern processors have several cores that can each work on something at the same time.',
             ),
-            child: LayoutBuilder(builder: (context, box) {
-              final cols = box.maxWidth >= 700 ? 3 : (box.maxWidth >= 440 ? 2 : 1);
-              final gap = ax.space.lg;
-              final w = (box.maxWidth - gap * (cols - 1)) / cols;
-              return Wrap(spacing: gap, runSpacing: ax.space.md, children: [
-                for (final core in cpu.cores)
-                  SizedBox(
-                    width: w,
-                    child: UsageBar(
-                      percent: core.usagePercent,
-                      label: 'Core ${core.id + 1}${core.speedLabel.isEmpty ? '' : ' · ${core.speedLabel}'}',
-                    ),
-                  ),
-              ]);
-            }),
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final cols = box.maxWidth >= 700 ? 3 : (box.maxWidth >= 440 ? 2 : 1);
+                final gap = ax.space.lg;
+                final w = (box.maxWidth - gap * (cols - 1)) / cols;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: ax.space.md,
+                  children: [
+                    for (final core in cpu.cores)
+                      SizedBox(
+                        width: w,
+                        child: UsageBar(
+                          percent: core.usagePercent,
+                          label: 'Core ${core.id + 1}${core.speedLabel.isEmpty ? '' : ' · ${core.speedLabel}'}',
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ],
@@ -300,7 +307,8 @@ class _MemoryTab extends StatelessWidget {
       title: 'Memory (RAM)',
       help: const HelpTip(
         title: 'Memory',
-        message: 'Memory (RAM) is the short-term workspace programs use while they run. '
+        message:
+            'Memory (RAM) is the short-term workspace programs use while they run. '
             'When it fills up, the server slows down or programs may be stopped. '
             '"Cache" is memory the system borrows to speed things up and gives back when needed.',
       ),
@@ -311,8 +319,9 @@ class _MemoryTab extends StatelessWidget {
             value: '${gbText(m.usedGb)} of ${gbText(m.totalGb)} GB',
             caption: 'used',
             badge: StatusBadge(
-                label: usageBadgeLabel(m.usagePercent, high: 'Almost full', mid: 'Getting full', ok: 'Fine'),
-                status: usageStatus(m.usagePercent)),
+              label: usageBadgeLabel(m.usagePercent, high: 'Almost full', mid: 'Getting full', ok: 'Fine'),
+              status: usageStatus(m.usagePercent),
+            ),
           ),
           SizedBox(height: ax.space.md),
           LiveChart(
@@ -352,7 +361,8 @@ class _DiskTab extends StatelessWidget {
           title: 'Disk speed',
           help: const HelpTip(
             title: 'Disk activity',
-            message: 'How fast data is being read from and written to the server\'s storage right now. '
+            message:
+                'How fast data is being read from and written to the server\'s storage right now. '
                 'Spikes are normal when apps start or save a lot of data.',
           ),
           child: Column(
@@ -362,8 +372,9 @@ class _DiskTab extends StatelessWidget {
                 value: formatRate(d.readBytesPerSec + d.writeBytesPerSec),
                 caption: 'reading and writing',
                 badge: StatusBadge(
-                    label: usageBadgeLabel(worst, high: 'Almost full', mid: 'Getting full', ok: 'Plenty of space'),
-                    status: usageStatus(worst)),
+                  label: usageBadgeLabel(worst, high: 'Almost full', mid: 'Getting full', ok: 'Plenty of space'),
+                  status: usageStatus(worst),
+                ),
               ),
               SizedBox(height: ax.space.md),
               LiveChart(
@@ -381,23 +392,21 @@ class _DiskTab extends StatelessWidget {
         SizedBox(height: ax.space.lg),
         _Section(
           title: 'Storage space',
-          child: d.mounts.isEmpty
-              ? UsageBar(
-                  percent: d.usagePercent,
-                  label: 'Disk · ${gbText(d.usedGb)} of ${gbText(d.totalGb)} GB used',
-                )
-              : Column(
-                  children: [
-                    for (final m in d.mounts.where((m) => m.totalBytes > 0))
-                      Padding(
-                        padding: EdgeInsets.only(bottom: ax.space.md),
-                        child: UsageBar(
-                          percent: m.usagePercent,
-                          label: '${m.mountPoint} · ${gbText(m.usedGb)} of ${gbText(m.totalGb)} GB used',
+          child:
+              d.mounts.isEmpty
+                  ? UsageBar(percent: d.usagePercent, label: 'Disk · ${gbText(d.usedGb)} of ${gbText(d.totalGb)} GB used')
+                  : Column(
+                    children: [
+                      for (final m in d.mounts.where((m) => m.totalBytes > 0))
+                        Padding(
+                          padding: EdgeInsets.only(bottom: ax.space.md),
+                          child: UsageBar(
+                            percent: m.usagePercent,
+                            label: '${m.mountPoint} · ${gbText(m.usedGb)} of ${gbText(m.totalGb)} GB used',
+                          ),
                         ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
         ),
       ],
     );
@@ -419,7 +428,8 @@ class _NetworkTab extends StatelessWidget {
       title: 'Network traffic',
       help: const HelpTip(
         title: 'Network traffic',
-        message: '"Coming in" is data your server receives (downloads, visitors\' requests). '
+        message:
+            '"Coming in" is data your server receives (downloads, visitors\' requests). '
             '"Going out" is data it sends (pages, files, backups). The chart rescales to fit.',
       ),
       child: Column(

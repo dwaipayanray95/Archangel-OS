@@ -56,12 +56,7 @@ class TerminalWorkspace extends StatelessWidget {
       child: Row(
         children: [
           for (var i = 0; i < sessions.length; i++)
-            _SessionChip(
-              session: sessions[i],
-              selected: i == selected,
-              onTap: () => onSelect(i),
-              onDetach: () => onDetach(i),
-            ),
+            _SessionChip(session: sessions[i], selected: i == selected, onTap: () => onSelect(i), onDetach: () => onDetach(i)),
         ],
       ),
     );
@@ -83,12 +78,7 @@ class TerminalWorkspace extends StatelessWidget {
           tooltip: 'Larger text',
           onPressed: fontSize < kTerminalMaxFont ? () => onFontSize(fontSize + 1) : null,
         ),
-        AxIconButton(
-          icon: Icons.power_settings_new,
-          tooltip: 'End session',
-          color: c.danger,
-          onPressed: () => onEnd(selected),
-        ),
+        AxIconButton(icon: Icons.power_settings_new, tooltip: 'End session', color: c.danger, onPressed: () => onEnd(selected)),
       ],
     );
 
@@ -98,24 +88,15 @@ class TerminalWorkspace extends StatelessWidget {
         Container(
           decoration: BoxDecoration(color: c.surface, border: Border(bottom: BorderSide(color: c.border))),
           padding: EdgeInsets.symmetric(horizontal: ax.space.sm, vertical: ax.space.xs),
-          child: phone
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    tabs,
-                    SingleChildScrollView(scrollDirection: Axis.horizontal, child: actions),
-                  ],
-                )
-              : Row(children: [Expanded(child: tabs), SizedBox(width: ax.space.sm), actions]),
+          child:
+              phone
+                  ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [tabs, SingleChildScrollView(scrollDirection: Axis.horizontal, child: actions)],
+                  )
+                  : Row(children: [Expanded(child: tabs), SizedBox(width: ax.space.sm), actions]),
         ),
-        Expanded(
-          child: TerminalPane(
-            key: ValueKey(current),
-            session: current,
-            controller: controllerFor(current),
-            fontSize: fontSize,
-          ),
-        ),
+        Expanded(child: TerminalPane(key: ValueKey(current), session: current, controller: controllerFor(current), fontSize: fontSize)),
       ],
     );
   }

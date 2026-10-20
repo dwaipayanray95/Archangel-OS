@@ -72,23 +72,19 @@ class AxButton extends StatelessWidget {
     final (Color bg, Color fg, BorderSide? side) = switch (kind) {
       AxButtonKind.primary => (c.accent, c.onAccent, null),
       AxButtonKind.danger => (c.danger, c.onDanger, null),
-      AxButtonKind.secondary => (Colors.transparent, c.text, BorderSide(color: c.outline)),
+      AxButtonKind.secondary => (c.glassStrong, c.text, BorderSide(color: c.outline)),
       AxButtonKind.ghost => (Colors.transparent, c.accent, null),
     };
 
     final style = ButtonStyle(
       minimumSize: WidgetStatePropertyAll(Size(target, target)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm)),
-      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.md))),
+      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: ax.space.lg + 2, vertical: ax.space.sm)),
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.pill))),
       elevation: const WidgetStatePropertyAll(0),
       textStyle: WidgetStatePropertyAll(ax.typo.label),
-      backgroundColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.disabled) ? c.surfaceHigh : bg,
-      ),
-      foregroundColor: WidgetStateProperty.resolveWith(
-        (s) => s.contains(WidgetState.disabled) ? c.textSubtle : fg,
-      ),
+      backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) ? c.surfaceHigh : bg),
+      foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) ? c.textSubtle : fg),
       side: WidgetStateProperty.resolveWith((s) {
         if (s.contains(WidgetState.focused)) return BorderSide(color: c.text, width: 2);
         if (s.contains(WidgetState.disabled)) return side == null ? null : BorderSide(color: c.border);
@@ -102,11 +98,7 @@ class AxButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (loading)
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: fg),
-          )
+          SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: fg))
         else if (icon != null)
           Icon(icon, size: 18),
         if (loading || icon != null) SizedBox(width: ax.space.sm),
@@ -115,9 +107,10 @@ class AxButton extends StatelessWidget {
     );
 
     final callback = enabled ? onPressed : null;
-    final Widget button = kind == AxButtonKind.ghost
-        ? TextButton(onPressed: callback, style: style, child: content)
-        : FilledButton(onPressed: callback, style: style, child: content);
+    final Widget button =
+        kind == AxButtonKind.ghost
+            ? TextButton(onPressed: callback, style: style, child: content)
+            : FilledButton(onPressed: callback, style: style, child: content);
 
     return Semantics(
       button: true,

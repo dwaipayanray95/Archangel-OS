@@ -13,7 +13,10 @@ import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/services/server_registry.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/ui/shell/archangel_shell.dart';
+import 'package:archangel/ui/components/ax_wordmark.dart';
+import 'package:archangel/ui/shell/desktop_mode.dart';
 import 'package:archangel/ui/shell/more_page.dart';
+import 'package:archangel/ui/shell/sidebar.dart';
 
 import 'test_utils.dart';
 
@@ -25,14 +28,8 @@ Future<void> _settle(WidgetTester tester) async {
 
 T _read<T>(WidgetTester tester) => tester.element(find.byType(ArchangelShell)).read<T>();
 
-ServerProfile _profile(String id, String host) => ServerProfile(
-      id: id,
-      name: 'Server $id',
-      host: host,
-      token: 't$id',
-      wgConfig: '',
-      createdAt: DateTime.utc(2025),
-    );
+ServerProfile _profile(String id, String host) =>
+    ServerProfile(id: id, name: 'Server $id', host: host, token: 't$id', wgConfig: '', createdAt: DateTime.utc(2025));
 
 void main() {
   const phone = Size(390, 844);
@@ -71,11 +68,15 @@ void main() {
     });
 
     testWidgets('lists the registry\'s servers with the active one selected', (tester) async {
-      await pumpAppShell(tester, size: phone, seedRegistry: (registry) async {
-        await registry.add(_profile('a', 'h1'));
-        await registry.add(_profile('b', 'h2'));
-        await registry.setActive('a');
-      });
+      await pumpAppShell(
+        tester,
+        size: phone,
+        seedRegistry: (registry) async {
+          await registry.add(_profile('a', 'h1'));
+          await registry.add(_profile('b', 'h2'));
+          await registry.setActive('a');
+        },
+      );
       await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
       await _settle(tester);
       expect(find.descendant(of: find.byKey(const ValueKey('server-a')), matching: find.text('Server a')), findsOneWidget);
@@ -89,21 +90,25 @@ void main() {
 
   group('server switching', () {
     testWidgets('switching servers re-points the connection and resets the destinations', (tester) async {
-      await pumpAppShell(tester, size: phone, seedRegistry: (registry) async {
-        await registry.add(_profile('a', '10.0.0.1:8443'));
-        await registry.add(_profile('b', '10.0.0.2:8443'));
-        await registry.setActive('a');
-      });
+      await pumpAppShell(
+        tester,
+        size: phone,
+        seedRegistry: (registry) async {
+          await registry.add(_profile('a', '10.0.0.1:8443'));
+          await registry.add(_profile('b', '10.0.0.2:8443'));
+          await registry.setActive('a');
+        },
+      );
       final registry = _read<ServerRegistry>(tester);
       final backend = _read<ArchangeldConnection>(tester);
       final wg = _read<WireGuardController>(tester);
 
       Future<void> switchTo(String id) => tester.runAsync(() async {
-            await switchToServer(id, registry: registry, wg: wg, backend: backend);
-            while (backend.backendChecking) {
-              await Future<void>.delayed(const Duration(milliseconds: 10));
-            }
-          });
+        await switchToServer(id, registry: registry, wg: wg, backend: backend);
+        while (backend.backendChecking) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
 
       await switchTo('a');
       await _settle(tester);
@@ -120,9 +125,12 @@ void main() {
     });
 
     testWidgets('desktop rail header opens the server sheet with Add a server', (tester) async {
-      await pumpAppShell(tester, seedRegistry: (registry) async {
-        await registry.add(_profile('a', 'h1'));
-      });
+      await pumpAppShell(
+        tester,
+        seedRegistry: (registry) async {
+          await registry.add(_profile('a', 'h1'));
+        },
+      );
       await tester.tap(find.byTooltip('Switch server'));
       await _settle(tester);
       expect(find.text('Your servers'), findsOneWidget);
@@ -130,42 +138,97 @@ void main() {
     });
   });
 
-  group('desktop layout', () {
-    testWidgets('extended rail at >= 1100 with all seven destinations and the wordmark', (tester) async {
+  group('wide layout (sidebar)', () {
+    testWidgets('extended sidebar at >= 1000 with all seven destinations and the wordmark', (tester) async {
       await pumpAppShell(tester);
-      final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-      expect(rail.extended, isTrue);
+      final side = tester.widget<AxSidebar>(find.byType(AxSidebar));
+      expect(side.extended, isTrue);
       expect(find.byType(NavigationBar), findsNothing);
       for (final s in AxSection.values) {
-        expect(find.descendant(of: find.byType(NavigationRail), matching: find.text(axSectionLabels[s]!)), findsOneWidget, reason: '$s');
+        expect(find.descendant(of: find.byType(AxSidebar), matching: find.text(axSectionLabels[s]!)), findsOneWidget, reason: '$s');
       }
-      expect(find.text('Archangel'), findsOneWidget);
+      expect(find.byType(AxWordmark), findsOneWidget);
+      expect(find.text('Desktop mode'), findsOneWidget);
     });
 
-    testWidgets('compact rail between 720 and 1100', (tester) async {
+    testWidgets('icon-only sidebar between 720 and 1000', (tester) async {
       await pumpAppShell(tester, size: const Size(900, 700));
-      final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-      expect(rail.extended, isFalse);
+      final side = tester.widget<AxSidebar>(find.byType(AxSidebar));
+      expect(side.extended, isFalse);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('short windows scroll the rail instead of overflowing', (tester) async {
-      // 7 rail destinations + the server switcher need ~650dp; at 520 the
-      // rail must scroll. (Legacy screens themselves are not tuned for this
-      // height, so look at a section that is.)
+    testWidgets('no Desktop mode button below 900 wide', (tester) async {
+      await pumpAppShell(tester, size: const Size(800, 700));
+      expect(find.byTooltip('Switch to Desktop mode'), findsNothing);
+      expect(find.text('Desktop mode'), findsNothing);
+    });
+
+    testWidgets('short windows scroll the sidebar instead of overflowing', (tester) async {
       final app = await pumpAppShell(tester, size: const Size(1400, 520));
       app.go(AxSection.files);
       await _settle(tester);
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.ancestor(of: find.byType(NavigationRail), matching: find.byType(SingleChildScrollView)), findsWidgets);
+      expect(find.descendant(of: find.byType(AxSidebar), matching: find.byType(SingleChildScrollView)), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('rail selection navigates', (tester) async {
+    testWidgets('sidebar selection navigates', (tester) async {
       final app = await pumpAppShell(tester);
-      await tester.tap(find.descendant(of: find.byType(NavigationRail), matching: find.text('Files')));
+      await tester.tap(find.descendant(of: find.byType(AxSidebar), matching: find.text('Files')));
       await _settle(tester);
       expect(app.section, AxSection.files);
+    });
+  });
+
+  group('desktop mode', () {
+    testWidgets('opens with windows, a dock and a top bar; Simple layout returns', (tester) async {
+      final app = await pumpAppShell(tester);
+      await tester.tap(find.text('Desktop mode'));
+      await _settle(tester);
+      expect(app.layout, AxLayout.desktop);
+      expect(find.byType(DesktopModeView), findsOneWidget);
+      expect(find.byType(AxSidebar), findsNothing);
+      expect(find.byKey(const ValueKey('win-home')), findsOneWidget);
+      expect(find.byTooltip('All apps'), findsOneWidget);
+      expect(find.byType(OverviewScreen), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byTooltip('Back to the Simple layout'));
+      await _settle(tester);
+      expect(app.layout, AxLayout.simple);
+      expect(find.byType(AxSidebar), findsOneWidget);
+    });
+
+    testWidgets('keeps a destination alive when it moves into a window', (tester) async {
+      final app = await pumpAppShell(tester);
+      final before = tester.state(find.byType(OverviewScreen));
+      app.layout = AxLayout.desktop;
+      await _settle(tester);
+      expect(tester.state(find.byType(OverviewScreen)), same(before));
+    });
+
+    testWidgets('navigating from a screen opens that window and polls every open window', (tester) async {
+      final app = await pumpAppShell(tester);
+      final mon = _read<MonitoringService>(tester);
+      final cont = _read<ContainersService>(tester);
+      app.layout = AxLayout.desktop;
+      await _settle(tester);
+      app.go(AxSection.activity);
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('win-activity')), findsOneWidget);
+      expect(find.byType(MonitoringScreen), findsOneWidget);
+      // Home and Activity are both on screen.
+      expect(mon.active, isTrue);
+      expect(mon.pollingRateMs, 1000);
+      expect(cont.active, isTrue);
+    });
+
+    testWidgets('phones never show Desktop mode', (tester) async {
+      final app = await pumpAppShell(tester, size: phone);
+      app.layout = AxLayout.desktop;
+      await _settle(tester);
+      expect(find.byType(DesktopModeView), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
     });
   });
 
@@ -229,12 +292,12 @@ void main() {
       await pumpAppShell(tester);
       final backend = _read<ArchangeldConnection>(tester);
       Future<void> pair(String host, String token) => tester.runAsync(() async {
-            await backend.pair(host: host, token: token);
-            // pair() starts a background version check; let it finish.
-            while (backend.backendChecking) {
-              await Future<void>.delayed(const Duration(milliseconds: 10));
-            }
-          });
+        await backend.pair(host: host, token: token);
+        // pair() starts a background version check; let it finish.
+        while (backend.backendChecking) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
       await pair('10.0.0.1:8443', 'a');
       await _settle(tester);
       final before = tester.state(find.byType(OverviewScreen));
@@ -248,11 +311,11 @@ void main() {
       await pumpAppShell(tester);
       final backend = _read<ArchangeldConnection>(tester);
       Future<void> pair(String token) => tester.runAsync(() async {
-            await backend.pair(host: '10.10.0.1:8443', token: token);
-            while (backend.backendChecking) {
-              await Future<void>.delayed(const Duration(milliseconds: 10));
-            }
-          });
+        await backend.pair(host: '10.10.0.1:8443', token: token);
+        while (backend.backendChecking) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+      });
       await pair('a');
       await _settle(tester);
       final before = tester.state(find.byType(OverviewScreen));
@@ -303,10 +366,7 @@ void main() {
       final app = await pumpAppShell(tester);
       app.go(AxSection.files);
       await _settle(tester);
-      showDialog<void>(
-        context: tester.element(find.byType(ArchangelShell)),
-        builder: (_) => const AlertDialog(title: Text('A dialog')),
-      );
+      showDialog<void>(context: tester.element(find.byType(ArchangelShell)), builder: (_) => const AlertDialog(title: Text('A dialog')));
       await _settle(tester);
       expect(find.text('A dialog'), findsOneWidget);
       await tester.binding.handlePopRoute();

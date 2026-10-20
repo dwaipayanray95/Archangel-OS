@@ -19,17 +19,11 @@ List<Crumb> buildCrumbs(String path, {String? rootPath}) {
   if (root != null && (clean == root || clean.startsWith('$root/') || clean.isEmpty)) {
     final rest = clean.isEmpty ? <String>[] : clean.substring(root.length).split('/').where((p) => p.isNotEmpty).toList();
     var acc = root;
-    return [
-      const Crumb('Home', ''),
-      for (final part in rest) Crumb(part, acc = '$acc/$part'),
-    ];
+    return [const Crumb('Home', ''), for (final part in rest) Crumb(part, acc = '$acc/$part')];
   }
   final parts = clean.split('/').where((p) => p.isNotEmpty).toList();
   var acc = '';
-  return [
-    const Crumb('/', '/'),
-    for (final part in parts) Crumb(part, acc = '$acc/$part'),
-  ];
+  return [const Crumb('/', '/'), for (final part in parts) Crumb(part, acc = '$acc/$part')];
 }
 
 /// True when the server refused a folder for being outside the allowed root.

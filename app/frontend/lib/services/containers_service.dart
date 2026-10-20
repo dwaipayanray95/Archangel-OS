@@ -104,10 +104,7 @@ class ContainersService extends ChangeNotifier {
     }
 
     try {
-      final res = await http.get(
-        backend.dockerContainersHttpUri(),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.get(backend.dockerContainersHttpUri(), headers: {'X-Archangel-Token': backend.token!});
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -192,10 +189,7 @@ class ContainersService extends ChangeNotifier {
 
       final res = await http.post(
         backend.dockerContainerCreateHttpUri(),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Archangel-Token': backend.token!,
-        },
+        headers: {'Content-Type': 'application/json', 'X-Archangel-Token': backend.token!},
         body: jsonEncode(payload),
       );
 
@@ -229,12 +223,14 @@ class ContainersService extends ChangeNotifier {
 
     final backend = _backend;
     if (backend == null || !backend.isPaired || backend.token == null) {
-      _liveLogs.add(DockerLogEntry(
-        ts: DateTime.now().toIso8601String().substring(11, 19),
-        level: 'INFO',
-        source: 'archangeld',
-        text: 'Waiting for backend connection to stream container logs...',
-      ));
+      _liveLogs.add(
+        DockerLogEntry(
+          ts: DateTime.now().toIso8601String().substring(11, 19),
+          level: 'INFO',
+          source: 'archangeld',
+          text: 'Waiting for backend connection to stream container logs...',
+        ),
+      );
       notifyListeners();
       return;
     }
@@ -242,19 +238,22 @@ class ContainersService extends ChangeNotifier {
     try {
       final uri = backend.dockerContainerLogsWsUri(containerId);
       _logWs = WebSocketChannel.connect(uri);
-      _logSub = _logWs!.stream.listen((event) {
-        try {
-          final data = jsonDecode(event.toString()) as Map<String, dynamic>;
-          final entry = DockerLogEntry.fromJson(data);
-          _liveLogs.add(entry);
-          if (_liveLogs.length > 500) {
-            _liveLogs.removeAt(0);
-          }
-          notifyListeners();
-        } catch (_) {}
-      }, onError: (err) {
-        debugPrint('Log WS error: $err');
-      });
+      _logSub = _logWs!.stream.listen(
+        (event) {
+          try {
+            final data = jsonDecode(event.toString()) as Map<String, dynamic>;
+            final entry = DockerLogEntry.fromJson(data);
+            _liveLogs.add(entry);
+            if (_liveLogs.length > 500) {
+              _liveLogs.removeAt(0);
+            }
+            notifyListeners();
+          } catch (_) {}
+        },
+        onError: (err) {
+          debugPrint('Log WS error: $err');
+        },
+      );
     } catch (e) {
       debugPrint('Log connect error: $e');
     }

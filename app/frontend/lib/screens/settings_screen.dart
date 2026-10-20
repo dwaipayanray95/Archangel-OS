@@ -62,12 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const ServersSection(),
           gap,
           const ThisServerSection(),
-          if (backend.isPaired) ...[
-            gap,
-            const DevicesSection(),
-            gap,
-            const AdminModeSection(),
-          ],
+          if (backend.isPaired) ...[gap, const DevicesSection(), gap, const AdminModeSection()],
           gap,
           const SecuritySection(),
           gap,

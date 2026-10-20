@@ -46,17 +46,14 @@ class _ProcessesViewState extends State<ProcessesView> {
             Expanded(
               child: TextField(
                 onChanged: (v) => setState(() => _query = v),
-                decoration: const InputDecoration(
-                  hintText: 'Search by name, user or ID',
-                  prefixIcon: Icon(Icons.search),
-                  isDense: true,
-                ),
+                decoration: const InputDecoration(hintText: 'Search by name, user or ID', prefixIcon: Icon(Icons.search), isDense: true),
               ),
             ),
             SizedBox(width: ax.space.sm),
             const HelpTip(
               title: 'Processes',
-              message: 'A process is a program that is running on your server right now. '
+              message:
+                  'A process is a program that is running on your server right now. '
                   'Your apps, the web server and the system itself are all made of processes. '
                   'Tap one to see details or to stop it.',
             ),
@@ -66,28 +63,26 @@ class _ProcessesViewState extends State<ProcessesView> {
         ScrollableSegments<ProcessSort>(
           values: ProcessSort.values,
           selected: _sort,
-          label: (s) => switch (s) {
-            ProcessSort.cpu => 'Busiest',
-            ProcessSort.memory => 'Most memory',
-            ProcessSort.name => 'Name',
-          },
+          label:
+              (s) => switch (s) {
+                ProcessSort.cpu => 'Busiest',
+                ProcessSort.memory => 'Most memory',
+                ProcessSort.name => 'Name',
+              },
           onSelect: (s) => setState(() => _sort = s),
         ),
         SizedBox(height: ax.space.md),
         if (all.isEmpty)
-          const EmptyState(
-            icon: Icons.list_alt,
-            title: 'No programs listed yet',
-            message: 'The list will appear in a few seconds.',
-          )
+          const EmptyState(icon: Icons.list_alt, title: 'No programs listed yet', message: 'The list will appear in a few seconds.')
         else if (rows.isEmpty)
           EmptyState(icon: Icons.search_off, title: 'Nothing matches "$_query"', message: 'Try a different name or user.')
         else
           LayoutBuilder(
-            builder: (context, box) => AxCard(
-              padding: EdgeInsets.symmetric(vertical: ax.space.xs),
-              child: box.maxWidth >= kProcessTableMinWidth ? _ProcessTable(rows: rows) : _ProcessList(rows: rows),
-            ),
+            builder:
+                (context, box) => AxCard(
+                  padding: EdgeInsets.symmetric(vertical: ax.space.xs),
+                  child: box.maxWidth >= kProcessTableMinWidth ? _ProcessTable(rows: rows) : _ProcessList(rows: rows),
+                ),
           ),
         if (rows.isNotEmpty) ...[
           SizedBox(height: ax.space.sm),
@@ -118,7 +113,8 @@ class _ProcessList extends StatelessWidget {
             key: ValueKey('proc-${p.pid}'),
             title: p.name.isEmpty ? 'Unnamed program' : p.name,
             subtitle: '${p.user.isEmpty ? 'unknown user' : p.user} · ID ${p.pid}',
-            semanticsLabel: '${p.name}, user ${p.user}, ${p.cpu.toStringAsFixed(1)} percent processor, ${p.memoryLabel} memory. Opens details.',
+            semanticsLabel:
+                '${p.name}, user ${p.user}, ${p.cpu.toStringAsFixed(1)} percent processor, ${p.memoryLabel} memory. Opens details.',
             trailing: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -175,7 +171,10 @@ class _ProcessTable extends StatelessWidget {
                     cell(4, Text(p.name, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis)),
                     cell(2, Text(p.user, style: ax.typo.body.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis)),
                     cell(1, Text('${p.pid}', style: ax.typo.body.copyWith(color: c.textMuted))),
-                    cell(2, Text(processStateLabel(p.state), style: ax.typo.body.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis)),
+                    cell(
+                      2,
+                      Text(processStateLabel(p.state), style: ax.typo.body.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
+                    ),
                     cell(1, Text('${p.cpu.toStringAsFixed(1)}%', style: ax.typo.body.copyWith(color: c.text), textAlign: TextAlign.end)),
                     cell(2, Text(p.memoryLabel, style: ax.typo.body.copyWith(color: c.text), textAlign: TextAlign.end)),
                     SizedBox(width: ax.space.xl, child: Icon(Icons.chevron_right, size: 18, color: c.textMuted)),
@@ -200,15 +199,15 @@ Future<void> showProcessDetails(BuildContext context, LiveProcessInfo p) {
       final ax = sheetContext.ax;
       final c = ax.colors;
       Widget fact(String k, String v) => Padding(
-            padding: EdgeInsets.symmetric(vertical: ax.space.xs),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(width: 110, child: Text(k, style: ax.typo.body.copyWith(color: c.textMuted))),
-                Expanded(child: Text(v, style: ax.typo.body.copyWith(color: c.text))),
-              ],
-            ),
-          );
+        padding: EdgeInsets.symmetric(vertical: ax.space.xs),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 110, child: Text(k, style: ax.typo.body.copyWith(color: c.textMuted))),
+            Expanded(child: Text(v, style: ax.typo.body.copyWith(color: c.text))),
+          ],
+        ),
+      );
       return SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(ax.space.xl, 0, ax.space.xl, ax.space.xl),
@@ -216,7 +215,10 @@ Future<void> showProcessDetails(BuildContext context, LiveProcessInfo p) {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Semantics(header: true, child: Text(p.name.isEmpty ? 'Unnamed program' : p.name, style: ax.typo.title.copyWith(color: c.text))),
+              Semantics(
+                header: true,
+                child: Text(p.name.isEmpty ? 'Unnamed program' : p.name, style: ax.typo.title.copyWith(color: c.text)),
+              ),
               SizedBox(height: ax.space.sm),
               fact('Status', processStateLabel(p.state)),
               fact('Run by', p.user.isEmpty ? 'unknown' : p.user),
@@ -272,9 +274,10 @@ Future<void> stopProcess(BuildContext context, LiveProcessInfo p, {required bool
   final ok = await showConfirmDialog(
     context,
     title: force ? 'Force stop "$name"?' : 'Stop "$name"?',
-    message: force
-        ? 'Force stop ends it immediately and gives it no chance to save or clean up. $kStopWarning'
-        : 'This asks it to finish and close down properly. $kStopWarning',
+    message:
+        force
+            ? 'Force stop ends it immediately and gives it no chance to save or clean up. $kStopWarning'
+            : 'This asks it to finish and close down properly. $kStopWarning',
     confirmLabel: force ? 'Force stop' : 'Stop process',
     danger: true,
   );
@@ -300,12 +303,15 @@ Future<void> showPrioritySheet(BuildContext context, LiveProcessInfo p) async {
 }
 
 void _report(ScaffoldMessengerState messenger, AppState app, ProcessActionResult res, {required String success}) {
-  messenger.showSnackBar(SnackBar(
-    content: Text(res.success ? success : res.message),
-    action: !res.success && res.message.toLowerCase().contains('admin')
-        ? SnackBarAction(label: 'Open Settings', onPressed: () => app.go(AxSection.settings))
-        : null,
-  ));
+  messenger.showSnackBar(
+    SnackBar(
+      content: Text(res.success ? success : res.message),
+      action:
+          !res.success && res.message.toLowerCase().contains('admin')
+              ? SnackBarAction(label: 'Open Settings', onPressed: () => app.go(AxSection.settings))
+              : null,
+    ),
+  );
 }
 
 /// The "Change priority" slider. Pops with the chosen nice value.
@@ -342,7 +348,8 @@ class _PrioritySheetState extends State<PrioritySheet> {
                 ),
                 const HelpTip(
                   title: 'Priority',
-                  message: 'When the server is busy, priority decides which programs get the processor first. '
+                  message:
+                      'When the server is busy, priority decides which programs get the processor first. '
                       'Lower priority makes a program polite: it slows down so others stay fast. '
                       'Higher priority lets it work faster but can slow everything else. '
                       'Most programs should stay at Normal.',

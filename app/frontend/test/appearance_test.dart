@@ -15,7 +15,7 @@ void main() {
   test('theme mode and accent persist across restarts', () async {
     final a = AppState();
     expect(a.themeMode, kDefaultThemeMode);
-    expect(a.accentChoice, AxAccent.green);
+    expect(a.accentChoice, AxAccent.halo);
     a.themeMode = ThemeMode.dark;
     a.accentChoice = AxAccent.ice;
     // Writes are fire-and-forget; give the file IO a moment.

@@ -22,75 +22,73 @@ class SetupLandingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
-    return Scaffold(
-      backgroundColor: c.bg,
-      appBar: canCancel
-          ? AppBar(
-              backgroundColor: c.bg,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              title: Text('Add a server', style: ax.typo.title.copyWith(color: c.text)),
-            )
-          : null,
-      body: SafeArea(
-        child: SetupFrame(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(height: canCancel ? 0 : ax.space.xl),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: EdgeInsets.all(ax.space.md),
-                  decoration: BoxDecoration(color: c.accentWash, borderRadius: BorderRadius.circular(ax.radii.md)),
-                  child: Icon(Icons.shield_outlined, size: 32, color: c.accent, semanticLabel: 'Archangel'),
+    return AxBackdrop(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar:
+            canCancel
+                ? AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  title: Text('Add a server', style: ax.typo.title.copyWith(color: c.text)),
+                )
+                : null,
+        body: SafeArea(
+          child: SetupFrame(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(height: canCancel ? 0 : ax.space.xl),
+                if (!canCancel) ...[
+                  const Align(alignment: Alignment.centerLeft, child: AxWordmark(size: 20)),
+                  SizedBox(height: ax.space.xxl),
+                ],
+                Text('Welcome to Archangel OS', style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 13)),
+                SizedBox(height: ax.space.sm),
+                Semantics(header: true, child: Text('Do you have a server?', style: ax.typo.display.copyWith(color: c.text))),
+                SizedBox(height: ax.space.sm),
+                Text(
+                  'Archangel turns a small rented server into your own private cloud, guarded 24/7. Pick the option that fits you.',
+                  style: ax.typo.body.copyWith(color: c.textMuted),
                 ),
-              ),
-              SizedBox(height: ax.space.lg),
-              Text('Welcome to Archangel', style: ax.typo.headline.copyWith(color: c.text)),
-              SizedBox(height: ax.space.sm),
-              Text(
-                'Archangel lets you run and manage your own private server from your phone or computer.',
-                style: ax.typo.body.copyWith(color: c.textMuted),
-              ),
-              SizedBox(height: ax.space.xl),
-              Semantics(
-                header: true,
-                child: Text('Do you have a server?', style: ax.typo.title.copyWith(color: c.text)),
-              ),
-              SizedBox(height: ax.space.md),
-              _Option(
-                icon: Icons.auto_fix_high_outlined,
-                title: 'Yes, set it up for me',
-                body: 'Give Archangel your server\'s address and SSH key. It installs everything and connects this device.',
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen())),
-              ),
-              SizedBox(height: ax.space.md),
-              _Option(
-                icon: Icons.qr_code_2,
-                title: 'I have a pairing code',
-                body: 'Your server is already running Archangel and you have a code from it. Also use this to add another device.',
-                onTap: () async {
-                  final paired = await showPairingDialog(context);
-                  if (paired && canCancel && context.mounted) Navigator.of(context).pop();
-                },
-              ),
-              SizedBox(height: ax.space.md),
-              _Option(
-                icon: Icons.cloud_outlined,
-                title: 'Not yet — show me how to get one',
-                body: 'What a server is, what it costs, and guides for getting one in a few minutes.',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (ctx) => GetServerScreen(
-                      onHaveServer: () => Navigator.of(ctx).pushReplacement(
-                        MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen()),
+                SizedBox(height: ax.space.xl),
+                _Option(
+                  icon: Icons.auto_fix_high_outlined,
+                  title: 'Yes, set it up for me',
+                  body: 'Give Archangel your server\'s address and SSH key. It installs everything and connects this device.',
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen())),
+                ),
+                SizedBox(height: ax.space.md),
+                _Option(
+                  icon: Icons.qr_code_2,
+                  title: 'I have a pairing code',
+                  body: 'Your server is already running Archangel and you have a code from it. Also use this to add another device.',
+                  onTap: () async {
+                    final paired = await showPairingDialog(context);
+                    if (paired && canCancel && context.mounted) Navigator.of(context).pop();
+                  },
+                ),
+                SizedBox(height: ax.space.md),
+                _Option(
+                  icon: Icons.cloud_outlined,
+                  title: 'Not yet — show me how to get one',
+                  body: 'What a server is, what it costs, and guides for getting one in a few minutes.',
+                  onTap:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder:
+                              (ctx) => GetServerScreen(
+                                onHaveServer:
+                                    () => Navigator.of(
+                                      ctx,
+                                    ).pushReplacement(MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen())),
+                              ),
+                        ),
                       ),
-                    ),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -115,7 +113,12 @@ class _Option extends StatelessWidget {
       semanticsLabel: title,
       child: Row(
         children: [
-          Icon(icon, color: c.accent, size: 28),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: c.accentWash, borderRadius: BorderRadius.circular(ax.radii.md)),
+            child: Icon(icon, color: c.accent, size: 22),
+          ),
           SizedBox(width: ax.space.lg),
           Expanded(
             child: Column(

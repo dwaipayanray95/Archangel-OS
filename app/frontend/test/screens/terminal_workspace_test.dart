@@ -25,11 +25,7 @@ class TerminalHarness {
   int selected = 0;
 }
 
-Future<TerminalHarness> pumpWorkspace(
-  WidgetTester tester, {
-  Size size = const Size(390, 844),
-  List<String> names = const ['main'],
-}) async {
+Future<TerminalHarness> pumpWorkspace(WidgetTester tester, {Size size = const Size(390, 844), List<String> names = const ['main']}) async {
   final sessions = <TerminalSession>[];
   final channels = <FakeTerminalChannel>[];
   late final ArchangeldConnection backend;
@@ -47,27 +43,30 @@ Future<TerminalHarness> pumpWorkspace(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
 
-  await tester.pumpWidget(MaterialApp(
-    theme: buildTheme(Brightness.dark),
-    home: StatefulBuilder(
-      builder: (context, setState) => Scaffold(
-        body: TerminalWorkspace(
-          sessions: sessions,
-          selected: h.selected,
-          controllerFor: (s) => h.controllers.putIfAbsent(s, TerminalController.new),
-          fontSize: h.fontSize,
-          onSelect: (i) => setState(() => h.selected = i),
-          onDetach: (i) => h.events.add('detach $i'),
-          onEnd: (i) => h.events.add('end $i'),
-          onNew: () => h.events.add('new'),
-          onShowSessions: () => h.events.add('sessions'),
-          onFontSize: (v) => setState(() => h.fontSize = v),
-          onCopy: () => h.events.add('copy'),
-          onPaste: () => h.events.add('paste'),
-        ),
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildTheme(Brightness.dark),
+      home: StatefulBuilder(
+        builder:
+            (context, setState) => Scaffold(
+              body: TerminalWorkspace(
+                sessions: sessions,
+                selected: h.selected,
+                controllerFor: (s) => h.controllers.putIfAbsent(s, TerminalController.new),
+                fontSize: h.fontSize,
+                onSelect: (i) => setState(() => h.selected = i),
+                onDetach: (i) => h.events.add('detach $i'),
+                onEnd: (i) => h.events.add('end $i'),
+                onNew: () => h.events.add('new'),
+                onShowSessions: () => h.events.add('sessions'),
+                onFontSize: (v) => setState(() => h.fontSize = v),
+                onCopy: () => h.events.add('copy'),
+                onPaste: () => h.events.add('paste'),
+              ),
+            ),
       ),
     ),
-  ));
+  );
   await tester.pump(const Duration(milliseconds: 50));
   addTearDown(() {
     for (final s in sessions) {
@@ -243,17 +242,17 @@ void main() {
 
   group('end-session confirmation', () {
     Future<bool?> open(WidgetTester tester, void Function(bool?) onResult) async {
-      await tester.pumpWidget(MaterialApp(
-        theme: buildTheme(Brightness.dark),
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () async => onResult(await confirmEndSession(context, 'main')),
-              child: const Text('open'),
-            ),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark),
+          home: Builder(
+            builder:
+                (context) => Scaffold(
+                  body: TextButton(onPressed: () async => onResult(await confirmEndSession(context, 'main')), child: const Text('open')),
+                ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       return null;

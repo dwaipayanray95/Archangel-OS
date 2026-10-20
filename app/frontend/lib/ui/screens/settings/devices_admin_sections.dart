@@ -25,10 +25,11 @@ class DevicesSection extends StatelessWidget {
     final confirmed = await showConfirmDialog(
       context,
       title: 'Revoke "${device.name}"?',
-      message: device.current
-          ? 'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
-              'You will need SSH access to the server to pair again.'
-          : 'This device will lose access to the server immediately. It will need to be paired again to reconnect.',
+      message:
+          device.current
+              ? 'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
+                  'You will need SSH access to the server to pair again.'
+              : 'This device will lose access to the server immediately. It will need to be paired again to reconnect.',
       confirmLabel: 'Revoke',
       danger: true,
       // Cutting your own connection needs the name typed.
@@ -61,11 +62,7 @@ class DevicesSection extends StatelessWidget {
     return SettingsSection(
       title: 'Devices',
       explanation: 'The phones and computers that can use this server. Revoking one cuts its access immediately.',
-      trailing: AxIconButton(
-        icon: Icons.refresh,
-        tooltip: 'Refresh devices',
-        onPressed: svc.loading ? null : svc.refresh,
-      ),
+      trailing: AxIconButton(icon: Icons.refresh, tooltip: 'Refresh devices', onPressed: svc.loading ? null : svc.refresh),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -84,7 +81,10 @@ class DevicesSection extends StatelessWidget {
           if (svc.loading && !svc.loaded)
             Padding(
               padding: EdgeInsets.only(bottom: ax.space.sm),
-              child: const Align(alignment: Alignment.centerLeft, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+              child: const Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
             ),
           if (svc.loaded && svc.devices.isEmpty)
             Padding(
@@ -120,11 +120,7 @@ class _DeviceRow extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(bottom: ax.space.sm),
       padding: EdgeInsets.all(ax.space.md),
-      decoration: BoxDecoration(
-        color: c.surfaceAlt,
-        borderRadius: BorderRadius.circular(ax.radii.md),
-        border: Border.all(color: c.border),
-      ),
+      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
       child: Row(
         children: [
           Expanded(
@@ -167,7 +163,8 @@ class AdminModeSection extends StatelessWidget {
     final ok = await showConfirmDialog(
       context,
       title: 'Turn off Admin mode?',
-      message: 'The terminal and Archangel will no longer be able to run commands as root. '
+      message:
+          'The terminal and Archangel will no longer be able to run commands as root. '
           'Actions that need root - starting or stopping services, rebooting, revoking devices - will be refused until you turn it back on, '
           'which needs your SSH key.',
       confirmLabel: 'Turn off',
@@ -192,7 +189,8 @@ class AdminModeSection extends StatelessWidget {
       explanation: 'Lets the terminal and Archangel run commands as the server\'s administrator. Turn it off for a safer, limited mode.',
       help: const HelpTip(
         title: 'Admin mode',
-        message: 'Admin mode gives Archangel permission to run commands with full control of the server (this is called "sudo" or "root"). '
+        message:
+            'Admin mode gives Archangel permission to run commands with full control of the server (this is called "sudo" or "root"). '
             'You need it to start and stop services, reboot, or add a device. '
             'Switching it off is instant; switching it back on needs your SSH key.',
       ),

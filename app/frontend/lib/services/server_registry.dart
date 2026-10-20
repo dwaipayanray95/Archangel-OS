@@ -71,45 +71,44 @@ class ServerProfile {
     String? sshUser,
     int? appPort,
     int? wgPort,
-  }) =>
-      ServerProfile(
-        id: id,
-        name: name ?? this.name,
-        host: host ?? this.host,
-        token: token ?? this.token,
-        wgConfig: wgConfig ?? this.wgConfig,
-        sshHost: sshHost ?? this.sshHost,
-        sshUser: sshUser ?? this.sshUser,
-        appPort: appPort ?? this.appPort,
-        wgPort: wgPort ?? this.wgPort,
-        createdAt: createdAt,
-      );
+  }) => ServerProfile(
+    id: id,
+    name: name ?? this.name,
+    host: host ?? this.host,
+    token: token ?? this.token,
+    wgConfig: wgConfig ?? this.wgConfig,
+    sshHost: sshHost ?? this.sshHost,
+    sshUser: sshUser ?? this.sshUser,
+    appPort: appPort ?? this.appPort,
+    wgPort: wgPort ?? this.wgPort,
+    createdAt: createdAt,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'host': host,
-        'token': token,
-        'wgConfig': wgConfig,
-        if (sshHost != null) 'sshHost': sshHost,
-        'sshUser': sshUser,
-        'appPort': appPort,
-        'wgPort': wgPort,
-        'createdAt': createdAt.toUtc().toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'host': host,
+    'token': token,
+    'wgConfig': wgConfig,
+    if (sshHost != null) 'sshHost': sshHost,
+    'sshUser': sshUser,
+    'appPort': appPort,
+    'wgPort': wgPort,
+    'createdAt': createdAt.toUtc().toIso8601String(),
+  };
 
   factory ServerProfile.fromJson(Map<String, dynamic> json) => ServerProfile(
-        id: json['id'] as String,
-        name: (json['name'] as String?)?.trim().isNotEmpty == true ? json['name'] as String : kDefaultServerName,
-        host: json['host'] as String,
-        token: json['token'] as String,
-        wgConfig: json['wgConfig'] as String? ?? '',
-        sshHost: json['sshHost'] as String?,
-        sshUser: json['sshUser'] as String? ?? 'ubuntu',
-        appPort: (json['appPort'] as num?)?.toInt() ?? 8443,
-        wgPort: (json['wgPort'] as num?)?.toInt() ?? 51820,
-        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
-      );
+    id: json['id'] as String,
+    name: (json['name'] as String?)?.trim().isNotEmpty == true ? json['name'] as String : kDefaultServerName,
+    host: json['host'] as String,
+    token: json['token'] as String,
+    wgConfig: json['wgConfig'] as String? ?? '',
+    sshHost: json['sshHost'] as String?,
+    sshUser: json['sshUser'] as String? ?? 'ubuntu',
+    appPort: (json['appPort'] as num?)?.toInt() ?? 8443,
+    wgPort: (json['wgPort'] as num?)?.toInt() ?? 51820,
+    createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0),
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -364,8 +363,7 @@ class ServerRegistry extends ChangeNotifier {
   }
 }
 
-bool _tunnelUp(WireGuardController wg) =>
-    wg.status == TunnelStatus.connected || wg.status == TunnelStatus.connecting;
+bool _tunnelUp(WireGuardController wg) => wg.status == TunnelStatus.connected || wg.status == TunnelStatus.connecting;
 
 /// Points the app at [profile]: brings down the current tunnel, installs the
 /// profile's tunnel config, re-points [ArchangeldConnection], and (when

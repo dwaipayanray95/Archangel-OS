@@ -29,10 +29,10 @@ class SavedSshCredentials {
   Map<String, dynamic> toJson() => {'host': host, 'username': username, 'privateKeyPem': privateKeyPem};
 
   static SavedSshCredentials fromJson(Map<String, dynamic> json) => SavedSshCredentials(
-        host: json['host'] as String? ?? '',
-        username: json['username'] as String? ?? 'ubuntu',
-        privateKeyPem: json['privateKeyPem'] as String? ?? '',
-      );
+    host: json['host'] as String? ?? '',
+    username: json['username'] as String? ?? 'ubuntu',
+    privateKeyPem: json['privateKeyPem'] as String? ?? '',
+  );
 }
 
 /// Tests only: where the credentials file lives (path_provider has no

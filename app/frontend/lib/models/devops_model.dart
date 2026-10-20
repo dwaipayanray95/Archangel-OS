@@ -5,13 +5,7 @@ class DevRowModel {
   final bool ok;
   final List<String> actions;
 
-  const DevRowModel({
-    required this.name,
-    required this.meta,
-    required this.status,
-    required this.ok,
-    required this.actions,
-  });
+  const DevRowModel({required this.name, required this.meta, required this.status, required this.ok, required this.actions});
 
   factory DevRowModel.fromJson(Map<String, dynamic> json) {
     return DevRowModel(

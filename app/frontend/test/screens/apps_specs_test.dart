@@ -9,26 +9,17 @@ void main() {
     });
 
     test('public is explicit 0.0.0.0:hostPort:containerPort', () {
-      expect(
-        buildPortSpec(const PortMapping(containerPort: '80', hostPort: '8080', visibility: PortVisibility.public)),
-        '0.0.0.0:8080:80',
-      );
+      expect(buildPortSpec(const PortMapping(containerPort: '80', hostPort: '8080', visibility: PortVisibility.public)), '0.0.0.0:8080:80');
     });
 
     test('blank host port falls back to the container port', () {
       expect(buildPortSpec(const PortMapping(containerPort: '3001')), '3001:3001');
-      expect(
-        buildPortSpec(const PortMapping(containerPort: '53/udp', visibility: PortVisibility.public)),
-        '0.0.0.0:53:53/udp',
-      );
+      expect(buildPortSpec(const PortMapping(containerPort: '53/udp', visibility: PortVisibility.public)), '0.0.0.0:53:53/udp');
     });
 
     test('blank rows are skipped', () {
       expect(buildPortSpec(const PortMapping()), isNull);
-      expect(
-        buildPortSpecs(const [PortMapping(), PortMapping(containerPort: '80', hostPort: '81')]),
-        ['81:80'],
-      );
+      expect(buildPortSpecs(const [PortMapping(), PortMapping(containerPort: '80', hostPort: '81')]), ['81:80']);
     });
   });
 
@@ -72,10 +63,7 @@ void main() {
 
   group('other specs', () {
     test('volumes and env', () {
-      expect(
-        buildVolumeSpecs(const [FolderMapping(hostPath: '/srv/a', containerPath: '/data'), FolderMapping()]),
-        ['/srv/a:/data'],
-      );
+      expect(buildVolumeSpecs(const [FolderMapping(hostPath: '/srv/a', containerPath: '/data'), FolderMapping()]), ['/srv/a:/data']);
       expect(buildEnvSpecs(const [SettingEntry(key: 'TZ', value: 'UTC'), SettingEntry()]), ['TZ=UTC']);
     });
   });

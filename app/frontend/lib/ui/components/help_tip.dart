@@ -67,10 +67,6 @@ class HelpLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AxButton.ghost(
-      label: label,
-      icon: Icons.help_outline,
-      onPressed: () => showHelpSheet(context, title: title, message: message),
-    );
+    return AxButton.ghost(label: label, icon: Icons.help_outline, onPressed: () => showHelpSheet(context, title: title, message: message));
   }
 }

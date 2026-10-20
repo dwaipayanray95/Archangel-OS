@@ -164,11 +164,11 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   bool get _deviceValid => _advancedError == null;
 
   bool get _canNext => switch (_step) {
-        _Step.address => _addressValid,
-        _Step.key => _keyValid,
-        _Step.device => _deviceValid,
-        _ => true,
-      };
+    _Step.address => _addressValid,
+    _Step.key => _keyValid,
+    _Step.device => _deviceValid,
+    _ => true,
+  };
 
   // ---- navigation -------------------------------------------------------
 
@@ -283,7 +283,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
           final savePassphrase = await promptForPassphrase(
             context,
             title: 'Set a passphrase',
-            message: 'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
+            message:
+                'Choose a passphrase (at least 8 characters) to protect this key. You\'ll need it to unlock the key later - there\'s no way to recover it without the passphrase.',
             confirm: true,
           );
           if (savePassphrase != null) {
@@ -329,29 +330,31 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
       appPort: int.tryParse(_appPortController.text.trim()) ?? 8443,
     );
     final service = VpsSetupService(_transport!);
-    _sub = service.run(config).listen(
-      (event) {
-        if (!mounted) return;
-        setState(() {
-          _appendOrUpdate(event);
-          if (!event.stageComplete) _elapsedSeconds = 0;
-        });
-      },
-      onError: (Object e) {
-        final stage = e is VpsSetupException ? e.stage : (_log.isNotEmpty ? _log.last.stage : 'detect');
-        _fail(stage, e);
-      },
-      onDone: () {
-        _elapsedTimer?.cancel();
-        _transport?.close();
-        _transport = null;
-        if (!mounted || _error != null) return;
-        setState(() {
-          _bundle = service.result;
-          _step = _Step.done;
-        });
-      },
-    );
+    _sub = service
+        .run(config)
+        .listen(
+          (event) {
+            if (!mounted) return;
+            setState(() {
+              _appendOrUpdate(event);
+              if (!event.stageComplete) _elapsedSeconds = 0;
+            });
+          },
+          onError: (Object e) {
+            final stage = e is VpsSetupException ? e.stage : (_log.isNotEmpty ? _log.last.stage : 'detect');
+            _fail(stage, e);
+          },
+          onDone: () {
+            _elapsedTimer?.cancel();
+            _transport?.close();
+            _transport = null;
+            if (!mounted || _error != null) return;
+            setState(() {
+              _bundle = service.result;
+              _step = _Step.done;
+            });
+          },
+        );
   }
 
   Future<void> _enterArchangel() async {
@@ -492,13 +495,13 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   }
 
   Widget _buildStep(BuildContext context) => switch (_step) {
-        _Step.address => _buildAddress(context),
-        _Step.key => _buildKey(context),
-        _Step.device => _buildDevice(context),
-        _Step.review => _buildReview(context),
-        _Step.run => _buildRun(context),
-        _Step.done => _buildDone(context),
-      };
+    _Step.address => _buildAddress(context),
+    _Step.key => _buildKey(context),
+    _Step.device => _buildDevice(context),
+    _Step.review => _buildReview(context),
+    _Step.run => _buildRun(context),
+    _Step.done => _buildDone(context),
+  };
 
   Widget _field(
     BuildContext context, {
@@ -545,7 +548,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
           keyboardType: TextInputType.url,
           help: const HelpTip(
             title: 'Server address',
-            message: 'The public IP address (like 203.0.113.5) or domain name of your server. '
+            message:
+                'The public IP address (like 203.0.113.5) or domain name of your server. '
                 'Your hosting provider shows it on the server\'s page.',
           ),
         ),
@@ -557,7 +561,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
           hint: 'ubuntu',
           help: const HelpTip(
             title: 'Username',
-            message: 'The account you sign in to the server with. It is "ubuntu" on Ubuntu images, "opc" on some '
+            message:
+                'The account you sign in to the server with. It is "ubuntu" on Ubuntu images, "opc" on some '
                 'Oracle images, and "root" on some other providers. Your provider\'s server page usually says.',
           ),
         ),
@@ -572,25 +577,16 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
       children: [
         const SetupHeading(
           title: 'Your SSH key',
-          subtitle: 'Archangel signs in to your server with an SSH key. It is used only to set things up '
+          subtitle:
+              'Archangel signs in to your server with an SSH key. It is used only to set things up '
               'and is never sent anywhere else.',
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: AxButton.ghost(
-            label: 'How do I get an SSH key?',
-            icon: Icons.help_outline,
-            onPressed: () => showSshKeyHelp(context),
-          ),
+          child: AxButton.ghost(label: 'How do I get an SSH key?', icon: Icons.help_outline, onPressed: () => showSshKeyHelp(context)),
         ),
         SizedBox(height: ax.space.sm),
-        SshCredentialsForm(
-          controller: _ssh,
-          showHost: false,
-          showUsername: false,
-          restoreSavedOnStart: false,
-          onPickKeyFile: _pickKeyFile,
-        ),
+        SshCredentialsForm(controller: _ssh, showHost: false, showUsername: false, restoreSavedOnStart: false, onPickKeyFile: _pickKeyFile),
       ],
     );
   }
@@ -628,8 +624,10 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
               iconColor: c.accent,
               collapsedIconColor: c.textMuted,
               title: Text('Advanced', style: ax.typo.label.copyWith(color: c.text)),
-              subtitle: Text('Ports and private network. The defaults are right for almost everyone.',
-                  style: ax.typo.caption.copyWith(color: c.textMuted)),
+              subtitle: Text(
+                'Ports and private network. The defaults are right for almost everyone.',
+                style: ax.typo.caption.copyWith(color: c.textMuted),
+              ),
               children: [
                 _field(
                   context,
@@ -638,7 +636,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                   hint: '10.10.0',
                   help: const HelpTip(
                     title: 'Private network',
-                    message: 'Archangel creates a private network between your devices and your server (using WireGuard). '
+                    message:
+                        'Archangel creates a private network between your devices and your server (using WireGuard). '
                         'This is the address range it uses. Only change it if it clashes with another network you use.',
                   ),
                 ),
@@ -651,7 +650,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                   keyboardType: TextInputType.number,
                   help: const HelpTip(
                     title: 'Secure connection port',
-                    message: 'The port your devices use to reach the server\'s private connection. '
+                    message:
+                        'The port your devices use to reach the server\'s private connection. '
                         'It must be open at your provider\'s firewall.',
                   ),
                 ),
@@ -664,7 +664,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                   keyboardType: TextInputType.number,
                   help: const HelpTip(
                     title: 'Archangel server port',
-                    message: 'The port the Archangel server listens on. It is only reachable through your private '
+                    message:
+                        'The port the Archangel server listens on. It is only reachable through your private '
                         'connection, never from the open internet.',
                   ),
                 ),
@@ -712,7 +713,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
               const SetupBullet(text: 'Install Docker (for running apps) and a web server'),
               const SetupBullet(text: 'Install the Archangel server'),
               SetupBullet(
-                text: 'Pair this device as "${_deviceNameController.text.trim().isEmpty ? _defaultDeviceName() : _deviceNameController.text.trim()}" '
+                text:
+                    'Pair this device as "${_deviceNameController.text.trim().isEmpty ? _defaultDeviceName() : _deviceNameController.text.trim()}" '
                     'so you can manage the server from here',
               ),
             ],
@@ -724,8 +726,10 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
             Icon(Icons.schedule, size: 18, color: c.textMuted),
             SizedBox(width: ax.space.sm),
             Expanded(
-              child: Text('This takes about 5 to 10 minutes. Keep the app open. It is safe to run again if anything fails.',
-                  style: ax.typo.body.copyWith(color: c.textMuted)),
+              child: Text(
+                'This takes about 5 to 10 minutes. Keep the app open. It is safe to run again if anything fails.',
+                style: ax.typo.body.copyWith(color: c.textMuted),
+              ),
             ),
           ],
         ),
@@ -772,9 +776,10 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
       if (e.stageComplete && e.stage != 'verify') done.add(e.stage);
     }
     if (!_connecting && !(failed && _failedStage == 'connect')) done.add('connect');
-    final activeKey = failed
-        ? null
-        : (_connecting ? 'connect' : (_log.isEmpty ? null : (_log.last.stageComplete ? null : normalizeSetupStage(_log.last.stage))));
+    final activeKey =
+        failed
+            ? null
+            : (_connecting ? 'connect' : (_log.isEmpty ? null : (_log.last.stageComplete ? null : normalizeSetupStage(_log.last.stage))));
     final activeMessage = (activeKey != null && activeKey != 'connect' && _log.isNotEmpty) ? _log.last.message : null;
 
     final errorText = '${_error ?? ''}';
@@ -793,13 +798,14 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
               for (final (key, label) in kSetupStages)
                 _StageRow(
                   label: label,
-                  state: failed && _failedStage == key
-                      ? _StageState.failed
-                      : done.contains(key)
+                  state:
+                      failed && _failedStage == key
+                          ? _StageState.failed
+                          : done.contains(key)
                           ? _StageState.done
                           : key == activeKey
-                              ? _StageState.active
-                              : _StageState.pending,
+                          ? _StageState.active
+                          : _StageState.pending,
                   detail: key == activeKey ? (activeMessage == null ? null : '$activeMessage (${_elapsedSeconds}s)') : null,
                 ),
             ],
@@ -807,12 +813,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
         ),
         if (failed) ...[
           SizedBox(height: ax.space.lg),
-          _FailureCard(
-            stageLabel: setupStageLabel(_failedStage ?? 'connect'),
-            error: errorText,
-            onRetry: _start,
-            onBack: _back,
-          ),
+          _FailureCard(stageLabel: setupStageLabel(_failedStage ?? 'connect'), error: errorText, onRetry: _start, onBack: _back),
         ],
       ],
     );
@@ -864,13 +865,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
           ),
         ],
         SizedBox(height: ax.space.xl),
-        AxButton(
-          label: 'Open your server',
-          icon: Icons.arrow_forward,
-          expand: true,
-          loading: _pairing,
-          onPressed: _enterArchangel,
-        ),
+        AxButton(label: 'Open your server', icon: Icons.arrow_forward, expand: true, loading: _pairing, onPressed: _enterArchangel),
       ],
     );
   }
@@ -937,10 +932,10 @@ class _StageRow extends StatelessWidget {
       _StageState.done => (Icon(Icons.check_circle, size: 20, color: c.success), c.text, 'done'),
       _StageState.failed => (Icon(Icons.error, size: 20, color: c.danger), c.danger, 'failed'),
       _StageState.active => (
-          SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent)),
-          c.text,
-          'in progress'
-        ),
+        SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent)),
+        c.text,
+        'in progress',
+      ),
       _StageState.pending => (Icon(Icons.radio_button_unchecked, size: 20, color: c.textSubtle), c.textMuted, 'waiting'),
     };
     return Semantics(
@@ -958,7 +953,10 @@ class _StageRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: ax.typo.body.copyWith(color: textColor, fontWeight: state == _StageState.active ? FontWeight.w700 : null)),
+                  Text(
+                    label,
+                    style: ax.typo.body.copyWith(color: textColor, fontWeight: state == _StageState.active ? FontWeight.w700 : null),
+                  ),
                   if (detail != null)
                     Text(detail!, maxLines: 2, overflow: TextOverflow.ellipsis, style: ax.typo.caption.copyWith(color: c.textMuted)),
                 ],
@@ -993,17 +991,12 @@ class _FailureCard extends StatelessWidget {
             children: [
               Icon(Icons.error_outline, size: 20, color: c.danger),
               SizedBox(width: ax.space.sm),
-              Expanded(
-                child: Text('This step failed: $stageLabel', style: ax.typo.title.copyWith(color: c.danger)),
-              ),
+              Expanded(child: Text('This step failed: $stageLabel', style: ax.typo.title.copyWith(color: c.danger))),
             ],
           ),
           SizedBox(height: ax.space.sm),
           Text(hintForSetupError(error), style: ax.typo.body.copyWith(color: c.text)),
-          if (errorNeedsFirewallHelp(error)) ...[
-            SizedBox(height: ax.space.sm),
-            const ProviderFirewallHelp(),
-          ],
+          if (errorNeedsFirewallHelp(error)) ...[SizedBox(height: ax.space.sm), const ProviderFirewallHelp()],
           Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: Material(

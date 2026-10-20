@@ -11,7 +11,6 @@ import 'package:archangel/ui/screens/services/script_editor_page.dart';
 import 'package:archangel/ui/screens/services/services_logic.dart';
 import 'package:archangel/ui/theme.dart';
 
-
 class _FakeConn extends ArchangeldConnection {
   @override
   bool get isPaired => true;
@@ -26,21 +25,21 @@ class _FakeDevops extends DevopsService {
 
   @override
   List<DevRowModel> get services => const [
-        DevRowModel(name: 'caddy.service', meta: 'Web server', status: 'active', ok: true, actions: []),
-        DevRowModel(name: 'worker.service', meta: 'Job runner', status: 'failed', ok: false, actions: []),
-      ];
+    DevRowModel(name: 'caddy.service', meta: 'Web server', status: 'active', ok: true, actions: []),
+    DevRowModel(name: 'worker.service', meta: 'Job runner', status: 'failed', ok: false, actions: []),
+  ];
   @override
   List<DevRowModel> get scheduled => const [
-        DevRowModel(name: 'backup.timer', meta: 'Every night', status: 'waiting', ok: true, actions: []),
-      ];
+    DevRowModel(name: 'backup.timer', meta: 'Every night', status: 'waiting', ok: true, actions: []),
+  ];
   @override
   List<DevRowModel> get proxy => const [
-        DevRowModel(name: 'notes.example.com', meta: 'localhost:8080', status: 'ok', ok: true, actions: []),
-      ];
+    DevRowModel(name: 'notes.example.com', meta: 'localhost:8080', status: 'ok', ok: true, actions: []),
+  ];
   @override
   List<DevRowModel> get deployments => const [
-        DevRowModel(name: 'deploy.sh', meta: 'Updated today', status: 'ready', ok: true, actions: []),
-      ];
+    DevRowModel(name: 'deploy.sh', meta: 'Updated today', status: 'ready', ok: true, actions: []),
+  ];
   @override
   bool get hasLoaded => true;
   @override
@@ -134,10 +133,11 @@ void main() {
   });
 
   testWidgets('a 403 admin-mode refusal is shown with an Open Settings action', (tester) async {
-    final svc = _FakeDevops()
-      ..failActions = true
-      ..status = 403
-      ..message = 'Admin mode is off - this action needs it';
+    final svc =
+        _FakeDevops()
+          ..failActions = true
+          ..status = 403
+          ..message = 'Admin mode is off - this action needs it';
     await _pump(tester, svc);
     await tester.tap(find.text('Start').first);
     await _settle(tester);
@@ -146,10 +146,11 @@ void main() {
   });
 
   testWidgets('a stop-guard refusal shows its message without Open Settings', (tester) async {
-    final svc = _FakeDevops()
-      ..failActions = true
-      ..status = 409
-      ..message = 'ssh is protected: stopping it would lock you out of your server.';
+    final svc =
+        _FakeDevops()
+          ..failActions = true
+          ..status = 409
+          ..message = 'ssh is protected: stopping it would lock you out of your server.';
     await _pump(tester, svc);
     await tester.tap(find.text('Restart').first);
     await _settle(tester);
@@ -235,14 +236,19 @@ void main() {
 
   testWidgets('leaving the editor with unsaved changes asks first', (tester) async {
     final svc = _FakeDevops();
-    await _pump(tester, svc, home: Builder(
-      builder: (context) => Center(
-        child: ElevatedButton(
-          onPressed: () => ScriptEditorPage.open(context, svc, scriptName: 'deploy.sh', initialContent: 'echo a\n'),
-          child: const Text('open'),
-        ),
+    await _pump(
+      tester,
+      svc,
+      home: Builder(
+        builder:
+            (context) => Center(
+              child: ElevatedButton(
+                onPressed: () => ScriptEditorPage.open(context, svc, scriptName: 'deploy.sh', initialContent: 'echo a\n'),
+                child: const Text('open'),
+              ),
+            ),
       ),
-    ));
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('deploy.sh'), findsOneWidget);

@@ -30,11 +30,12 @@ class ThisServerSection extends StatelessWidget {
     final registry = context.watch<ServerRegistry>();
     final hostname = context.watch<MonitoringService>().metrics?.host.hostname ?? '';
 
-    final serverVer = backend.isPaired
-        ? (backend.backendVersion != null
-            ? 'v${backend.backendVersion}'
-            : (backend.backendChecking ? 'checking…' : (backend.backendVersionError ?? 'not answering')))
-        : 'not paired';
+    final serverVer =
+        backend.isPaired
+            ? (backend.backendVersion != null
+                ? 'v${backend.backendVersion}'
+                : (backend.backendChecking ? 'checking…' : (backend.backendVersionError ?? 'not answering')))
+            : 'not paired';
     final serverUpdate =
         backend.isPaired && isUpdateAvailable(current: backend.backendVersion, latest: updates.latestBackend)
             ? updates.latestBackend
@@ -53,27 +54,24 @@ class ThisServerSection extends StatelessWidget {
           KvRow(
             'Archangel server',
             serverVer,
-            trailing: serverUpdate == null
-                ? null
-                : Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: ax.space.sm,
-                    children: [
-                      StatusBadge.warning('v$serverUpdate available'),
-                      if (canUpdate)
-                        AxButton(
-                          label: 'Update',
-                          icon: Icons.system_update_alt,
-                          onPressed: () => showBackendUpdateDialog(context, targetVersion: serverUpdate, releaseTag: updates.backendTag!),
-                        ),
-                    ],
-                  ),
+            trailing:
+                serverUpdate == null
+                    ? null
+                    : Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: ax.space.sm,
+                      children: [
+                        StatusBadge.warning('v$serverUpdate available'),
+                        if (canUpdate)
+                          AxButton(
+                            label: 'Update',
+                            icon: Icons.system_update_alt,
+                            onPressed: () => showBackendUpdateDialog(context, targetVersion: serverUpdate, releaseTag: updates.backendTag!),
+                          ),
+                      ],
+                    ),
           ),
-          KvRow(
-            'This app',
-            'v${AppVersion.current}',
-            trailing: appUpdate == null ? null : StatusBadge.warning('v$appUpdate available'),
-          ),
+          KvRow('This app', 'v${AppVersion.current}', trailing: appUpdate == null ? null : StatusBadge.warning('v$appUpdate available')),
           SizedBox(height: ax.space.sm),
           const _SecureConnection(),
           if (backend.isPaired) ...[
@@ -121,11 +119,7 @@ class _SecureConnection extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.all(ax.space.md),
-      decoration: BoxDecoration(
-        color: c.surfaceAlt,
-        borderRadius: BorderRadius.circular(ax.radii.md),
-        border: Border.all(color: c.border),
-      ),
+      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -134,7 +128,8 @@ class _SecureConnection extends StatelessWidget {
               Text('Secure connection', style: ax.typo.label.copyWith(color: c.text)),
               const HelpTip(
                 title: 'Secure connection',
-                message: 'Your server is only reachable through a private, encrypted tunnel (it uses WireGuard). '
+                message:
+                    'Your server is only reachable through a private, encrypted tunnel (it uses WireGuard). '
                     'Archangel can start it for you, or you can run it with the WireGuard app - either way works.',
               ),
             ],

@@ -13,18 +13,14 @@ enum PortVisibility {
 
 extension PortVisibilityLabels on PortVisibility {
   String get label => switch (this) {
-        PortVisibility.private => 'Private — only your devices',
-        PortVisibility.public => 'Public — anyone on the internet',
-      };
+    PortVisibility.private => 'Private — only your devices',
+    PortVisibility.public => 'Public — anyone on the internet',
+  };
 }
 
 /// One row of the "Ports" section.
 class PortMapping {
-  const PortMapping({
-    this.containerPort = '',
-    this.hostPort = '',
-    this.visibility = PortVisibility.private,
-  });
+  const PortMapping({this.containerPort = '', this.hostPort = '', this.visibility = PortVisibility.private});
 
   /// The port the app listens on inside, optionally with "/udp" (default tcp).
   final String containerPort;
@@ -81,9 +77,9 @@ String? buildPortSpec(PortMapping m) {
 }
 
 List<String> buildPortSpecs(Iterable<PortMapping> rows) => [
-      for (final r in rows)
-        if (buildPortSpec(r) case final s?) s,
-    ];
+  for (final r in rows)
+    if (buildPortSpec(r) case final s?) s,
+];
 
 /// Folder row: a path on the server and where the app sees it.
 class FolderMapping {
@@ -102,9 +98,9 @@ String? validateFolderPath(String raw, {required String what}) {
 }
 
 List<String> buildVolumeSpecs(Iterable<FolderMapping> rows) => [
-      for (final r in rows)
-        if (!r.isBlank) '${r.hostPath.trim()}:${r.containerPath.trim()}',
-    ];
+  for (final r in rows)
+    if (!r.isBlank) '${r.hostPath.trim()}:${r.containerPath.trim()}',
+];
 
 /// Setting row (environment variable).
 class SettingEntry {
@@ -124,9 +120,9 @@ String? validateSettingKey(String raw) {
 }
 
 List<String> buildEnvSpecs(Iterable<SettingEntry> rows) => [
-      for (final r in rows)
-        if (!r.isBlank) '${r.key.trim()}=${r.value}',
-    ];
+  for (final r in rows)
+    if (!r.isBlank) '${r.key.trim()}=${r.value}',
+];
 
 /// App names follow Docker's rules: letters, numbers, `_`, `.`, `-`.
 String? validateAppName(String raw) {

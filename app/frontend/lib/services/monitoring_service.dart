@@ -61,10 +61,7 @@ class MonitoringService extends ChangeNotifier {
     // Send control message over WebSocket if connected
     if (_wsChannel != null && _status == MonitoringStatus.connected) {
       try {
-        _wsChannel!.sink.add(jsonEncode({
-          'action': 'set_rate',
-          'interval_ms': intervalMs,
-        }));
+        _wsChannel!.sink.add(jsonEncode({'action': 'set_rate', 'interval_ms': intervalMs}));
       } catch (e) {
         debugPrint('Failed sending rate control frame: $e');
       }
@@ -101,9 +98,7 @@ class MonitoringService extends ChangeNotifier {
     // Several places start monitoring at almost the same moment (the shell
     // activating the screen, the screen's own initState); only the first
     // may open a socket.
-    if (_backend == backend &&
-        (_status == MonitoringStatus.connected || _status == MonitoringStatus.connecting) &&
-        _wsChannel != null) {
+    if (_backend == backend && (_status == MonitoringStatus.connected || _status == MonitoringStatus.connecting) && _wsChannel != null) {
       return;
     }
     _backend = backend;
@@ -233,10 +228,7 @@ class MonitoringService extends ChangeNotifier {
       if (_status != MonitoringStatus.connected) {
         _status = MonitoringStatus.connected;
         if (_desiredIntervalMs != 2000 && _wsChannel != null) {
-          _wsChannel!.sink.add(jsonEncode({
-            'action': 'set_rate',
-            'interval_ms': _desiredIntervalMs,
-          }));
+          _wsChannel!.sink.add(jsonEncode({'action': 'set_rate', 'interval_ms': _desiredIntervalMs}));
         }
       }
       _error = null;
@@ -253,10 +245,7 @@ class MonitoringService extends ChangeNotifier {
     if (token == null || token.isEmpty) return;
 
     try {
-      final res = await http.get(
-        backend.metricsHttpUri(),
-        headers: {'X-Archangel-Token': token},
-      );
+      final res = await http.get(backend.metricsHttpUri(), headers: {'X-Archangel-Token': token});
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         _metrics = SystemMetrics.fromJson(data);
@@ -280,16 +269,10 @@ class MonitoringService extends ChangeNotifier {
     if (token == null || token.isEmpty) return;
 
     try {
-      final res = await http.get(
-        backend.processesHttpUri(),
-        headers: {'X-Archangel-Token': token},
-      );
+      final res = await http.get(backend.processesHttpUri(), headers: {'X-Archangel-Token': token});
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        final list = (data['processes'] as List<dynamic>?)
-                ?.map((e) => LiveProcessInfo.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [];
+        final list = (data['processes'] as List<dynamic>?)?.map((e) => LiveProcessInfo.fromJson(e as Map<String, dynamic>)).toList() ?? [];
         _processes = list;
         _totalProcesses = (data['total_count'] as num?)?.toInt() ?? list.length;
         notifyListeners();
@@ -314,10 +297,7 @@ class MonitoringService extends ChangeNotifier {
     try {
       final res = await http.post(
         backend.processKillHttpUri(pid),
-        headers: {
-          'X-Archangel-Token': token,
-          'Content-Type': 'application/json',
-        },
+        headers: {'X-Archangel-Token': token, 'Content-Type': 'application/json'},
         body: jsonEncode({'force': force}),
       );
       if (res.statusCode == 200) {
@@ -349,10 +329,7 @@ class MonitoringService extends ChangeNotifier {
     try {
       final res = await http.post(
         backend.processReniceHttpUri(pid),
-        headers: {
-          'X-Archangel-Token': token,
-          'Content-Type': 'application/json',
-        },
+        headers: {'X-Archangel-Token': token, 'Content-Type': 'application/json'},
         body: jsonEncode({'priority': priority}),
       );
       if (res.statusCode == 200) {
@@ -382,13 +359,7 @@ class MonitoringService extends ChangeNotifier {
     }
 
     try {
-      final res = await http.post(
-        backend.systemRebootHttpUri(),
-        headers: {
-          'X-Archangel-Token': token,
-          'Content-Type': 'application/json',
-        },
-      );
+      final res = await http.post(backend.systemRebootHttpUri(), headers: {'X-Archangel-Token': token, 'Content-Type': 'application/json'});
       if (res.statusCode == 200) {
         return const ProcessActionResult(success: true, message: 'Reboot initiated successfully');
       } else if (res.statusCode == 401) {

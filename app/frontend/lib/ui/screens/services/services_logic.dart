@@ -31,8 +31,7 @@ String? validateScriptName(String raw) {
 }
 
 /// True when a refusal means Admin mode has to be switched on first.
-bool isAdminModeRefusal(String? message, int? status) =>
-    status == 403 || (message?.toLowerCase().contains('admin mode') ?? false);
+bool isAdminModeRefusal(String? message, int? status) => status == 403 || (message?.toLowerCase().contains('admin mode') ?? false);
 
 /// The status pill for a row: always icon + words.
 StatusBadge rowBadge(ServicesTab tab, DevRowModel row) {
@@ -58,9 +57,6 @@ StatusBadge rowBadge(ServicesTab tab, DevRowModel row) {
 /// Second line of a row: details from the server, plus its raw status when
 /// something is not fine.
 String rowDetails(DevRowModel row) {
-  final parts = <String>[
-    if (row.meta.isNotEmpty) row.meta,
-    if (!row.ok && row.status.isNotEmpty && row.status != row.meta) row.status,
-  ];
+  final parts = <String>[if (row.meta.isNotEmpty) row.meta, if (!row.ok && row.status.isNotEmpty && row.status != row.meta) row.status];
   return parts.join(' - ');
 }

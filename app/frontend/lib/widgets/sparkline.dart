@@ -15,10 +15,9 @@ class Sparkline extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 700),
       curve: Curves.easeOutCubic,
-      builder: (context, t, _) => CustomPaint(
-        painter: _SparkPainter(values: values, color: color, filled: filled, progress: t),
-        size: Size.infinite,
-      ),
+      builder:
+          (context, t, _) =>
+              CustomPaint(painter: _SparkPainter(values: values, color: color, filled: filled, progress: t), size: Size.infinite),
     );
   }
 }
@@ -36,9 +35,7 @@ class _SparkPainter extends CustomPainter {
     if (values.length < 2) return;
     final n = values.length;
     final dx = size.width / (n - 1);
-    final points = <Offset>[
-      for (var i = 0; i < n; i++) Offset(i * dx, size.height * (1 - values[i].clamp(0, 1))),
-    ];
+    final points = <Offset>[for (var i = 0; i < n; i++) Offset(i * dx, size.height * (1 - values[i].clamp(0, 1)))];
 
     final linePath = Path()..moveTo(points.first.dx, points.first.dy);
     for (final p in points.skip(1)) {
@@ -46,28 +43,31 @@ class _SparkPainter extends CustomPainter {
     }
 
     if (filled) {
-      final areaPath = Path.from(linePath)
-        ..lineTo(points.last.dx, size.height)
-        ..lineTo(points.first.dx, size.height)
-        ..close();
-      final areaPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.0)],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      final areaPath =
+          Path.from(linePath)
+            ..lineTo(points.last.dx, size.height)
+            ..lineTo(points.first.dx, size.height)
+            ..close();
+      final areaPaint =
+          Paint()
+            ..shader = LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.0)],
+            ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
       canvas.save();
       canvas.clipRect(Rect.fromLTWH(0, 0, size.width * progress, size.height));
       canvas.drawPath(areaPath, areaPaint);
       canvas.restore();
     }
 
-    final linePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final linePaint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round;
 
     final metric = linePath.computeMetrics().first;
     final extracted = metric.extractPath(0, metric.length * progress);

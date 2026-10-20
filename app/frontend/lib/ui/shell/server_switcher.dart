@@ -75,28 +75,24 @@ Future<void> showServerSheet(BuildContext context) {
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          sheetContext.ax.space.lg,
-          0,
-          sheetContext.ax.space.lg,
-          sheetContext.ax.space.lg,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Semantics(
-              header: true,
-              child: Text('Your servers', style: sheetContext.ax.typo.title.copyWith(color: sheetContext.ax.colors.text)),
+    builder:
+        (sheetContext) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(sheetContext.ax.space.lg, 0, sheetContext.ax.space.lg, sheetContext.ax.space.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text('Your servers', style: sheetContext.ax.typo.title.copyWith(color: sheetContext.ax.colors.text)),
+                ),
+                SizedBox(height: sheetContext.ax.space.sm),
+                ServerList(onDone: () => Navigator.of(sheetContext).pop()),
+              ],
             ),
-            SizedBox(height: sheetContext.ax.space.sm),
-            ServerList(onDone: () => Navigator.of(sheetContext).pop()),
-          ],
+          ),
         ),
-      ),
-    ),
   );
 }
 
@@ -134,14 +130,7 @@ class ServerSwitcher extends StatelessWidget {
                   Icon(Icons.dns_outlined, size: 20, color: c.accent),
                   if (!compact) ...[
                     SizedBox(width: ax.space.sm),
-                    Flexible(
-                      child: Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ax.typo.label.copyWith(color: c.text),
-                      ),
-                    ),
+                    Flexible(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.label.copyWith(color: c.text))),
                     Icon(Icons.unfold_more, size: 18, color: c.textMuted),
                   ],
                 ],

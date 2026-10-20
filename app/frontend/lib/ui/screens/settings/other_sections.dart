@@ -51,7 +51,8 @@ class SecuritySection extends StatelessWidget {
     final ok = await showConfirmDialog(
       context,
       title: 'Forget the saved SSH key?',
-      message: 'The key is deleted from this device. The next time you update or repair your server you will have to enter it again. Your server is not changed.',
+      message:
+          'The key is deleted from this device. The next time you update or repair your server you will have to enter it again. Your server is not changed.',
       confirmLabel: 'Forget key',
       danger: true,
     );
@@ -68,7 +69,8 @@ class SecuritySection extends StatelessWidget {
       explanation: 'An SSH key lets this app manage your server (updates, repairs). It can be saved here, locked by a passphrase.',
       help: const HelpTip(
         title: 'Saved SSH key',
-        message: 'An SSH key is like a long password stored in a file. If you save it here it is encrypted with a passphrase you choose, '
+        message:
+            'An SSH key is like a long password stored in a file. If you save it here it is encrypted with a passphrase you choose, '
             'so you only type the passphrase instead of pasting the key each time. The passphrase cannot be recovered if you forget it - '
             'you would just save the key again.',
       ),
@@ -213,11 +215,7 @@ class DangerZoneSection extends StatelessWidget {
           SizedBox(height: ax.space.sm),
           Align(
             alignment: Alignment.centerLeft,
-            child: AxButton.danger(
-              label: 'Unpair',
-              icon: Icons.link_off,
-              onPressed: backend.isPaired ? () => _unpair(context) : null,
-            ),
+            child: AxButton.danger(label: 'Unpair', icon: Icons.link_off, onPressed: backend.isPaired ? () => _unpair(context) : null),
           ),
           SizedBox(height: ax.space.lg),
           Text('Uninstall from server', style: ax.typo.label.copyWith(color: c.text)),
@@ -248,7 +246,8 @@ class DangerZoneSection extends StatelessWidget {
     final ok = await showConfirmDialog(
       context,
       title: name == null ? 'Unpair from this server?' : 'Unpair from "$name"?',
-      message: 'This app will forget the server address and its key, so you will need to pair again to use the terminal, files, apps and activity. '
+      message:
+          'This app will forget the server address and its key, so you will need to pair again to use the terminal, files, apps and activity. '
           'The server itself is not changed, and this device stays in its list of paired devices until you revoke it.',
       confirmLabel: 'Unpair',
       danger: true,

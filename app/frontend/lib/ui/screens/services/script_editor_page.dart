@@ -18,10 +18,12 @@ class ScriptEditorPage extends StatefulWidget {
 
   /// Returns true when something was saved.
   static Future<bool> open(BuildContext context, DevopsService service, {String? scriptName, String? initialContent}) async {
-    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => ScriptEditorPage(service: service, scriptName: scriptName, initialContent: initialContent),
-    ));
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => ScriptEditorPage(service: service, scriptName: scriptName, initialContent: initialContent),
+      ),
+    );
     return saved ?? false;
   }
 
@@ -50,8 +52,8 @@ class _ScriptEditorPageState extends State<ScriptEditorPage> {
   }
 
   void _changed() => setState(() {
-        _saveError = null;
-      });
+    _saveError = null;
+  });
 
   @override
   void dispose() {
@@ -113,18 +115,16 @@ class _ScriptEditorPageState extends State<ScriptEditorPage> {
           foregroundColor: c.text,
           elevation: 0,
           scrolledUnderElevation: 0,
-          leading: AxIconButton(
-            icon: Icons.arrow_back_rounded,
-            tooltip: 'Back',
-            onPressed: () => Navigator.of(context).maybePop(),
+          leading: AxIconButton(icon: Icons.arrow_back_rounded, tooltip: 'Back', onPressed: () => Navigator.of(context).maybePop()),
+          title: Text(
+            _isNew ? 'New script' : (widget.scriptName ?? ''),
+            style: ax.typo.title.copyWith(color: c.text),
+            overflow: TextOverflow.ellipsis,
           ),
-          title: Text(_isNew ? 'New script' : (widget.scriptName ?? ''), style: ax.typo.title.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
           actions: [
             Padding(
               padding: EdgeInsets.only(right: ax.space.md),
-              child: Center(
-                child: AxButton(label: 'Save', icon: Icons.save_outlined, loading: _saving, onPressed: canSave ? _save : null),
-              ),
+              child: Center(child: AxButton(label: 'Save', icon: Icons.save_outlined, loading: _saving, onPressed: canSave ? _save : null)),
             ),
           ],
         ),
@@ -152,10 +152,7 @@ class _ScriptEditorPageState extends State<ScriptEditorPage> {
                   ),
                   SizedBox(height: ax.space.md),
                 ],
-                Text(
-                  'This script runs on your server as the archangel user.',
-                  style: ax.typo.caption.copyWith(color: c.textMuted),
-                ),
+                Text('This script runs on your server as the archangel user.', style: ax.typo.caption.copyWith(color: c.textMuted)),
                 if (_saveError != null) ...[
                   SizedBox(height: ax.space.sm),
                   Semantics(
@@ -190,10 +187,7 @@ class _ScriptEditorPageState extends State<ScriptEditorPage> {
                     autocorrect: false,
                     enableSuggestions: false,
                     style: ax.typo.mono.copyWith(color: c.text),
-                    decoration: const InputDecoration(
-                      labelText: 'Script',
-                      alignLabelWithHint: true,
-                    ),
+                    decoration: const InputDecoration(labelText: 'Script', alignLabelWithHint: true),
                   ),
                 ),
               ],

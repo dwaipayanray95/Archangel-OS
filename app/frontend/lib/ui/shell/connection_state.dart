@@ -45,9 +45,7 @@ ConnectionPhase deriveConnectionPhase({
     case TunnelStatus.disconnecting:
       return ConnectionPhase.starting;
     case TunnelStatus.connected:
-      return healthFailures >= kHealthFailuresBeforeNotResponding
-          ? ConnectionPhase.serverNotResponding
-          : ConnectionPhase.reaching;
+      return healthFailures >= kHealthFailuresBeforeNotResponding ? ConnectionPhase.serverNotResponding : ConnectionPhase.reaching;
     case TunnelStatus.disconnected:
     case TunnelStatus.error:
     case TunnelStatus.unsupported:
@@ -58,15 +56,22 @@ ConnectionPhase deriveConnectionPhase({
 
 /// The words shown for [phase]; [serverName] is used by `connected`.
 String connectionText(ConnectionPhase phase, {String? serverName}) => switch (phase) {
-      ConnectionPhase.notPaired => 'No server yet',
-      ConnectionPhase.starting => 'Starting secure connection…',
-      ConnectionPhase.reaching => 'Secure connection up — reaching your server…',
-      ConnectionPhase.connected =>
-        serverName == null || serverName.trim().isEmpty ? 'Connected' : 'Connected to ${serverName.trim()}',
-      ConnectionPhase.serverNotResponding => "Secure connection is up but your server isn't answering",
-      ConnectionPhase.offline => 'Not connected',
-    };
+  ConnectionPhase.notPaired => 'No server yet',
+  ConnectionPhase.starting => 'Starting…',
+  ConnectionPhase.reaching => 'Reaching your server…',
+  ConnectionPhase.connected => serverName == null || serverName.trim().isEmpty ? 'Connected' : 'Connected to ${serverName.trim()}',
+  ConnectionPhase.serverNotResponding => "Your server isn't answering",
+  ConnectionPhase.offline => 'Not connected',
+};
+
+/// How far along Starting -> Reaching -> Connected the app is (1-3), for
+/// the three-step indicator in the connection strip. 0 when not paired.
+int connectionStage(ConnectionPhase phase) => switch (phase) {
+  ConnectionPhase.notPaired => 0,
+  ConnectionPhase.starting || ConnectionPhase.offline => 1,
+  ConnectionPhase.reaching || ConnectionPhase.serverNotResponding => 2,
+  ConnectionPhase.connected => 3,
+};
 
 /// True for phases that are still changing (shown with a spinner).
-bool connectionIsTransitional(ConnectionPhase phase) =>
-    phase == ConnectionPhase.starting || phase == ConnectionPhase.reaching;
+bool connectionIsTransitional(ConnectionPhase phase) => phase == ConnectionPhase.starting || phase == ConnectionPhase.reaching;

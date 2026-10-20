@@ -60,8 +60,7 @@ class FilesService extends ChangeNotifier {
   // a separately-tracked/stale list) so it can never point outside
   // files_root: it's built from entries the server itself just
   // returned for a path that was actually allowed.
-  List<FileEntryModel> get quickJumpDirs =>
-      (_listing?.entries ?? const []).where((e) => e.isDir).take(8).toList();
+  List<FileEntryModel> get quickJumpDirs => (_listing?.entries ?? const []).where((e) => e.isDir).take(8).toList();
 
   bool _showHidden = false;
   bool get showHidden => _showHidden;
@@ -158,10 +157,7 @@ class FilesService extends ChangeNotifier {
     }
 
     try {
-      final res = await http.get(
-        backend.filesListHttpUri(path),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.get(backend.filesListHttpUri(path), headers: {'X-Archangel-Token': backend.token!});
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -213,10 +209,7 @@ class FilesService extends ChangeNotifier {
     }
 
     try {
-      final res = await http.get(
-        backend.filesReadHttpUri(path, lines: 400),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.get(backend.filesReadHttpUri(path, lines: 400), headers: {'X-Archangel-Token': backend.token!});
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -264,10 +257,7 @@ class FilesService extends ChangeNotifier {
       return null;
     }
     try {
-      final res = await http.get(
-        backend.filesDownloadHttpUri(path),
-        headers: {'X-Archangel-Token': backend.token!},
-      );
+      final res = await http.get(backend.filesDownloadHttpUri(path), headers: {'X-Archangel-Token': backend.token!});
       if (res.statusCode == 200) {
         return res.bodyBytes;
       }

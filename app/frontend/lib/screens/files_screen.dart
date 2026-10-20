@@ -22,11 +22,7 @@ class _FilesScreenState extends State<FilesScreen> {
   final _crumbScroll = ScrollController();
   String? _lastCrumbPath;
 
-  static const _jumps = <(String, String)>[
-    ('/etc', '/etc'),
-    ('/var/log', '/var/log'),
-    ('/srv', '/srv'),
-  ];
+  static const _jumps = <(String, String)>[('/etc', '/etc'), ('/var/log', '/var/log'), ('/srv', '/srv')];
 
   @override
   void initState() {
@@ -101,11 +97,7 @@ class _FilesScreenState extends State<FilesScreen> {
             children: [
               for (var i = 0; i < crumbs.length; i++) ...[
                 if (i > 0) Icon(Icons.chevron_right_rounded, size: 18, color: c.textSubtle),
-                _CrumbButton(
-                  crumb: crumbs[i],
-                  last: i == crumbs.length - 1,
-                  onTap: () => files.loadDirectory(crumbs[i].path),
-                ),
+                _CrumbButton(crumb: crumbs[i], last: i == crumbs.length - 1, onTap: () => files.loadDirectory(crumbs[i].path)),
               ],
             ],
           ),
@@ -134,11 +126,7 @@ class _FilesScreenState extends State<FilesScreen> {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 320, minWidth: 200),
               child: TextField(
-                decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Filter this folder',
-                  prefixIcon: Icon(Icons.search_rounded),
-                ),
+                decoration: const InputDecoration(isDense: true, labelText: 'Filter this folder', prefixIcon: Icon(Icons.search_rounded)),
                 onChanged: (v) => setState(() => _filter = v),
               ),
             ),
@@ -180,7 +168,8 @@ class _FilesScreenState extends State<FilesScreen> {
         message: outside ? outsideRootHint(files.rootPath) : files.error!,
         onRetry: files.retry,
         helpTitle: 'Why can’t I see this?',
-        helpText: 'For safety, Archangel only shows files inside one folder on your server. '
+        helpText:
+            'For safety, Archangel only shows files inside one folder on your server. '
             'Use Home or the folder path above to get back to files it can show. '
             'For anything else, open a terminal.',
       );
@@ -197,9 +186,10 @@ class _FilesScreenState extends State<FilesScreen> {
 
     return AxPage(
       title: 'Files',
-      subtitle: listing == null || files.error != null
-          ? null
-          : '${entries.length} ${entries.length == 1 ? 'item' : 'items'} in ${listing.path.isEmpty ? '/' : listing.path}',
+      subtitle:
+          listing == null || files.error != null
+              ? null
+              : '${entries.length} ${entries.length == 1 ? 'item' : 'items'} in ${listing.path.isEmpty ? '/' : listing.path}',
       scrollable: false,
       actions: wide ? actions : const [],
       child: CustomScrollView(
@@ -210,9 +200,11 @@ class _FilesScreenState extends State<FilesScreen> {
           else
             SliverList.builder(
               itemCount: entries.length,
-              itemBuilder: (context, i) => wide
-                  ? _TableRow(entry: entries[i], onOpen: () => _open(files, entries[i]))
-                  : _PhoneRow(entry: entries[i], onOpen: () => _open(files, entries[i])),
+              itemBuilder:
+                  (context, i) =>
+                      wide
+                          ? _TableRow(entry: entries[i], onOpen: () => _open(files, entries[i]))
+                          : _PhoneRow(entry: entries[i], onOpen: () => _open(files, entries[i])),
             ),
         ],
       ),
@@ -241,12 +233,7 @@ class _CrumbButton extends StatelessWidget {
           constraints: BoxConstraints(minHeight: axMinTarget(context), minWidth: axMinTarget(context)),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: ax.space.sm),
-            child: Center(
-              child: Text(
-                crumb.label,
-                style: ax.typo.label.copyWith(color: last ? c.text : c.accent),
-              ),
-            ),
+            child: Center(child: Text(crumb.label, style: ax.typo.label.copyWith(color: last ? c.text : c.accent))),
           ),
         ),
       ),
@@ -289,19 +276,20 @@ class _PhoneRow extends StatelessWidget {
       leading: Icon(fileIconFor(entry), color: entry.isDir ? c.accent : c.textMuted),
       title: entry.name,
       subtitle: entrySubtitle(entry),
-      trailing: entry.isDir
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AxIconButton(
-                  icon: Icons.terminal_rounded,
-                  tooltip: 'Open terminal in ${entry.name}',
-                  onPressed: () => context.read<AppState>().openTerminalInDir(entry.path),
-                ),
-                Icon(Icons.chevron_right_rounded, color: c.textSubtle),
-              ],
-            )
-          : null,
+      trailing:
+          entry.isDir
+              ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AxIconButton(
+                    icon: Icons.terminal_rounded,
+                    tooltip: 'Open terminal in ${entry.name}',
+                    onPressed: () => context.read<AppState>().openTerminalInDir(entry.path),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: c.textSubtle),
+                ],
+              )
+              : null,
       onTap: onOpen,
     );
   }
@@ -355,27 +343,25 @@ class _TableRow extends StatelessWidget {
             Icon(fileIconFor(entry), size: 20, color: entry.isDir ? c.accent : c.textMuted),
             SizedBox(width: ax.space.md),
             Expanded(child: Text(entry.name, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis)),
-            SizedBox(
-              width: _sizeW,
-              child: Text(entry.isDir ? '—' : entry.size, style: ax.typo.body.copyWith(color: c.textMuted)),
-            ),
+            SizedBox(width: _sizeW, child: Text(entry.isDir ? '—' : entry.size, style: ax.typo.body.copyWith(color: c.textMuted))),
             SizedBox(
               width: _modW,
               child: Text(entry.mtime, style: ax.typo.body.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
             ),
             SizedBox(
               width: _actW,
-              child: entry.isDir
-                  ? AxIconButton(
-                      icon: Icons.terminal_rounded,
-                      tooltip: 'Open terminal in ${entry.name}',
-                      onPressed: () => context.read<AppState>().openTerminalInDir(entry.path),
-                    )
-                  : AxIconButton(
-                      icon: Icons.download_rounded,
-                      tooltip: 'Download ${entry.name}',
-                      onPressed: () => _download(context, entry),
-                    ),
+              child:
+                  entry.isDir
+                      ? AxIconButton(
+                        icon: Icons.terminal_rounded,
+                        tooltip: 'Open terminal in ${entry.name}',
+                        onPressed: () => context.read<AppState>().openTerminalInDir(entry.path),
+                      )
+                      : AxIconButton(
+                        icon: Icons.download_rounded,
+                        tooltip: 'Download ${entry.name}',
+                        onPressed: () => _download(context, entry),
+                      ),
             ),
           ],
         ),
@@ -386,8 +372,6 @@ class _TableRow extends StatelessWidget {
   Future<void> _download(BuildContext context, FileEntryModel e) async {
     final messenger = ScaffoldMessenger.of(context);
     final res = await context.read<FilesService>().downloadToDisk(e.path);
-    messenger.showSnackBar(SnackBar(
-      content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed')),
-    ));
+    messenger.showSnackBar(SnackBar(content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed'))));
   }
 }

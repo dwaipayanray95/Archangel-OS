@@ -13,12 +13,8 @@ import 'known_hosts.dart';
 /// last trusted it" - callers should render the latter as a much
 /// stronger warning, since it's the one that actually indicates a
 /// possible attacker rather than routine first use.
-typedef HostKeyPrompt = Future<bool> Function({
-  required String host,
-  required String keyType,
-  required String fingerprint,
-  required bool isMismatch,
-});
+typedef HostKeyPrompt =
+    Future<bool> Function({required String host, required String keyType, required String fingerprint, required bool isMismatch});
 
 /// The trust-on-first-use decision itself, factored out of
 /// [Dartssh2Transport.connect]'s `SSHClient` wiring so it can be unit-
@@ -35,12 +31,7 @@ Future<bool> resolveHostKeyTrust({
   final trusted = await knownHosts.get(host);
   if (trusted == fingerprint) return true;
 
-  final accepted = await onUnknownHostKey(
-    host: host,
-    keyType: keyType,
-    fingerprint: fingerprint,
-    isMismatch: trusted != null,
-  );
+  final accepted = await onUnknownHostKey(host: host, keyType: keyType, fingerprint: fingerprint, isMismatch: trusted != null);
   if (accepted) {
     await knownHosts.trust(host, fingerprint);
   }
@@ -103,13 +94,14 @@ class Dartssh2Transport implements SshTransport {
       socket,
       username: username,
       identities: SSHKeyPair.fromPem(privateKeyPem, passphrase),
-      onVerifyHostKey: (type, fingerprintBytes) => resolveHostKeyTrust(
-        knownHosts: knownHosts,
-        host: host,
-        keyType: type,
-        fingerprint: utf8.decode(fingerprintBytes),
-        onUnknownHostKey: onUnknownHostKey,
-      ),
+      onVerifyHostKey:
+          (type, fingerprintBytes) => resolveHostKeyTrust(
+            knownHosts: knownHosts,
+            host: host,
+            keyType: type,
+            fingerprint: utf8.decode(fingerprintBytes),
+            onUnknownHostKey: onUnknownHostKey,
+          ),
     );
     await client.authenticated;
     return Dartssh2Transport._(client);
@@ -129,10 +121,7 @@ class Dartssh2Transport implements SshTransport {
   @override
   Future<void> uploadFile(String remotePath, Uint8List content, {String? chmod}) async {
     final sftp = await _client.sftp();
-    final file = await sftp.open(
-      remotePath,
-      mode: SftpFileOpenMode.create | SftpFileOpenMode.write | SftpFileOpenMode.truncate,
-    );
+    final file = await sftp.open(remotePath, mode: SftpFileOpenMode.create | SftpFileOpenMode.write | SftpFileOpenMode.truncate);
     await file.writeBytes(content);
     await file.close();
     if (chmod != null) {
