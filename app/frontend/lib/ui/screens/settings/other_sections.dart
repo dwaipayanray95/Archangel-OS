@@ -13,6 +13,8 @@ import '../../../services/wireguard_controller.dart';
 import '../../../widgets/manage_ssh_key_dialog.dart';
 import '../../../widgets/passphrase_prompt_dialog.dart';
 import '../../../widgets/uninstall_dialog.dart';
+import '../../shell/archangel_shell.dart' show kDesktopModeMinWidth;
+import '../../shell/desktop_customize.dart';
 import '../../ui.dart';
 import 'settings_parts.dart';
 
@@ -99,10 +101,37 @@ class AppearanceSection extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return SettingsSection(
       title: 'Appearance',
-      explanation: 'Choose light or dark, and the highlight colour. Saved on this device.',
+      explanation: 'Choose how the app looks and is laid out. Saved on this device.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Phones always use the bottom bar, so the layout choice only
+          // shows where Desktop mode is possible.
+          if (MediaQuery.sizeOf(context).width >= kDesktopModeMinWidth) ...[
+            Text('Layout', style: ax.typo.label.copyWith(color: c.text)),
+            SizedBox(height: ax.space.sm),
+            SegmentedButton<AxLayout>(
+              key: const ValueKey('layout-choice'),
+              segments: const [
+                ButtonSegment(value: AxLayout.desktop, label: Text('Desktop'), icon: Icon(Icons.desktop_windows_outlined)),
+                ButtonSegment(value: AxLayout.simple, label: Text('Simple'), icon: Icon(Icons.view_sidebar_outlined)),
+              ],
+              selected: {app.layout},
+              onSelectionChanged: (s) => app.layout = s.first,
+            ),
+            SizedBox(height: ax.space.xs),
+            Text(
+              app.layout == AxLayout.desktop
+                  ? 'Windows, a dock and a wallpaper, like a computer.'
+                  : 'One screen at a time, with a sidebar.',
+              style: ax.typo.caption.copyWith(color: c.textMuted),
+            ),
+            if (app.layout == AxLayout.desktop) ...[
+              SizedBox(height: ax.space.sm),
+              AxButton.secondary(label: 'Customize the desktop', icon: Icons.tune_rounded, onPressed: () => showDesktopCustomize(context)),
+            ],
+            SizedBox(height: ax.space.lg),
+          ],
           Text('Theme', style: ax.typo.label.copyWith(color: c.text)),
           SizedBox(height: ax.space.sm),
           SegmentedButton<ThemeMode>(

@@ -18,6 +18,7 @@ import '../components/ax_icon_button.dart';
 import '../components/ax_wordmark.dart';
 import '../theme.dart';
 import 'desktop_mode.dart';
+import 'desktop_prefs.dart';
 import 'destinations.dart';
 import 'more_page.dart';
 import 'server_switcher.dart';
@@ -136,19 +137,22 @@ class _ArchangelShellState extends State<ArchangelShell> {
 
   /// Applies visibility-driven polling for the sections on screen (one in
   /// the Simple layout, every open window in Desktop mode).
-  void _syncPolling(Set<AxSection> visible) {
+  ///
+  /// [widget]: Desktop mode's health widget is showing, so monitoring keeps
+  /// running (at Home's calm rate) even with no window open.
+  void _syncPolling(Set<AxSection> visible, {bool widget = false}) {
     final names = visible.map((s) => s.name).toList()..sort();
-    final key = '${names.join(',')}/$_generation';
+    final key = '${names.join(',')}/$widget/$_generation';
     if (key == _lastPollKey) return;
     _lastPollKey = key;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final mon = context.read<MonitoringService>();
-      mon.setActive(visible.any(sectionUsesMonitoring));
-      // Activity shows live charts; Home only needs a summary.
+      mon.setActive(widget || visible.any(sectionUsesMonitoring));
+      // Activity shows live charts; Home and the widget only need a summary.
       if (visible.contains(AxSection.activity)) {
         mon.setPollingRateMs(1000);
-      } else if (visible.contains(AxSection.home)) {
+      } else if (widget || visible.contains(AxSection.home)) {
         mon.setPollingRateMs(5000);
       }
       context.read<ContainersService>().setActive(visible.any(sectionUsesContainers));
@@ -164,6 +168,7 @@ class _ArchangelShellState extends State<ArchangelShell> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final prefs = context.watch<DesktopPrefs>();
 
     final sectionChanged = app.section != _lastSection;
     if (sectionChanged) {
@@ -181,8 +186,9 @@ class _ArchangelShellState extends State<ArchangelShell> {
 
         Set<AxSection> visible;
         if (desktop) {
-          _desk.fitTo(Size(constraints.maxWidth, constraints.maxHeight - kDeskTopBarHeight - kDeskDockReserve));
-          _desk.ensureDefaults();
+          final r = prefs.reserve;
+          _desk.fitTo(Size(constraints.maxWidth - r.horizontal, constraints.maxHeight - kDeskTopBarHeight - r.vertical));
+          _desk.ensureDefaults(rightInset: prefs.showWidget ? kDeskWidgetWidth + 24 : 0);
           // Navigating from inside a screen (e.g. Home's quick actions)
           // opens or raises that window.
           if (sectionChanged && app.section != _desk.front) {
@@ -196,7 +202,7 @@ class _ArchangelShellState extends State<ArchangelShell> {
           visible = moreVisible ? <AxSection>{} : {app.section};
         }
         _visited.addAll(visible);
-        _syncPolling(visible);
+        _syncPolling(visible, widget: desktop && prefs.showWidget);
 
         final canExit = app.section == AxSection.home && !moreVisible && !app.paletteOpen && !app.notifOpen;
 

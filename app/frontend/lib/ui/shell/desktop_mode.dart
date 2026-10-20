@@ -5,10 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/app_state.dart';
+import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
+import '../screens/home/home_logic.dart';
 import '../components/ax_glass.dart';
+import '../components/status_badge.dart';
 import '../components/ax_wordmark.dart';
 import '../theme.dart';
+import 'desktop_customize.dart';
+import 'desktop_prefs.dart';
 import 'destinations.dart';
 import 'server_switcher.dart';
 import 'status_strip.dart';
@@ -16,8 +21,14 @@ import 'status_strip.dart';
 /// Height of Desktop mode's top bar.
 const double kDeskTopBarHeight = 48;
 
-/// Space kept free at the bottom for the dock.
-const double kDeskDockReserve = 92;
+/// Width of the health widget in the desktop's top-right corner.
+const double kDeskWidgetWidth = 248;
+
+/// How close to an edge a dragged title bar must come to snap.
+const double kDeskSnapEdge = 24;
+
+/// Where a dragged window will land when let go.
+enum DeskSnap { none, left, right, maximize }
 
 /// Smallest a window may be resized to.
 const Size kDeskMinWindow = Size(340, 260);
@@ -32,6 +43,10 @@ class DeskWindow {
   bool minimized = false;
   Rect? restoreRect;
 
+  /// How the window is snapped while [restoreRect] is set.
+  DeskSnap snapped = DeskSnap.none;
+
+  /// Maximized or snapped to half the screen ("Restore" brings it back).
   bool get maximized => restoreRect != null;
 }
 
@@ -44,6 +59,7 @@ class DesktopWindows extends ChangeNotifier {
   int _z = 0;
   bool _launcherOpen = false;
   bool _seeded = false;
+  DeskSnap _snap = DeskSnap.none;
 
   /// The usable area for windows (below the top bar, above the dock).
   Size area = const Size(1200, 700);
@@ -54,6 +70,33 @@ class DesktopWindows extends ChangeNotifier {
   List<DeskWindow> get stacked => [..._windows]..sort((a, b) => a.z.compareTo(b.z));
 
   bool get launcherOpen => _launcherOpen;
+
+  /// The snap a window drag would make right now.
+  DeskSnap get snap => _snap;
+
+  /// The outline shown while dragging toward an edge, or null.
+  Rect? get snapPreview => snapRect(_snap);
+
+  /// The rectangle a window takes when snapped to [snap].
+  Rect? snapRect(DeskSnap snap) {
+    const g = 8.0;
+    final half = (area.width - g * 3) / 2;
+    return switch (snap) {
+      DeskSnap.none => null,
+      DeskSnap.left => Rect.fromLTWH(g, g, half, area.height - g * 2),
+      DeskSnap.right => Rect.fromLTWH(g * 2 + half, g, half, area.height - g * 2),
+      DeskSnap.maximize => Rect.fromLTWH(g, g, area.width - g * 2, area.height - g * 2),
+    };
+  }
+
+  /// Which snap a pointer at [p] (in window-area coordinates) asks for.
+  DeskSnap snapAt(Offset p) {
+    if (p.dy <= 4) return DeskSnap.maximize;
+    if (p.dx <= kDeskSnapEdge) return DeskSnap.left;
+    if (p.dx >= area.width - kDeskSnapEdge) return DeskSnap.right;
+    return DeskSnap.none;
+  }
+
   bool get isEmpty => _windows.isEmpty;
 
   DeskWindow? windowFor(AxSection s) {
@@ -84,11 +127,13 @@ class DesktopWindows extends ChangeNotifier {
   /// The first layout: Home on the left, Terminal and Files cascaded.
   /// Runs once per session (closing every window later leaves the desk
   /// empty). Doesn't notify: it is called while building.
-  void ensureDefaults() {
+  ///
+  /// [rightInset] keeps the windows clear of the health widget.
+  void ensureDefaults({double rightInset = 0}) {
     if (_seeded) return;
     _seeded = true;
     if (_windows.isNotEmpty) return;
-    final a = area;
+    final a = Size(math.max(kDeskMinWindow.width * 2 + 64, area.width - rightInset), area.height);
     final homeW = math.min(440.0, a.width * 0.36);
     _add(AxSection.home, Rect.fromLTWH(24, 16, homeW, math.max(kDeskMinWindow.height, a.height - 32)));
     final right = 24 + homeW + 20;
@@ -155,17 +200,60 @@ class DesktopWindows extends ChangeNotifier {
       w.restoreRect = null;
     } else {
       w.restoreRect = w.rect;
-      w.rect = Rect.fromLTWH(8, 8, area.width - 16, area.height - 16);
+      w.snapped = DeskSnap.maximize;
+      w.rect = snapRect(DeskSnap.maximize)!;
     }
     w.z = ++_z;
     notifyListeners();
   }
 
-  void move(AxSection s, Offset delta) {
+  /// Moves [s] by [delta]. [pointer] (window-area coordinates) drives
+  /// edge snapping: near the left/right edge or the top, a preview shows
+  /// where the window will land on [endMove].
+  void move(AxSection s, Offset delta, {Offset? pointer}) {
     final w = windowFor(s);
     if (w == null) return;
-    w.restoreRect = null;
+    if (w.maximized) {
+      // Dragging a maximized or snapped window restores its size under the pointer.
+      final restore = w.restoreRect!;
+      w.restoreRect = null;
+      final x = pointer == null ? w.rect.left : pointer.dx - restore.width / 2;
+      w.rect = _clamp(Rect.fromLTWH(x, w.rect.top, restore.width, restore.height));
+    }
     w.rect = _clamp(w.rect.shift(delta));
+    _snap = pointer == null ? DeskSnap.none : snapAt(pointer);
+    notifyListeners();
+  }
+
+  /// Ends a title-bar drag, snapping [s] if it was let go at an edge.
+  void endMove(AxSection s) {
+    final w = windowFor(s);
+    final target = snapRect(_snap);
+    if (w != null && target != null) {
+      w.restoreRect = w.rect;
+      w.snapped = _snap;
+      w.rect = target;
+    }
+    _snap = DeskSnap.none;
+    notifyListeners();
+  }
+
+  /// "Tidy up windows": lays the windows on screen out in a neat grid.
+  void tidy() {
+    final shown = stacked.where((w) => !w.minimized).toList()..sort((a, b) => a.section.index.compareTo(b.section.index));
+    if (shown.isEmpty) return;
+    const g = 12.0;
+    final cols = shown.length <= 3 ? shown.length : (shown.length / 2).ceil();
+    final rows = (shown.length / cols).ceil();
+    final cw = (area.width - g * (cols + 1)) / cols;
+    final rh = (area.height - g * (rows + 1)) / rows;
+    for (var i = 0; i < shown.length; i++) {
+      final c = i % cols;
+      final r = i ~/ cols;
+      shown[i]
+        ..restoreRect = null
+        ..rect = _clamp(Rect.fromLTWH(g + c * (cw + g), g + r * (rh + g), cw, rh));
+    }
     notifyListeners();
   }
 
@@ -189,7 +277,7 @@ class DesktopWindows extends ChangeNotifier {
     area = newArea;
     for (final w in _windows) {
       if (w.maximized) {
-        w.rect = Rect.fromLTWH(8, 8, area.width - 16, area.height - 16);
+        w.rect = snapRect(w.snapped) ?? _clamp(w.rect);
       } else {
         w.rect = _clamp(w.rect);
       }
@@ -212,8 +300,8 @@ class DesktopWindows extends ChangeNotifier {
 }
 
 /// Desktop mode: a wallpaper, a top bar, freely arranged windows hosting
-/// the destinations, a dock and a launcher. Inspired by desktop operating
-/// systems; available on tablets, phones held sideways and computers.
+/// the destinations, a dock and a launcher, all arranged the way the person
+/// likes ([DesktopPrefs]). The main experience on tablets and computers.
 class DesktopModeView extends StatelessWidget {
   const DesktopModeView({
     super.key,
@@ -232,24 +320,92 @@ class DesktopModeView extends StatelessWidget {
   final void Function(AxSection) onFocus;
   final VoidCallback onSimpleLayout;
 
+  void _open(AxSection s) {
+    windows.open(s);
+    onFocus(s);
+  }
+
+  Future<void> _desktopMenu(BuildContext context, Offset at) async {
+    final prefs = context.read<DesktopPrefs>();
+    final choice = await showDeskMenu(context, at, [
+      const DeskMenuItem('wallpaper', 'Change wallpaper…', Icons.wallpaper_outlined),
+      const DeskMenuItem('dock', 'Customize dock…', Icons.dock_outlined),
+      DeskMenuItem(
+        'widget',
+        prefs.showWidget ? 'Hide health widget' : 'Show health widget',
+        prefs.showWidget ? Icons.visibility_off_outlined : Icons.monitor_heart_outlined,
+      ),
+      const DeskMenuItem('tidy', 'Tidy up windows', Icons.grid_view_outlined),
+      const DeskMenuItem('apps', 'All apps', Icons.apps_rounded),
+    ]);
+    if (!context.mounted) return;
+    switch (choice) {
+      case 'wallpaper' || 'dock':
+        await showDesktopCustomize(context);
+      case 'widget':
+        prefs.showWidget = !prefs.showWidget;
+      case 'tidy':
+        windows.tidy();
+      case 'apps':
+        windows.toggleLauncher(true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final prefs = context.watch<DesktopPrefs>();
+    final reserve = prefs.reserve;
+    final ax = context.ax;
     return Column(
       children: [
-        _TopBar(onSimpleLayout: onSimpleLayout, onLauncher: () => windows.toggleLauncher()),
+        _TopBar(onSimpleLayout: onSimpleLayout, onCustomize: () => showDesktopCustomize(context)),
         Expanded(
           child: Stack(
             children: [
+              Positioned.fill(child: DeskWallpaperView(wallpaper: prefs.wallpaper)),
+              // The bare desktop: right-click (or long-press) for its menu.
               Positioned.fill(
-                bottom: kDeskDockReserve,
+                child: GestureDetector(
+                  key: const ValueKey('desk-surface'),
+                  behavior: HitTestBehavior.opaque,
+                  onSecondaryTapUp: (d) => _desktopMenu(context, d.globalPosition),
+                  onLongPressStart: (d) => _desktopMenu(context, d.globalPosition),
+                ),
+              ),
+              if (prefs.showWidget)
+                Positioned(
+                  top: ax.space.md,
+                  right: reserve.right + ax.space.md,
+                  width: kDeskWidgetWidth,
+                  child: _HealthWidget(onOpen: () => _open(AxSection.activity), onHide: () => prefs.showWidget = false),
+                ),
+              Positioned.fill(
+                left: reserve.left,
+                right: reserve.right,
+                bottom: reserve.bottom,
                 child: LayoutBuilder(
                   builder: (context, box) {
                     windows.fitTo(box.biggest);
                     final front = windows.front;
+                    final ghost = windows.snapPreview;
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        if (windows.visible.isEmpty) const _EmptyDesk(),
+                        if (windows.visible.isEmpty) const IgnorePointer(child: _EmptyDesk()),
+                        if (ghost != null)
+                          Positioned.fromRect(
+                            key: const ValueKey('snap-preview'),
+                            rect: ghost,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: ax.colors.accent.withValues(alpha: 0.12),
+                                  border: Border.all(color: ax.colors.accent.withValues(alpha: 0.6), width: 1.5),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
                         for (final w in windows.stacked)
                           w.minimized
                               // Minimized windows stay mounted (offstage) so a
@@ -277,36 +433,200 @@ class DesktopModeView extends StatelessWidget {
                   },
                 ),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 14,
-                child: Center(
-                  child: _Dock(
-                    windows: windows,
-                    onOpen: (s) {
-                      windows.open(s);
-                      onFocus(s);
-                    },
-                  ),
-                ),
-              ),
-              if (windows.launcherOpen)
-                Positioned.fill(
-                  child: _Launcher(
-                    onClose: () => windows.toggleLauncher(false),
-                    onOpen: (s) {
-                      windows.open(s);
-                      onFocus(s);
-                    },
-                  ),
-                ),
+              Positioned.fill(child: _DockHost(prefs: prefs, windows: windows, onOpen: _open)),
+              if (windows.launcherOpen) Positioned.fill(child: _Launcher(onClose: () => windows.toggleLauncher(false), onOpen: _open)),
             ],
           ),
         ),
       ],
     );
   }
+}
+
+/// Paints a [DeskWallpaper]. [DeskWallpaper.halo] is transparent: the
+/// theme's own backdrop shows through.
+class DeskWallpaperView extends StatelessWidget {
+  const DeskWallpaperView({super.key, required this.wallpaper});
+  final DeskWallpaper wallpaper;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = wallpaper.base;
+    if (base == null) return const SizedBox.expand();
+    final second = wallpaper.secondGlow;
+    return IgnorePointer(
+      child: DecoratedBox(
+        key: ValueKey('wallpaper-${wallpaper.name}'),
+        decoration: BoxDecoration(color: base),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (second != null) DecoratedBox(decoration: BoxDecoration(gradient: second)),
+            DecoratedBox(decoration: BoxDecoration(gradient: wallpaper.gradient)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small glass card on the desktop: how the server is doing at a glance.
+class _HealthWidget extends StatelessWidget {
+  const _HealthWidget({required this.onOpen, required this.onHide});
+  final VoidCallback onOpen;
+  final VoidCallback onHide;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final mon = context.watch<MonitoringService>();
+    final m = mon.metrics;
+    final health = evaluateHealth(connected: mon.isConnected, metrics: m);
+    final (IconData icon, Color tone) = switch (health.level) {
+      HealthLevel.healthy => (Icons.verified_user_outlined, c.success),
+      HealthLevel.warning => (Icons.warning_amber_rounded, c.warning),
+      HealthLevel.checking => (Icons.hourglass_empty_rounded, c.info),
+      HealthLevel.unreachable => (Icons.cloud_off_outlined, c.danger),
+    };
+    Future<void> menu(Offset at) async {
+      final choice = await showDeskMenu(context, at, const [
+        DeskMenuItem('open', 'Open Activity', Icons.show_chart),
+        DeskMenuItem('hide', 'Hide widget', Icons.visibility_off_outlined),
+      ]);
+      if (choice == 'open') onOpen();
+      if (choice == 'hide') onHide();
+    }
+
+    return Semantics(
+      container: true,
+      label: 'Server health: ${health.pill}',
+      child: GestureDetector(
+        key: const ValueKey('health-widget'),
+        onTap: onOpen,
+        onSecondaryTapUp: (d) => menu(d.globalPosition),
+        onLongPressStart: (d) => menu(d.globalPosition),
+        child: AxGlass(
+          blur: true,
+          shadow: true,
+          radius: ax.radii.lg,
+          padding: EdgeInsets.all(ax.space.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: tone),
+                  SizedBox(width: ax.space.sm),
+                  Expanded(child: Text(health.pill, style: ax.typo.label.copyWith(color: c.text))),
+                  Text('Server', style: ax.typo.caption.copyWith(color: c.textSubtle)),
+                ],
+              ),
+              SizedBox(height: ax.space.sm),
+              if (m == null)
+                Text(health.detail, style: ax.typo.caption.copyWith(color: c.textMuted))
+              else ...[
+                _WidgetMeter(label: 'CPU', percent: m.cpu.usagePercent),
+                _WidgetMeter(label: 'Memory', percent: m.memory.usagePercent),
+                _WidgetMeter(label: 'Disk', percent: worstDiskPercent(m.disk)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WidgetMeter extends StatelessWidget {
+  const _WidgetMeter({required this.label, required this.percent});
+  final String label;
+  final double percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final tone = switch (usageStatus(percent)) {
+      AxStatus.error => c.danger,
+      AxStatus.warning => c.warning,
+      _ => c.accent,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          SizedBox(width: 58, child: Text(label, style: ax.typo.caption.copyWith(color: c.textMuted))),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: (percent / 100).clamp(0, 1).toDouble(),
+                minHeight: 5,
+                color: tone,
+                backgroundColor: c.text.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 44,
+            child: Text(
+              '${percent.round()}%',
+              textAlign: TextAlign.right,
+              style: ax.typo.mono.copyWith(color: c.text, fontSize: 12, fontFeatures: const [FontFeature.tabularFigures()]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One entry of a desktop context menu.
+class DeskMenuItem {
+  const DeskMenuItem(this.id, this.label, this.icon);
+  final String id;
+  final String label;
+  final IconData icon;
+}
+
+/// A small right-click / long-press menu at [at] (global position).
+Future<String?> showDeskMenu(BuildContext context, Offset at, List<DeskMenuItem> items) {
+  final ax = context.ax;
+  final c = ax.colors;
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  final local = overlay.globalToLocal(at);
+  return showMenu<String>(
+    context: context,
+    position: RelativeRect.fromRect(local & const Size(1, 1), Offset.zero & overlay.size),
+    color: c.glassStrong,
+    elevation: 8,
+    constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.md), side: BorderSide(color: c.glassBorder)),
+    items: [
+      for (final i in items)
+        PopupMenuItem<String>(
+          value: i.id,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          height: 40,
+          child: Row(
+            children: [
+              Icon(i.icon, size: 18, color: c.textMuted),
+              SizedBox(width: ax.space.sm + 2),
+              Flexible(
+                child: Text(
+                  i.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ax.typo.body.copyWith(color: c.text, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
 }
 
 class _EmptyDesk extends StatelessWidget {
@@ -329,9 +649,9 @@ class _EmptyDesk extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onSimpleLayout, required this.onLauncher});
+  const _TopBar({required this.onSimpleLayout, required this.onCustomize});
   final VoidCallback onSimpleLayout;
-  final VoidCallback onLauncher;
+  final VoidCallback onCustomize;
 
   @override
   Widget build(BuildContext context) {
@@ -367,6 +687,8 @@ class _TopBar extends StatelessWidget {
                   tooltip: 'Back to the Simple layout',
                   onTap: onSimpleLayout,
                 ),
+                SizedBox(width: ax.space.sm),
+                _MiniButton(label: 'Customize', icon: Icons.tune_rounded, tooltip: 'Customize the desktop', onTap: onCustomize),
                 SizedBox(width: ax.space.md),
                 const Expanded(child: StatusStrip(showServerName: false, compact: true)),
                 SizedBox(width: ax.space.sm),
@@ -511,7 +833,9 @@ class _Window extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     GestureDetector(
-                      onPanUpdate: (d) => windows.move(s, d.delta),
+                      onPanUpdate: (d) => windows.move(s, d.delta, pointer: window.rect.topLeft + d.localPosition),
+                      onPanEnd: (_) => windows.endMove(s),
+                      onPanCancel: () => windows.endMove(s),
                       onDoubleTap: () => windows.toggleMaximize(s),
                       child: MouseRegion(
                         cursor: SystemMouseCursors.move,
@@ -594,15 +918,152 @@ class _WinButton extends StatelessWidget {
   }
 }
 
-class _Dock extends StatelessWidget {
-  const _Dock({required this.windows, required this.onOpen});
+/// Places the dock on its edge and, when it hides itself, slides it away
+/// until the pointer reaches that edge (or the edge is tapped).
+class _DockHost extends StatefulWidget {
+  const _DockHost({required this.prefs, required this.windows, required this.onOpen});
+  final DesktopPrefs prefs;
   final DesktopWindows windows;
   final void Function(AxSection) onOpen;
 
   @override
+  State<_DockHost> createState() => _DockHostState();
+}
+
+class _DockHostState extends State<_DockHost> {
+  bool _shown = false;
+  Timer? _hide;
+
+  @override
+  void dispose() {
+    _hide?.cancel();
+    super.dispose();
+  }
+
+  void _show() {
+    _hide?.cancel();
+    if (!_shown) setState(() => _shown = true);
+  }
+
+  void _scheduleHide() {
+    _hide?.cancel();
+    _hide = Timer(const Duration(milliseconds: 700), () {
+      if (mounted) setState(() => _shown = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
+    final prefs = widget.prefs;
+    final pos = prefs.dockPosition;
+    final hidden = prefs.autoHide && !_shown && !widget.windows.launcherOpen;
+    final align = switch (pos) {
+      DockPosition.bottom => Alignment.bottomCenter,
+      DockPosition.left => Alignment.centerLeft,
+      DockPosition.right => Alignment.centerRight,
+    };
+    final away = switch (pos) {
+      DockPosition.bottom => const Offset(0, 1.4),
+      DockPosition.left => const Offset(-1.4, 0),
+      DockPosition.right => const Offset(1.4, 0),
+    };
+    final dock = MouseRegion(
+      onEnter: (_) => prefs.autoHide ? _show() : null,
+      onExit: (_) => prefs.autoHide ? _scheduleHide() : null,
+      child: Padding(padding: const EdgeInsets.all(14), child: _Dock(prefs: prefs, windows: widget.windows, onOpen: widget.onOpen)),
+    );
+    return Stack(
+      children: [
+        if (prefs.autoHide)
+          Positioned(
+            left: pos == DockPosition.right ? null : 0,
+            right: pos == DockPosition.left ? null : 0,
+            top: pos == DockPosition.bottom ? null : 0,
+            bottom: 0,
+            width: pos == DockPosition.bottom ? null : kDockHotZone,
+            height: pos == DockPosition.bottom ? kDockHotZone : null,
+            child: MouseRegion(
+              key: const ValueKey('dock-hot-zone'),
+              opaque: false,
+              onEnter: (_) => _show(),
+              child: GestureDetector(behavior: HitTestBehavior.translucent, onTap: _show),
+            ),
+          ),
+        Align(
+          alignment: align,
+          child: AnimatedSlide(
+            offset: hidden ? away : Offset.zero,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: AnimatedOpacity(
+              opacity: hidden ? 0 : 1,
+              duration: const Duration(milliseconds: 180),
+              child: IgnorePointer(ignoring: hidden, child: dock),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Dock extends StatelessWidget {
+  const _Dock({required this.prefs, required this.windows, required this.onOpen});
+  final DesktopPrefs prefs;
+  final DesktopWindows windows;
+  final void Function(AxSection) onOpen;
+
+  Future<void> _iconMenu(BuildContext context, AxSection s, Offset at) async {
+    final label = axSectionLabels[s]!;
+    final open = windows.isOpen(s);
+    final pinned = prefs.isPinned(s);
+    final choice = await showDeskMenu(context, at, [
+      DeskMenuItem('open', open ? 'Show $label' : 'Open $label', axSectionIcons[s]!),
+      if (open) const DeskMenuItem('close', 'Close window', Icons.close),
+      DeskMenuItem('pin', pinned ? 'Remove from dock' : 'Keep in dock', pinned ? Icons.push_pin_outlined : Icons.push_pin),
+      const DeskMenuItem('customize', 'Customize dock…', Icons.dock_outlined),
+    ]);
+    if (!context.mounted) return;
+    switch (choice) {
+      case 'open':
+        onOpen(s);
+      case 'close':
+        windows.close(s);
+      case 'pin':
+        prefs.togglePin(s);
+      case 'customize':
+        await showDesktopCustomize(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ax.colors;
+    final vertical = prefs.dockPosition != DockPosition.bottom;
+    final size = prefs.dockSize;
+    final pinned = prefs.pinned;
+    // Open windows that aren't kept in the dock appear after a divider.
+    final running = [
+      for (final s in AxSection.values)
+        if (windows.isOpen(s) && !pinned.contains(s)) s,
+    ];
+    Widget divider() => Container(
+      width: vertical ? 28 : 1,
+      height: vertical ? 1 : 28,
+      margin: EdgeInsets.symmetric(horizontal: vertical ? 0 : 6, vertical: vertical ? 6 : 0),
+      color: c.border,
+    );
+    Widget button(AxSection s) => _DockButton(
+      key: ValueKey('dock-${s.name}'),
+      icon: axSectionIcons[s]!,
+      label: axSectionLabels[s]!,
+      size: size,
+      vertical: vertical,
+      tooltipBelow: false,
+      open: windows.isOpen(s),
+      onTap: () => onOpen(s),
+      onMenu: (at) => _iconMenu(context, s, at),
+    );
     return Semantics(
       container: true,
       label: 'Dock',
@@ -610,15 +1071,23 @@ class _Dock extends StatelessWidget {
         strong: true,
         blur: true,
         shadow: true,
-        radius: 22,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
+        radius: size.button / 2 + 4,
+        padding: EdgeInsets.symmetric(horizontal: vertical ? 8 : 10, vertical: vertical ? 10 : 8),
+        child: Flex(
+          direction: vertical ? Axis.vertical : Axis.horizontal,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _DockButton(icon: Icons.apps_rounded, label: 'All apps', highlighted: true, onTap: () => windows.toggleLauncher()),
-            Container(width: 1, height: 28, margin: const EdgeInsets.symmetric(horizontal: 6), color: c.border),
-            for (final s in AxSection.values)
-              _DockButton(icon: axSectionIcons[s]!, label: axSectionLabels[s]!, open: windows.isOpen(s), onTap: () => onOpen(s)),
+            _DockButton(
+              icon: Icons.apps_rounded,
+              label: 'All apps',
+              size: size,
+              vertical: vertical,
+              highlighted: true,
+              onTap: () => windows.toggleLauncher(),
+            ),
+            divider(),
+            for (final s in pinned) button(s),
+            if (running.isNotEmpty) ...[divider(), for (final s in running) button(s)],
           ],
         ),
       ),
@@ -627,11 +1096,26 @@ class _Dock extends StatelessWidget {
 }
 
 class _DockButton extends StatelessWidget {
-  const _DockButton({required this.icon, required this.label, required this.onTap, this.open = false, this.highlighted = false});
+  const _DockButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    required this.size,
+    this.vertical = false,
+    this.tooltipBelow = false,
+    this.onMenu,
+    this.open = false,
+    this.highlighted = false,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final DockSize size;
+  final bool vertical;
+  final bool tooltipBelow;
+  final void Function(Offset globalPosition)? onMenu;
   final bool open;
   final bool highlighted;
 
@@ -639,6 +1123,8 @@ class _DockButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
+    final radius = BorderRadius.circular(size.button * 0.3);
+    final dot = Container(width: 4, height: 4, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle));
     return Semantics(
       button: true,
       label: open ? '$label, open' : label,
@@ -646,28 +1132,28 @@ class _DockButton extends StatelessWidget {
       onTap: onTap,
       child: Tooltip(
         message: label,
-        preferBelow: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Material(
-            color: highlighted ? c.accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Icon(icon, size: 22, color: highlighted ? c.onAccent : c.text),
-                    if (open)
-                      Positioned(
-                        bottom: 4,
-                        child: Container(width: 4, height: 4, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle)),
-                      ),
-                  ],
+        preferBelow: tooltipBelow,
+        child: GestureDetector(
+          onSecondaryTapUp: onMenu == null ? null : (d) => onMenu!(d.globalPosition),
+          onLongPressStart: onMenu == null ? null : (d) => onMenu!(d.globalPosition),
+          child: Padding(
+            padding: vertical ? const EdgeInsets.symmetric(vertical: 2) : const EdgeInsets.symmetric(horizontal: 2),
+            child: Material(
+              color: highlighted ? c.accent : Colors.transparent,
+              borderRadius: radius,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: radius,
+                child: SizedBox(
+                  width: size.button,
+                  height: size.button,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(icon, size: size.icon, color: highlighted ? c.onAccent : c.text),
+                      if (open) vertical ? Positioned(left: 3, child: dot) : Positioned(bottom: 3, child: dot),
+                    ],
+                  ),
                 ),
               ),
             ),

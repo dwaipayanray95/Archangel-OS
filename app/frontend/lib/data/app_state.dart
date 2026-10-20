@@ -75,7 +75,9 @@ class AppState extends ChangeNotifier {
     _save(_kThemeModeKey, m.name);
   }
 
-  AxLayout _layout = AxLayout.simple;
+  /// Desktop mode is the main experience on tablets and computers (phones
+  /// always use the bottom bar, whatever this says).
+  AxLayout _layout = AxLayout.desktop;
   AxLayout get layout => _layout;
   set layout(AxLayout l) {
     if (_layout == l) return;
@@ -106,7 +108,7 @@ class AppState extends ChangeNotifier {
       final accent = await store.read(_kAccentKey);
       final layout = await store.read(_kLayoutKey);
       if (layout != null) {
-        _layout = AxLayout.values.firstWhere((l) => l.name == layout, orElse: () => AxLayout.simple);
+        _layout = AxLayout.values.firstWhere((l) => l.name == layout, orElse: () => AxLayout.desktop);
       }
       if (mode != null) {
         _themeMode = ThemeMode.values.firstWhere((m) => m.name == mode, orElse: () => kDefaultThemeMode);

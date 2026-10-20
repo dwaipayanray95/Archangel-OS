@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -14,7 +15,9 @@ import 'package:archangel/services/server_registry.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/ui/shell/archangel_shell.dart';
 import 'package:archangel/ui/components/ax_wordmark.dart';
+import 'package:archangel/ui/shell/desktop_customize.dart';
 import 'package:archangel/ui/shell/desktop_mode.dart';
+import 'package:archangel/ui/shell/desktop_prefs.dart';
 import 'package:archangel/ui/shell/more_page.dart';
 import 'package:archangel/ui/shell/sidebar.dart';
 
@@ -221,6 +224,77 @@ void main() {
       expect(mon.active, isTrue);
       expect(mon.pollingRateMs, 1000);
       expect(cont.active, isTrue);
+    });
+
+    testWidgets('Customize changes the wallpaper and moves the dock', (tester) async {
+      final prefs = DesktopPrefs();
+      await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
+      expect(find.byType(DesktopModeView), findsOneWidget);
+      await tester.tap(find.byTooltip('Customize the desktop'));
+      await _settle(tester);
+      expect(find.byType(DesktopCustomizeDialog), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('wall-aurora')));
+      await tester.tap(find.text('Right'));
+      await _settle(tester);
+      expect(prefs.wallpaper, DeskWallpaper.aurora);
+      expect(prefs.dockPosition, DockPosition.right);
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+      expect(find.byType(DesktopCustomizeDialog), findsNothing);
+      expect(find.byKey(const ValueKey('wallpaper-aurora')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('apps left out of the dock still appear there while open', (tester) async {
+      final prefs = DesktopPrefs()..togglePin(AxSection.settings);
+      final app = await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('dock-settings')), findsNothing);
+      expect(find.byKey(const ValueKey('dock-home')), findsOneWidget);
+      app.go(AxSection.settings);
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('dock-settings')), findsOneWidget);
+    });
+
+    testWidgets('right-clicking the desktop offers Tidy up windows', (tester) async {
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+      await tester.tapAt(const Offset(4, 880), buttons: kSecondaryButton);
+      await _settle(tester);
+      expect(find.text('Tidy up windows'), findsOneWidget);
+      expect(find.text('Hide health widget'), findsOneWidget);
+      await tester.tap(find.text('Tidy up windows'));
+      await _settle(tester);
+      expect(find.text('Tidy up windows'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the health widget keeps monitoring on and can be hidden', (tester) async {
+      final prefs = DesktopPrefs();
+      await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('health-widget')), findsOneWidget);
+      expect(_read<MonitoringService>(tester).active, isTrue);
+      prefs.showWidget = false;
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('health-widget')), findsNothing);
+    });
+
+    testWidgets('a self-hiding dock leaves a strip that brings it back', (tester) async {
+      final prefs = DesktopPrefs()..autoHide = true;
+      await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('dock-hot-zone')), findsOneWidget);
+      final hidden = tester.widget<AnimatedOpacity>(
+        find.ancestor(of: find.byTooltip('All apps'), matching: find.byType(AnimatedOpacity)).first,
+      );
+      expect(hidden.opacity, 0);
+      await tester.tapAt(const Offset(700, 897));
+      await _settle(tester);
+      final shown = tester.widget<AnimatedOpacity>(
+        find.ancestor(of: find.byTooltip('All apps'), matching: find.byType(AnimatedOpacity)).first,
+      );
+      expect(shown.opacity, 1);
     });
 
     testWidgets('phones never show Desktop mode', (tester) async {

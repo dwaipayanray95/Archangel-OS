@@ -17,6 +17,7 @@ import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/services/server_registry.dart';
 import 'package:archangel/ui/shell/archangel_shell.dart';
+import 'package:archangel/ui/shell/desktop_prefs.dart';
 import 'package:archangel/ui/theme.dart';
 
 /// Pumps [ArchangelShell] directly, wrapped in the same providers
@@ -30,23 +31,31 @@ Future<AppState> pumpAppShell(
   Size size = const Size(1400, 900),
   Brightness brightness = Brightness.dark,
   Future<void> Function(ServerRegistry registry)? seedRegistry,
+  AxLayout layout = AxLayout.simple,
+  DesktopPrefs? desktopPrefs,
 }) async {
   final registry = ServerRegistry();
+  final appState = AppState();
   // testWidgets runs in a FakeAsync zone; real file IO must go via runAsync.
   await tester.runAsync(() async {
     await useTempKvStore();
     if (seedRegistry != null) await seedRegistry(registry);
+    // Most shell tests are about the sidebar; Desktop mode tests opt in.
+    // (Set here: the setter saves, and a save queued in the fake zone would
+    // hold up every later real-IO store call.)
+    appState.layout = layout;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
   });
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
 
-  final appState = AppState();
   await tester.pumpWidget(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AppState>.value(value: appState),
         ChangeNotifierProvider<ServerRegistry>.value(value: registry),
+        ChangeNotifierProvider<DesktopPrefs>.value(value: desktopPrefs ?? DesktopPrefs()),
         ChangeNotifierProvider(create: (_) => WireGuardController()),
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()),
         ChangeNotifierProvider(create: (_) => MonitoringService()),

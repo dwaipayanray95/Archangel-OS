@@ -14,6 +14,7 @@ import 'services/wireguard_controller.dart';
 import 'services/server_registry.dart';
 import 'ui/boot/boot_splash.dart';
 import 'ui/shell/archangel_shell.dart';
+import 'ui/shell/desktop_prefs.dart';
 import 'ui/theme.dart';
 
 void main() {
@@ -36,6 +37,7 @@ class ArchangelApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()..loadAppearance()),
+        ChangeNotifierProvider(create: (_) => DesktopPrefs()..load()),
         ChangeNotifierProvider(create: (_) => ServerRegistry()..load()),
         ChangeNotifierProvider(create: (_) => WireGuardController()..bootstrap()),
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()..load()),

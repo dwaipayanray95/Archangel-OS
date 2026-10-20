@@ -73,4 +73,66 @@ void main() {
     d.open(AxSection.settings);
     expect(d.launcherOpen, isFalse);
   });
+
+  test('dragging to an edge previews and then snaps; dragging away restores', () {
+    final d = desk()..open(AxSection.apps);
+    final before = d.windowFor(AxSection.apps)!.rect;
+    d.move(AxSection.apps, const Offset(-10, 0), pointer: const Offset(5, 300));
+    expect(d.snap, DeskSnap.left);
+    expect(d.snapPreview, isNotNull);
+    d.endMove(AxSection.apps);
+    final w = d.windowFor(AxSection.apps)!;
+    expect(d.snapPreview, isNull);
+    expect(w.rect.left, 8);
+    expect(w.rect.width, closeTo((1200 - 24) / 2, 0.01));
+    expect(w.maximized, isTrue);
+
+    // Fitting to a new size keeps it on the left half.
+    d.fitTo(const Size(1000, 600));
+    expect(d.windowFor(AxSection.apps)!.rect.width, closeTo((1000 - 24) / 2, 0.01));
+
+    // Pulling it away gives back its old size.
+    d.move(AxSection.apps, const Offset(40, 40), pointer: const Offset(400, 200));
+    expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+    expect(d.windowFor(AxSection.apps)!.rect.size, before.size);
+    d.endMove(AxSection.apps);
+    expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+  });
+
+  test('top edge maximizes, right edge takes the right half', () {
+    final d = desk()..open(AxSection.files);
+    expect(d.snapAt(const Offset(600, 2)), DeskSnap.maximize);
+    expect(d.snapAt(const Offset(1195, 300)), DeskSnap.right);
+    expect(d.snapAt(const Offset(600, 300)), DeskSnap.none);
+    d.move(AxSection.files, Offset.zero, pointer: const Offset(1195, 300));
+    d.endMove(AxSection.files);
+    expect(d.windowFor(AxSection.files)!.rect.right, closeTo(1200 - 8, 0.01));
+  });
+
+  test('tidy lays visible windows out without overlaps', () {
+    final d =
+        desk()
+          ..open(AxSection.home)
+          ..open(AxSection.apps)
+          ..open(AxSection.files)
+          ..open(AxSection.terminal);
+    d.minimize(AxSection.terminal);
+    d.tidy();
+    final shown = d.windows.where((w) => !w.minimized).toList();
+    expect(shown, hasLength(3));
+    for (final a in shown) {
+      expect(a.rect.left, greaterThanOrEqualTo(0));
+      expect(a.rect.right, lessThanOrEqualTo(1200));
+      for (final b in shown) {
+        if (!identical(a, b)) expect(a.rect.overlaps(b.rect), isFalse);
+      }
+    }
+  });
+
+  test('defaults keep clear of the health widget', () {
+    final d = desk()..ensureDefaults(rightInset: 272);
+    for (final w in d.windows) {
+      expect(w.rect.right, lessThanOrEqualTo(1200 - 272 + 1));
+    }
+  });
 }
