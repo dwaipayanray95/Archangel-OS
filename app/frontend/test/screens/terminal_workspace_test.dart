@@ -175,8 +175,8 @@ void main() {
       // + button
       expect(find.byTooltip('New session'), findsOneWidget);
 
-      // ray@<server>
-      expect(find.text('ray@hal-9000'), findsOneWidget);
+      // Server name
+      expect(find.text('hal-9000'), findsOneWidget);
 
       // Admin button present when enabled or disabled
       expect(find.byTooltip('Admin mode'), findsOneWidget);

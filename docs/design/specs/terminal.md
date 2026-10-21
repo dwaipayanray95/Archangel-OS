@@ -39,7 +39,7 @@ at 390 on phones without overflow.
    - × tooltip/semantics: "End session <name>". Narrow: × shows only on the
      selected tab.
 2. **+** icon button, tooltip "New session" (travels directly after the tabs). Opens the next free name.
-3. Wide only: `ray@<server>` (mono, muted).
+3. Wide only: Server name `<server>` with host icon (mono, muted).
 4. Wide only: **Admin key button** (key icon, tooltip "Admin mode", toggles on/off).
 5. Wide only: **Snippets** toggle ("Snippets", pressed when the panel is open).
 6. **⋯** ("More") menu, always shown.

@@ -215,10 +215,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                             children: [
                               Icon(Icons.dns_outlined, size: 12, color: tp.textMuted.withValues(alpha: 0.6)),
                               const SizedBox(width: 4),
-                              Text(
-                                'ray@${widget.serverName ?? 'server'}',
-                                style: ax.typo.mono.copyWith(fontSize: 11.5, color: tp.textMuted),
-                              ),
+                              Text(widget.serverName ?? 'server', style: ax.typo.mono.copyWith(fontSize: 11.5, color: tp.textMuted)),
                               SizedBox(width: ax.space.sm),
                               Container(width: 1, height: 14, color: tp.line),
                               SizedBox(width: ax.space.sm),
