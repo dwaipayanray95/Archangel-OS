@@ -758,7 +758,6 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
-    final name = context.watch<ServerRegistry>().active?.name ?? 'No server';
     return AxGlass(
       strong: true,
       blur: true,
@@ -773,14 +772,6 @@ class _TopBar extends StatelessWidget {
             child: Row(
               children: [
                 _ArchangelSystemMenu(windows: windows, onOpen: onOpen, onSimpleLayout: onSimpleLayout, onCustomize: onCustomize),
-                SizedBox(width: ax.space.sm),
-                _MiniButton(
-                  label: name,
-                  mono: true,
-                  icon: Icons.dns_outlined,
-                  tooltip: 'Switch server',
-                  onTap: () => showServerSheet(context),
-                ),
                 SizedBox(width: ax.space.md),
                 const Expanded(child: StatusStrip(showServerName: false, compact: true)),
                 SizedBox(width: ax.space.sm),
@@ -931,56 +922,6 @@ extension on Widget {
     decoration: BoxDecoration(border: Border(bottom: BorderSide(color: color))),
     child: this,
   );
-}
-
-class _MiniButton extends StatelessWidget {
-  const _MiniButton({required this.label, required this.icon, required this.onTap, this.tooltip, this.mono = false});
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final String? tooltip;
-  final bool mono;
-
-  @override
-  Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
-    final style = (mono ? ax.typo.mono : ax.typo.caption).copyWith(color: c.text, fontSize: 12.5, fontWeight: FontWeight.w500);
-    return Semantics(
-      button: true,
-      label: tooltip ?? label,
-      excludeSemantics: true,
-      onTap: onTap,
-      child: Tooltip(
-        message: tooltip ?? label,
-        child: Material(
-          color: c.glass,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.sm), side: BorderSide(color: c.border)),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(ax.radii.sm),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 32),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: ax.space.sm + 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 15, color: c.textMuted),
-                    SizedBox(width: ax.space.xs + 2),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 180),
-                      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _Clock extends StatefulWidget {
