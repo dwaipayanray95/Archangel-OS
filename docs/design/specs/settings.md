@@ -201,3 +201,47 @@ A card with a danger-colour border. Its rows:
 - `flutter analyze` is clean and `flutter test` passes.
 - Ray has checked it against the prototype in Pearl and Dawn, on a phone, in
   Simple and in a Desktop window.
+
+## Clarifications (these override the sections above)
+
+1. **Restart server.** There is no existing dialog, so make one with
+   `ConfirmDialog`:
+   - Title "Restart your server?"
+   - Body "Your apps stop for about a minute, then start again. This app
+     reconnects by itself."
+   - Button "Restart" (not the solid danger style, since this isn't destructive).
+
+   On confirm, call `MonitoringService.rebootHost()`.
+   - Success: snackbar "Restarting. Your server will be back in about a minute."
+   - Failure: snackbar "Couldn't restart: <message>".
+
+   Add tests for both paths.
+2. **Removing this device.** Keep it. The current device's row shows the
+   "✓ This device" chip **and** a ghost **Remove** button. That button keeps
+   the existing type-the-name confirmation and wording for revoking yourself.
+   Other devices use the simpler confirmation from the spec. Keep every revoke
+   test.
+3. **Device icon and text.** Use one generic icon, `devices_outlined`, for
+   every device. The subtitle is the current text: "Paired <date>", then
+   " · " and the tunnel IP in mono.
+4. **Server program update.**
+   - Drop the "Updating…" chip. The **Update** button opens the existing update
+     dialog, which already shows progress.
+   - Version unknown or server not answering: the subtitle is "Can't check
+     right now". The right side has a neutral chip "Not answering" (cloud_off
+     icon) and no button.
+   - Not paired: hide this row.
+5. **Layout row.** Keep the current rule exactly:
+   `MediaQuery.sizeOf(context).width >= kDesktopModeMinWidth`. The layout is a
+   per-device choice, so it follows the screen, not the window. Only the
+   wide/narrow Settings layout follows the given width.
+6. **Items not placed above.** Keep all of them:
+   - **Connect / Disconnect:** a small button in the Security → Secure
+     connection row, between the status chip and **Details**.
+   - **"Allow seamless connection" (macOS):** its own row right under Secure
+     connection, shown under the same conditions and with the same wording as
+     now.
+   - **Devices refresh:** an icon button (tooltip "Refresh") in the Devices
+     card header, left of **Add a device**.
+   - **Computer name:** in the active server's row in Servers, the subtitle
+     becomes "<host> · <computer name>" (both mono) when the name is known.
