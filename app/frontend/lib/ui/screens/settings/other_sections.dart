@@ -24,6 +24,7 @@ import '../../../widgets/uninstall_dialog.dart';
 import '../../shell/archangel_shell.dart' show kDesktopModeMinWidth;
 import '../../shell/connection_state.dart';
 import '../../shell/desktop_customize.dart';
+import '../../shell/desktop_prefs.dart';
 import '../../ui.dart';
 import 'settings_parts.dart';
 
@@ -245,11 +246,19 @@ class AppearanceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
     final app = context.watch<AppState>();
     final dark = Theme.of(context).brightness == Brightness.dark;
     // Phones always use the bottom bar, so the layout choice only shows where
     // Desktop mode is possible. It follows the screen, not the window.
     final desktopPossible = MediaQuery.sizeOf(context).width >= kDesktopModeMinWidth;
+    DesktopPrefs? prefs;
+    try {
+      prefs = Provider.of<DesktopPrefs>(context);
+    } catch (_) {
+      prefs = null;
+    }
+    final p = prefs;
     return SettingsCard(
       children: [
         AxListTile(
@@ -330,12 +339,76 @@ class AppearanceSection extends StatelessWidget {
               ),
             ],
           ),
-        if (desktopPossible && app.layout == AxLayout.desktop)
+        if (desktopPossible && app.layout == AxLayout.desktop) ...[
+          if (p != null) ...[
+            AxListTile(
+              title: 'Wallpaper',
+              subtitle: 'Desktop backdrop. Halo dynamically follows Pearl and Dawn.',
+              subtitleWidget: Padding(
+                padding: EdgeInsets.only(top: ax.space.sm),
+                child: Wrap(
+                  spacing: ax.space.sm,
+                  runSpacing: ax.space.sm,
+                  children: [
+                    for (final w in DeskWallpaper.values)
+                      DeskWallpaperSwatch(wallpaper: w, selected: p.wallpaper == w, onTap: () => p.wallpaper = w),
+                  ],
+                ),
+              ),
+            ),
+            AxListTile(
+              title: 'Dock position',
+              subtitle: 'Position of the application dock on your screen.',
+              controls: [
+                SegmentedButton<DockPosition>(
+                  key: const ValueKey('settings-dock-position'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: DockPosition.left, label: Text('Left')),
+                    ButtonSegment(value: DockPosition.bottom, label: Text('Bottom')),
+                    ButtonSegment(value: DockPosition.right, label: Text('Right')),
+                  ],
+                  selected: {p.dockPosition},
+                  onSelectionChanged: (v) => p.dockPosition = v.first,
+                ),
+              ],
+            ),
+            AxListTile(
+              title: 'Dock size',
+              subtitle: 'Icon dimensions and button padding of the dock.',
+              controls: [
+                SegmentedButton<DockSize>(
+                  key: const ValueKey('settings-dock-size'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: DockSize.small, label: Text('Small')),
+                    ButtonSegment(value: DockSize.medium, label: Text('Medium')),
+                    ButtonSegment(value: DockSize.large, label: Text('Large')),
+                  ],
+                  selected: {p.dockSize},
+                  onSelectionChanged: (v) => p.dockSize = v.first,
+                ),
+              ],
+            ),
+            AxListTile(
+              title: 'Hide dock automatically',
+              subtitle: 'The dock hides out of view and reappears when pointing at the edge.',
+              controls: [Switch(key: const ValueKey('settings-dock-autohide'), value: p.autoHide, onChanged: (v) => p.autoHide = v)],
+            ),
+            AxListTile(
+              title: 'Health widget',
+              subtitle: 'Show real-time CPU, RAM and disk usage stats on the desktop.',
+              controls: [
+                Switch(key: const ValueKey('settings-show-health-widget'), value: p.showWidget, onChanged: (v) => p.showWidget = v),
+              ],
+            ),
+          ],
           AxListTile(
             title: 'Desktop',
             subtitle: "Wallpaper, dock position and size, what's in the dock, the health widget.",
             controls: [AxButton.secondary(label: 'Customize', small: true, onPressed: () => showDesktopCustomize(context))],
           ),
+        ],
       ],
     );
   }

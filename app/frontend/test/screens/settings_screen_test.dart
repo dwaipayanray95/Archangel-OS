@@ -22,6 +22,7 @@ import 'package:archangel/services/ssh_transport.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/ui/screens/settings/settings_view.dart';
+import 'package:archangel/ui/shell/desktop_prefs.dart';
 import 'package:archangel/ui/ui.dart';
 import 'package:archangel/widgets/uninstall_dialog.dart';
 
@@ -59,11 +60,13 @@ class _Fake implements SshTransport {
 }
 
 class _Harness {
-  _Harness(this.app, this.registry, this.backend, this.devicesRequests);
+  _Harness(this.app, this.registry, this.backend, this.devicesRequests, {DesktopPrefs? desktopPrefs})
+    : desktopPrefs = desktopPrefs ?? DesktopPrefs();
   final AppState app;
   final ServerRegistry registry;
   final ArchangeldConnection backend;
   final List<http.Request> devicesRequests;
+  final DesktopPrefs desktopPrefs;
 }
 
 Future<void> _settle(WidgetTester tester) async {
@@ -82,12 +85,14 @@ Future<_Harness> _pumpSettings(
   bool twoServers = true,
   Future<http.Response> Function(http.Request req)? devicesHandler,
   MonitoringService? monitoring,
+  DesktopPrefs? desktopPrefs,
   Widget Function(Widget child)? wrap,
 }) async {
   final registry = ServerRegistry();
   final requests = <http.Request>[];
   final backend = ArchangeldConnection(client: MockClient((_) async => _json({'version': '0.5.0'})));
   final app = AppState();
+  final prefs = desktopPrefs ?? DesktopPrefs();
   await tester.runAsync(() async {
     await useTempKvStore();
     if (paired) {
@@ -123,12 +128,13 @@ Future<_Harness> _pumpSettings(
         ChangeNotifierProvider(create: (_) => DevicesService(client: devicesClient)),
         ChangeNotifierProvider(create: (_) => AdminModeService(client: adminClient)),
         ChangeNotifierProvider(create: (_) => UpdateCheckService()),
+        ChangeNotifierProvider<DesktopPrefs>.value(value: prefs),
       ],
       child: MaterialApp(debugShowCheckedModeBanner: false, theme: buildTheme(brightness, AxAccent.green), home: Scaffold(body: child)),
     ),
   );
   await _settle(tester);
-  return _Harness(app, registry, backend, requests);
+  return _Harness(app, registry, backend, requests, desktopPrefs: prefs);
 }
 
 Future<void> _tapText(WidgetTester tester, String text) async {
@@ -291,6 +297,25 @@ void main() {
       await _settle(tester);
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       expect(h.registry.profiles.map((p) => p.id), ['a']);
+    });
+
+    testWidgets('Active connection card displays active server details and connection controls', (tester) async {
+      await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.servers);
+      expect(find.text('Active Connection'), findsOneWidget);
+      expect(find.text('Active: Server a'), findsOneWidget);
+      expect(find.text('WireGuard tunnel'), findsOneWidget);
+      expect(find.text('Daemon API (archangeld)'), findsOneWidget);
+      expect(find.byKey(const ValueKey('active-conn-reconnect-btn')), findsOneWidget);
+      expect(find.byKey(const ValueKey('active-conn-test-btn')), findsOneWidget);
+    });
+
+    testWidgets('Test connection pings the server and updates status', (tester) async {
+      await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.servers);
+      await tester.tap(find.byKey(const ValueKey('active-conn-test-btn')));
+      await _settle(tester);
+      expect(find.textContaining('responding'), findsWidgets);
     });
   });
 
@@ -494,6 +519,43 @@ void main() {
 
       await _tapText(tester, 'Full screen');
       expect(h.app.fullScreen, isTrue);
+    });
+
+    testWidgets('desktop appearance controls update wallpaper, dock position and size, auto-hide and health widget', (tester) async {
+      final h = await _pumpSettings(tester, size: const Size(1400, 900));
+      await _open(tester, SettingsSectionId.appearance);
+
+      // Wallpaper
+      expect(find.byKey(const ValueKey('wall-aurora')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('wall-aurora')));
+      await _settle(tester);
+      expect(h.desktopPrefs.wallpaper, DeskWallpaper.aurora);
+
+      // Dock position
+      expect(find.byKey(const ValueKey('settings-dock-position')), findsOneWidget);
+      await _tapText(tester, 'Left');
+      expect(h.desktopPrefs.dockPosition, DockPosition.left);
+      await _tapText(tester, 'Right');
+      expect(h.desktopPrefs.dockPosition, DockPosition.right);
+
+      // Dock size
+      expect(find.byKey(const ValueKey('settings-dock-size')), findsOneWidget);
+      await _tapText(tester, 'Large');
+      expect(h.desktopPrefs.dockSize, DockSize.large);
+      await _tapText(tester, 'Small');
+      expect(h.desktopPrefs.dockSize, DockSize.small);
+
+      // Auto-hide dock
+      expect(find.byKey(const ValueKey('settings-dock-autohide')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings-dock-autohide')));
+      await _settle(tester);
+      expect(h.desktopPrefs.autoHide, isTrue);
+
+      // Health widget
+      expect(find.byKey(const ValueKey('settings-show-health-widget')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings-show-health-widget')));
+      await _settle(tester);
+      expect(h.desktopPrefs.showWidget, isFalse);
     });
   });
 

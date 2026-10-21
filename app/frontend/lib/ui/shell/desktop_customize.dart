@@ -63,7 +63,7 @@ class DesktopCustomizeDialog extends StatelessWidget {
                       runSpacing: ax.space.sm,
                       children: [
                         for (final w in DeskWallpaper.values)
-                          _Swatch(wallpaper: w, selected: prefs.wallpaper == w, onTap: () => prefs.wallpaper = w),
+                          DeskWallpaperSwatch(wallpaper: w, selected: prefs.wallpaper == w, onTap: () => prefs.wallpaper = w),
                       ],
                     ),
                     heading('Dock position'),
@@ -140,8 +140,8 @@ class DesktopCustomizeDialog extends StatelessWidget {
   }
 }
 
-class _Swatch extends StatelessWidget {
-  const _Swatch({required this.wallpaper, required this.selected, required this.onTap});
+class DeskWallpaperSwatch extends StatelessWidget {
+  const DeskWallpaperSwatch({super.key, required this.wallpaper, required this.selected, required this.onTap});
   final DeskWallpaper wallpaper;
   final bool selected;
   final VoidCallback onTap;
