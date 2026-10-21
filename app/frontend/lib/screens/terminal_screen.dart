@@ -14,6 +14,7 @@ import '../ui/screens/terminal/sessions_dialog.dart';
 import '../ui/screens/terminal/terminal_pane.dart';
 import '../ui/screens/terminal/terminal_workspace.dart';
 import '../widgets/pairing_dialog.dart';
+import '../widgets/sync_server_config_dialog.dart';
 
 /// LocalKvStore key for the terminal text size (shared by all sessions).
 const String kTerminalFontSizeKey = 'terminal_font_size';
@@ -189,6 +190,32 @@ class _TerminalScreenState extends State<TerminalScreen> {
     if (text != null && text.isNotEmpty) session.pasteText(text);
   }
 
+  Future<void> _toggleAdminMode(bool wantOn) async {
+    final svc = context.read<AdminModeService>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (wantOn) {
+      await showSyncServerConfigDialog(context, mode: SyncServerMode.enableAdminMode);
+      await svc.refresh();
+      return;
+    }
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Turn off Admin mode?',
+      message:
+          'The terminal and Archangel will no longer be able to run commands as root. '
+          'Actions that need root - starting or stopping services, rebooting, revoking devices - will be refused until you turn it back on, '
+          'which needs your SSH key.',
+      confirmLabel: 'Turn off',
+      danger: true,
+    );
+    if (!ok) return;
+    final result = await svc.disable();
+    if (!result.success) {
+      messenger?.showSnackBar(SnackBar(content: Text(result.message)));
+      await svc.refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final backend = context.watch<ArchangeldConnection>();
@@ -286,6 +313,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       onCopy: _copy,
       onPaste: _paste,
       adminModeEnabled: adminMode.enabled,
+      onToggleAdminMode: _toggleAdminMode,
       serverName: registry.active?.name,
       onOpenAdminMode: () => context.read<AppState>().go(AxSection.settings),
       runningSinceText: runningSince,

@@ -87,6 +87,10 @@ Future<TerminalHarness> pumpWorkspace(
                 onCopy: () => h.events.add('copy'),
                 onPaste: () => h.events.add('paste'),
                 adminModeEnabled: h.adminModeEnabled,
+                onToggleAdminMode: (v) {
+                  setState(() => h.adminModeEnabled = v);
+                  h.events.add('toggle-admin $v');
+                },
                 serverName: h.serverName,
                 showAccessoryBar: h.showAccessoryBar,
                 onOpenAdminMode: h.onOpenAdminMode ?? () => h.events.add('open-admin'),
@@ -205,6 +209,19 @@ void main() {
 
       expect(find.text('Admin on'), findsOneWidget);
       expect(find.byTooltip('Administrator commands (sudo) are allowed'), findsOneWidget);
+
+      await finish(tester, h);
+    });
+
+    testWidgets('Admin switch toggles when tapped', (tester) async {
+      final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main'], adminModeEnabled: false);
+      expect(find.text('Admin off'), findsOneWidget);
+
+      await tester.tap(find.text('Admin off'));
+      await tester.pump();
+
+      expect(h.events, contains('toggle-admin true'));
+      expect(find.text('Admin on'), findsOneWidget);
 
       await finish(tester, h);
     });

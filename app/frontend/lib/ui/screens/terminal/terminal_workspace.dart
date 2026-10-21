@@ -30,6 +30,7 @@ class TerminalWorkspace extends StatefulWidget {
     required this.onCopy,
     required this.onPaste,
     this.adminModeEnabled,
+    this.onToggleAdminMode,
     this.serverName,
     this.showAccessoryBar,
     this.onOpenAdminMode,
@@ -49,6 +50,7 @@ class TerminalWorkspace extends StatefulWidget {
   final VoidCallback onCopy;
   final VoidCallback onPaste;
   final bool? adminModeEnabled;
+  final ValueChanged<bool>? onToggleAdminMode;
   final String? serverName;
   final bool? showAccessoryBar;
   final VoidCallback? onOpenAdminMode;
@@ -128,7 +130,10 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
           ),
         );
 
-        final adminChip = widget.adminModeEnabled == null ? const SizedBox.shrink() : _AdminChip(enabled: widget.adminModeEnabled!);
+        final adminChip =
+            widget.adminModeEnabled == null
+                ? const SizedBox.shrink()
+                : _AdminSwitch(enabled: widget.adminModeEnabled!, onToggle: widget.onToggleAdminMode);
 
         Widget topBar;
         if (wide) {
@@ -362,15 +367,15 @@ class _SessionTab extends StatelessWidget {
   }
 }
 
-class _AdminChip extends StatelessWidget {
-  const _AdminChip({required this.enabled});
+class _AdminSwitch extends StatelessWidget {
+  const _AdminSwitch({required this.enabled, this.onToggle});
 
   final bool enabled;
+  final ValueChanged<bool>? onToggle;
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    final bg = enabled ? kConChipOnBg : kConChipOffBg;
     final fg = enabled ? kConChipOnFg : kConMuted;
     final icon = enabled ? Icons.key : Icons.lock;
     final text = enabled ? 'Admin on' : 'Admin off';
@@ -378,17 +383,54 @@ class _AdminChip extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      child: Container(
-        height: 26,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(ax.radii.pill)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: fg),
-            SizedBox(width: ax.space.xs),
-            Text(text, style: ax.typo.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 11.5, color: fg)),
-          ],
+      child: Semantics(
+        label: 'Admin mode',
+        toggled: enabled,
+        button: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(ax.radii.pill),
+          onTap: onToggle != null ? () => onToggle!(!enabled) : null,
+          child: Container(
+            height: 26,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(ax.radii.pill),
+              border: Border.all(color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 12, color: fg),
+                SizedBox(width: ax.space.xs),
+                Text(text, style: ax.typo.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 11.5, color: fg)),
+                const SizedBox(width: 6),
+                Container(
+                  width: 24,
+                  height: 14,
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: AnimatedAlign(
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOutCubic,
+                    alignment: enabled ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: enabled ? const Color(0xFFFFC66E) : kConMuted,
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 2, offset: const Offset(0, 1))],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -414,10 +456,16 @@ class _TerminalMoreMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
     return PopupMenuButton<String>(
       tooltip: 'More',
       icon: const Icon(Icons.more_horiz, color: kConMuted),
-      constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
+      offset: const Offset(0, 44),
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.6),
+      color: kConBarBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: kConLine)),
+      constraints: const BoxConstraints(minWidth: 240, maxWidth: 270),
       onSelected: (val) {
         if (val == 'snippets') {
           onSnippets?.call();
@@ -432,11 +480,32 @@ class _TerminalMoreMenu extends StatelessWidget {
       itemBuilder: (context) {
         return [
           _TextSizeMenuItem(initialFontSize: fontSize, onFontSize: onFontSize),
-          if (onSnippets != null) const PopupMenuItem(value: 'snippets', child: Text('Snippets')),
-          const PopupMenuItem(value: 'copy', child: Text('Copy selection')),
-          const PopupMenuItem(value: 'paste', child: Text('Paste')),
-          const PopupMenuDivider(),
-          const PopupMenuItem(value: 'sessions', child: Text('Sessions on this server')),
+          if (onSnippets != null)
+            PopupMenuItem<String>(
+              value: 'snippets',
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Snippets', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+            ),
+          PopupMenuItem<String>(
+            value: 'copy',
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Copy selection', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+          ),
+          PopupMenuItem<String>(
+            value: 'paste',
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Paste', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+          ),
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem<String>(
+            value: 'sessions',
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text('Sessions on this server', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+          ),
         ];
       },
     );
@@ -450,7 +519,7 @@ class _TextSizeMenuItem extends PopupMenuEntry<String> {
   final ValueChanged<double> onFontSize;
 
   @override
-  double get height => 48;
+  double get height => 38;
 
   @override
   bool represents(String? value) => false;
@@ -480,37 +549,60 @@ class _TextSizeMenuItemState extends State<_TextSizeMenuItem> {
   Widget build(BuildContext context) {
     final ax = context.ax;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Text size', style: ax.typo.body),
+          Text('Text size', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Tooltip(
                 message: 'Smaller text',
+                triggerMode: TooltipTriggerMode.manual,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(ax.radii.sm),
+                  borderRadius: BorderRadius.circular(6),
                   onTap: _current > kTerminalMinFont ? () => _step(-1) : null,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                    child: Text('A−', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                    child: Text(
+                      'A−',
+                      style: TextStyle(
+                        fontFamily: kUiFontFamily,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: _current > kTerminalMinFont ? kConText : kConMuted.withValues(alpha: 0.35),
+                      ),
+                    ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text('${_current.toInt()}', style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600)),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Text(
+                  '${_current.toInt()}',
+                  style: ax.typo.mono.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: kConAccent),
+                ),
               ),
               Tooltip(
                 message: 'Bigger text',
+                triggerMode: TooltipTriggerMode.manual,
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(ax.radii.sm),
+                  borderRadius: BorderRadius.circular(6),
                   onTap: _current < kTerminalMaxFont ? () => _step(1) : null,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                    child: Text('A+', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                    child: Text(
+                      'A+',
+                      style: TextStyle(
+                        fontFamily: kUiFontFamily,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: _current < kTerminalMaxFont ? kConText : kConMuted.withValues(alpha: 0.35),
+                      ),
+                    ),
                   ),
                 ),
               ),
