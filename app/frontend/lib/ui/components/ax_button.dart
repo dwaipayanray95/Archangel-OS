@@ -18,6 +18,7 @@ class AxButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.expand = false,
+    this.small = false,
     this.semanticsLabel,
   });
 
@@ -28,6 +29,7 @@ class AxButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.expand = false,
+    this.small = false,
     this.semanticsLabel,
   }) : kind = AxButtonKind.secondary;
 
@@ -38,6 +40,7 @@ class AxButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.expand = false,
+    this.small = false,
     this.semanticsLabel,
   }) : kind = AxButtonKind.danger;
 
@@ -48,6 +51,7 @@ class AxButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.expand = false,
+    this.small = false,
     this.semanticsLabel,
   }) : kind = AxButtonKind.ghost;
 
@@ -57,6 +61,10 @@ class AxButton extends StatelessWidget {
   final IconData? icon;
   final bool loading;
   final bool expand;
+
+  /// A tighter button for rows and card headers. It keeps the minimum touch
+  /// target; only the padding and text shrink.
+  final bool small;
 
   /// Overrides the spoken label when the visible text alone is ambiguous
   /// (for example "Remove" in a list - "Remove web-app").
@@ -79,10 +87,12 @@ class AxButton extends StatelessWidget {
     final style = ButtonStyle(
       minimumSize: WidgetStatePropertyAll(Size(target, target)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: ax.space.lg + 2, vertical: ax.space.sm)),
+      padding: WidgetStatePropertyAll(
+        small ? EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xs) : EdgeInsets.symmetric(horizontal: ax.space.lg + 2, vertical: ax.space.sm),
+      ),
       shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.pill))),
       elevation: const WidgetStatePropertyAll(0),
-      textStyle: WidgetStatePropertyAll(ax.typo.label),
+      textStyle: WidgetStatePropertyAll(small ? ax.typo.label.copyWith(fontSize: 13) : ax.typo.label),
       backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) ? c.surfaceHigh : bg),
       foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.disabled) ? c.textSubtle : fg),
       side: WidgetStateProperty.resolveWith((s) {
@@ -100,7 +110,7 @@ class AxButton extends StatelessWidget {
         if (loading)
           SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: fg))
         else if (icon != null)
-          Icon(icon, size: 18),
+          Icon(icon, size: small ? 16 : 18),
         if (loading || icon != null) SizedBox(width: ax.space.sm),
         Flexible(child: Text(label, textAlign: TextAlign.center)),
       ],

@@ -11,7 +11,7 @@ import '../../ui.dart';
 import 'add_device_dialog.dart';
 import 'settings_parts.dart';
 
-/// Devices paired with the active server: list, revoke, and add another.
+/// Devices paired with the active server: list, remove, and add another.
 class DevicesSection extends StatelessWidget {
   const DevicesSection({super.key});
 
@@ -22,19 +22,26 @@ class DevicesSection extends StatelessWidget {
     final registry = context.read<ServerRegistry>();
     final messenger = ScaffoldMessenger.maybeOf(context);
 
-    final confirmed = await showConfirmDialog(
-      context,
-      title: 'Revoke "${device.name}"?',
-      message:
-          device.current
-              ? 'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
-                  'You will need SSH access to the server to pair again.'
-              : 'This device will lose access to the server immediately. It will need to be paired again to reconnect.',
-      confirmLabel: 'Revoke',
-      danger: true,
-      // Cutting your own connection needs the name typed.
-      typeToConfirm: device.current ? device.name : null,
-    );
+    final confirmed =
+        device.current
+            ? await showConfirmDialog(
+              context,
+              title: 'Revoke "${device.name}"?',
+              message:
+                  'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
+                  'You will need SSH access to the server to pair again.',
+              confirmLabel: 'Revoke',
+              danger: true,
+              // Cutting your own connection needs the name typed.
+              typeToConfirm: device.name,
+            )
+            : await showConfirmDialog(
+              context,
+              title: 'Remove ${device.name}?',
+              message: "It won't be able to reach your server any more.",
+              confirmLabel: 'Remove',
+              danger: true,
+            );
     if (!confirmed) return;
 
     final result = await svc.revoke(device, self: device.current);
@@ -56,49 +63,20 @@ class DevicesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
     final svc = context.watch<DevicesService>();
-    return SettingsSection(
+    return SettingsCard(
       title: 'Devices',
-      explanation: 'The phones and computers that can use this server. Revoking one cuts its access immediately.',
-      trailing: AxIconButton(icon: Icons.refresh, tooltip: 'Refresh devices', onPressed: svc.loading ? null : svc.refresh),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (svc.error != null)
-            Padding(
-              padding: EdgeInsets.only(bottom: ax.space.sm),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.error_outline, size: 18, color: c.danger),
-                  SizedBox(width: ax.space.sm),
-                  Expanded(child: Text(svc.error!, style: ax.typo.body.copyWith(color: c.danger))),
-                ],
-              ),
-            ),
-          if (svc.loading && !svc.loaded)
-            Padding(
-              padding: EdgeInsets.only(bottom: ax.space.sm),
-              child: const Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-              ),
-            ),
-          if (svc.loaded && svc.devices.isEmpty)
-            Padding(
-              padding: EdgeInsets.only(bottom: ax.space.sm),
-              child: Text('No paired devices.', style: ax.typo.body.copyWith(color: c.textMuted)),
-            ),
-          for (final d in svc.devices) _DeviceRow(device: d, onRevoke: () => _revoke(context, d)),
-          SizedBox(height: ax.space.xs),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: AxButton(label: 'Add a device', icon: Icons.add, onPressed: () => showAddDeviceDialog(context)),
-          ),
-        ],
-      ),
+      actions: [
+        AxIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: svc.loading ? null : svc.refresh),
+        AxButton(label: 'Add a device', icon: Icons.qr_code_2, small: true, onPressed: () => showAddDeviceDialog(context)),
+      ],
+      footnote: 'Only devices listed here can reach your server. Removing one cuts it off straight away.',
+      children: [
+        if (svc.error != null) SettingsError(svc.error!, onRetry: svc.loading ? null : svc.refresh),
+        if (svc.loading && !svc.loaded) const SettingsLoading(),
+        if (svc.loaded && svc.devices.isEmpty) const SettingsMessage('No paired devices.'),
+        for (final d in svc.devices) _DeviceRow(device: d, onRevoke: () => _revoke(context, d)),
+      ],
     );
   }
 }
@@ -112,37 +90,30 @@ class _DeviceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    final c = ax.colors;
-    final meta = [
-      if (device.createdAt != null) 'paired ${formatSettingsDate(device.createdAt!)}',
-      if (device.tunnelIp != null) device.tunnelIp!,
-    ].join(' · ');
-    return Container(
-      margin: EdgeInsets.only(bottom: ax.space.sm),
-      padding: EdgeInsets.all(ax.space.md),
-      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: ax.space.sm,
-                  runSpacing: ax.space.xs,
-                  children: [
-                    Text(device.name, style: ax.typo.label.copyWith(color: c.text)),
-                    if (device.current) const StatusBadge.info('This device'),
-                  ],
-                ),
-                if (meta.isNotEmpty) Text(meta, style: ax.typo.caption.copyWith(color: c.textMuted)),
-              ],
-            ),
-          ),
-          AxButton.ghost(label: 'Revoke', semanticsLabel: 'Revoke ${device.name}', onPressed: onRevoke),
-        ],
-      ),
+    final muted = ax.colors.textMuted;
+    final created = device.createdAt;
+    final ip = device.tunnelIp;
+    Widget? subtitle;
+    if (created != null || ip != null) {
+      subtitle = Text.rich(
+        TextSpan(
+          style: ax.typo.caption.copyWith(color: muted),
+          children: [
+            if (created != null) TextSpan(text: 'Paired ${formatSettingsDate(created)}'),
+            if (created != null && ip != null) const TextSpan(text: ' · '),
+            if (ip != null) TextSpan(text: ip, style: ax.typo.mono.copyWith(color: muted)),
+          ],
+        ),
+      );
+    }
+    return AxListTile(
+      leading: const AxTileIcon(Icons.devices_outlined),
+      title: device.name,
+      subtitleWidget: subtitle,
+      controls: [
+        if (device.current) const StatusBadge.accent('This device', icon: Icons.check),
+        AxButton.ghost(label: 'Remove', small: true, semanticsLabel: 'Remove ${device.name}', onPressed: onRevoke),
+      ],
     );
   }
 }
@@ -184,32 +155,53 @@ class AdminModeSection extends StatelessWidget {
     final c = ax.colors;
     final svc = context.watch<AdminModeService>();
     final enabled = svc.enabled;
-    return SettingsSection(
-      title: 'Admin mode',
-      explanation: 'Lets the terminal and Archangel run commands as the server\'s administrator. Turn it off for a safer, limited mode.',
-      help: const HelpTip(
-        title: 'Admin mode',
-        message:
-            'Admin mode gives Archangel permission to run commands with full control of the server (this is called "sudo" or "root"). '
-            'You need it to start and stop services, reboot, or add a device. '
-            'Switching it off is instant; switching it back on needs your SSH key.',
-      ),
-      trailing: enabled == null ? null : (enabled ? const StatusBadge.ok('On') : const StatusBadge.neutral('Off')),
+    return AxCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (enabled != null)
-            MergeSemantics(
-              child: SwitchListTile(
-                value: enabled,
-                onChanged: svc.loading ? null : (v) => _toggle(context, v),
-                contentPadding: EdgeInsets.zero,
-                title: Text(enabled ? 'Admin mode is on' : 'Admin mode is off', style: ax.typo.body.copyWith(color: c.text)),
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(header: true, child: Text('Admin mode', style: ax.typo.title.copyWith(color: c.text))),
               ),
-            )
-          else if (svc.error == null)
-            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              if (enabled != null)
+                Semantics(
+                  label: 'Admin mode',
+                  toggled: enabled,
+                  container: true,
+                  excludeSemantics: true,
+                  onTap: svc.loading ? null : () => _toggle(context, !enabled),
+                  child: Switch(value: enabled, onChanged: svc.loading ? null : (v) => _toggle(context, v)),
+                ),
+            ],
+          ),
+          if (enabled != null) ...[
+            SizedBox(height: ax.space.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child:
+                  enabled
+                      ? const StatusBadge.warning('Administrator commands allowed', icon: Icons.key_outlined)
+                      : const StatusBadge.neutral('Administrator commands blocked', icon: Icons.lock_outline),
+            ),
+            SizedBox(height: ax.space.md),
+            Text(
+              'When this is on, the app and the terminal can run administrator commands (sudo). '
+              'You need it to install software or change system settings.',
+              style: ax.typo.body.copyWith(color: c.textMuted),
+            ),
+            SizedBox(height: ax.space.sm),
+            Text(
+              'Turn it off if you want a safety net against accidental changes. Your apps keep running either way.',
+              style: ax.typo.body.copyWith(color: c.textMuted),
+            ),
+          ] else if (svc.error == null) ...[
+            SizedBox(height: ax.space.md),
+            const Align(alignment: Alignment.centerLeft, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+          ],
           if (svc.error != null) ...[
+            SizedBox(height: ax.space.md),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -219,7 +211,10 @@ class AdminModeSection extends StatelessWidget {
               ],
             ),
             SizedBox(height: ax.space.sm),
-            AxButton.secondary(label: 'Retry', onPressed: svc.loading ? null : svc.refresh),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AxButton.secondary(label: 'Retry', small: true, onPressed: svc.loading ? null : svc.refresh),
+            ),
           ],
         ],
       ),

@@ -6,13 +6,16 @@ import '../theme.dart';
 /// keyboard-focusable button (with [semanticsLabel] as its spoken name,
 /// otherwise its text content is read).
 class AxCard extends StatelessWidget {
-  const AxCard({super.key, required this.child, this.onTap, this.padding, this.selected = false, this.semanticsLabel});
+  const AxCard({super.key, required this.child, this.onTap, this.padding, this.selected = false, this.semanticsLabel, this.borderColor});
 
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry? padding;
   final bool selected;
   final String? semanticsLabel;
+
+  /// Replaces the hairline edge (for example the danger colour).
+  final Color? borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +30,7 @@ class AxCard extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: radius,
-        side: BorderSide(color: selected ? c.accent : c.glassBorder, width: selected ? 1.5 : 1),
+        side: BorderSide(color: borderColor ?? (selected ? c.accent : c.glassBorder), width: selected ? 1.5 : 1),
       ),
       clipBehavior: Clip.antiAlias,
       child:

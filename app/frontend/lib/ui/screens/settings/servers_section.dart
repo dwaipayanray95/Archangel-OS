@@ -3,12 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../../screens/setup/setup_landing_screen.dart';
 import '../../../services/archangeld_connection.dart';
+import '../../../services/monitoring_service.dart';
 import '../../../services/server_registry.dart';
 import '../../../services/wireguard_controller.dart';
 import '../../ui.dart';
 import 'settings_parts.dart';
 
-/// Every server this device knows: which one is active, switch, rename,
+/// Every server this device knows: which one is in use, switch, rename,
 /// remove (forget) and add another.
 class ServersSection extends StatelessWidget {
   const ServersSection({super.key});
@@ -59,49 +60,45 @@ class ServersSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
     final registry = context.watch<ServerRegistry>();
-    return SettingsSection(
+    final paired = context.watch<ArchangeldConnection>().isPaired;
+    final hostname = paired ? (context.watch<MonitoringService>().metrics?.host.hostname ?? '') : '';
+    return SettingsCard(
       title: 'Servers',
-      explanation: 'The servers this device can manage. One is active at a time.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (registry.isEmpty)
-            Padding(
-              padding: EdgeInsets.only(bottom: ax.space.sm),
-              child: Text('No servers yet.', style: ax.typo.body.copyWith(color: ax.colors.textMuted)),
-            ),
-          for (final p in registry.profiles)
-            _ServerRow(
-              key: ValueKey('server-row-${p.id}'),
-              profile: p,
-              active: p.id == registry.activeId,
-              onSwitch: () => _switch(context, p),
-              onRename: () => _rename(context, p),
-              onRemove: () => _remove(context, p),
-            ),
-          SizedBox(height: ax.space.xs),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: AxButton.secondary(
-              label: 'Add a server',
-              icon: Icons.add,
-              onPressed:
-                  () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
-            ),
+      actions: [
+        AxButton.secondary(
+          label: 'Add a server',
+          icon: Icons.add,
+          small: true,
+          onPressed:
+              () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
+        ),
+      ],
+      children: [
+        if (registry.isEmpty) const SettingsMessage('No servers yet.'),
+        for (final p in registry.profiles)
+          _ServerRow(
+            key: ValueKey('server-row-${p.id}'),
+            profile: p,
+            active: p.id == registry.activeId,
+            computerName: p.id == registry.activeId ? hostname : '',
+            onSwitch: () => _switch(context, p),
+            onRename: () => _rename(context, p),
+            onRemove: () => _remove(context, p),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
+
+enum _ServerMenu { rename, remove }
 
 class _ServerRow extends StatelessWidget {
   const _ServerRow({
     super.key,
     required this.profile,
     required this.active,
+    required this.computerName,
     required this.onSwitch,
     required this.onRename,
     required this.onRemove,
@@ -109,45 +106,38 @@ class _ServerRow extends StatelessWidget {
 
   final ServerProfile profile;
   final bool active;
+
+  /// The server's own computer name; empty when it isn't known.
+  final String computerName;
   final VoidCallback onSwitch;
   final VoidCallback onRename;
   final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
-    return Container(
-      margin: EdgeInsets.only(bottom: ax.space.sm),
-      padding: EdgeInsets.all(ax.space.md),
-      decoration: BoxDecoration(
-        color: active ? c.accentWash : c.surfaceAlt,
-        borderRadius: BorderRadius.circular(ax.radii.md),
-        border: Border.all(color: active ? c.accent : c.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: ax.space.sm,
-            runSpacing: ax.space.xs,
-            children: [Text(profile.name, style: ax.typo.label.copyWith(color: c.text)), if (active) const StatusBadge.ok('Active')],
-          ),
-          SizedBox(height: ax.space.xs),
-          Text(profile.host, style: ax.typo.mono.copyWith(color: c.textMuted)),
-          SizedBox(height: ax.space.sm),
-          Wrap(
-            spacing: ax.space.sm,
-            runSpacing: ax.space.xs,
-            children: [
-              if (!active) AxButton(label: 'Switch', semanticsLabel: 'Switch to ${profile.name}', onPressed: onSwitch),
-              AxButton.ghost(label: 'Rename', semanticsLabel: 'Rename ${profile.name}', onPressed: onRename),
-              AxButton.ghost(label: 'Remove', semanticsLabel: 'Remove ${profile.name}', onPressed: onRemove),
-            ],
-          ),
-        ],
-      ),
+    return AxListTile(
+      leading: const AxTileIcon(Icons.dns_outlined),
+      title: profile.name,
+      titleMono: true,
+      subtitle: computerName.isEmpty ? profile.host : '${profile.host} · $computerName',
+      subtitleMono: true,
+      controls: [
+        if (active)
+          const StatusBadge.ok('In use', icon: Icons.check)
+        else
+          AxButton.secondary(label: 'Switch to it', small: true, semanticsLabel: 'Switch to ${profile.name}', onPressed: onSwitch),
+        PopupMenuButton<_ServerMenu>(
+          key: ValueKey('server-menu-${profile.id}'),
+          tooltip: 'More for ${profile.name}',
+          icon: const Icon(Icons.more_horiz),
+          onSelected: (m) => m == _ServerMenu.rename ? onRename() : onRemove(),
+          itemBuilder:
+              (_) => const [
+                PopupMenuItem(value: _ServerMenu.rename, child: Text('Rename')),
+                PopupMenuItem(value: _ServerMenu.remove, child: Text('Remove')),
+              ],
+        ),
+      ],
     );
   }
 }

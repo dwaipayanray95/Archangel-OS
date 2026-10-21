@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 
-enum AxStatus { ok, warning, error, info, neutral }
+enum AxStatus { ok, warning, error, info, neutral, accent }
 
 /// A small pill that always pairs an icon with text, so status never relies
 /// on colour alone.
@@ -14,6 +14,7 @@ class StatusBadge extends StatelessWidget {
   const StatusBadge.error(this.label, {super.key, this.icon}) : status = AxStatus.error;
   const StatusBadge.info(this.label, {super.key, this.icon}) : status = AxStatus.info;
   const StatusBadge.neutral(this.label, {super.key, this.icon}) : status = AxStatus.neutral;
+  const StatusBadge.accent(this.label, {super.key, this.icon}) : status = AxStatus.accent;
 
   final String label;
   final AxStatus status;
@@ -27,6 +28,7 @@ class StatusBadge extends StatelessWidget {
     AxStatus.error => Icons.error_outline,
     AxStatus.info => Icons.info_outline,
     AxStatus.neutral => Icons.remove_circle_outline,
+    AxStatus.accent => Icons.check_circle_outline,
   };
 
   @override
@@ -39,6 +41,7 @@ class StatusBadge extends StatelessWidget {
       AxStatus.error => (c.danger, c.dangerWash),
       AxStatus.info => (c.info, c.infoWash),
       AxStatus.neutral => (c.textMuted, c.surfaceHigh),
+    AxStatus.accent => (c.accent, c.accentWash),
     };
     return Semantics(
       label: label,

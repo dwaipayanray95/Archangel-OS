@@ -6,14 +6,10 @@ import '../services/app_version.dart';
 import '../services/archangeld_connection.dart';
 import '../services/devices_service.dart';
 import '../services/update_check_service.dart';
-import '../ui/screens/settings/devices_admin_sections.dart';
-import '../ui/screens/settings/other_sections.dart';
-import '../ui/screens/settings/servers_section.dart';
-import '../ui/screens/settings/this_server_section.dart';
-import '../ui/ui.dart';
+import '../ui/screens/settings/settings_view.dart';
 
-/// Settings: servers, this server, devices, Admin mode, security, appearance,
-/// updates and the danger zone - one plain-language card each.
+/// Settings: servers, devices, Admin mode, security, appearance, updates and
+/// the danger zone, laid out by [SettingsView].
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -47,32 +43,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
     final backend = context.watch<ArchangeldConnection>();
     _syncBackendServices(backend);
-    final gap = SizedBox(height: ax.space.lg);
-
-    return AxPage(
-      title: 'Settings',
-      subtitle: 'Archangel v${AppVersion.archangel}',
-      maxContentWidth: 760,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const ServersSection(),
-          gap,
-          const ThisServerSection(),
-          if (backend.isPaired) ...[gap, const DevicesSection(), gap, const AdminModeSection()],
-          gap,
-          const SecuritySection(),
-          gap,
-          const AppearanceSection(),
-          gap,
-          const UpdatesSection(),
-          gap,
-          const DangerZoneSection(),
-        ],
-      ),
-    );
+    return SettingsView(paired: backend.isPaired, version: AppVersion.archangel);
   }
 }

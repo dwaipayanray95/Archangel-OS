@@ -2,86 +2,123 @@ import 'package:flutter/material.dart';
 
 import '../../ui.dart';
 
-/// A Settings card: heading (with an optional help tip and trailing widget),
-/// a one-line plain explanation, then the content.
-class SettingsSection extends StatelessWidget {
-  const SettingsSection({
-    super.key,
-    required this.title,
-    required this.explanation,
-    required this.child,
-    this.help,
-    this.trailing,
-    this.danger = false,
-  });
+/// A Settings card: an optional header (title and small actions), then rows
+/// separated by hairlines, then an optional footnote. Rows are [AxListTile]s
+/// with `controls`, or one of the plain message widgets below.
+class SettingsCard extends StatelessWidget {
+  const SettingsCard({super.key, this.title, this.actions = const [], required this.children, this.footnote, this.danger = false});
 
-  final String title;
-  final String explanation;
-  final Widget child;
-  final HelpTip? help;
-  final Widget? trailing;
+  final String? title;
+  final List<Widget> actions;
+  final List<Widget> children;
 
-  /// Heading in the danger colour (the Danger zone).
+  /// Caption under the rows.
+  final String? footnote;
+
+  /// Draws the edge of the card in the danger colour.
   final bool danger;
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
+    final divider = Divider(height: 1, thickness: 1, color: c.border);
+    final rows = <Widget>[];
+    for (var i = 0; i < children.length; i++) {
+      if (i > 0 || title != null) rows.add(divider);
+      rows.add(children[i]);
+    }
     return AxCard(
+      padding: EdgeInsets.zero,
+      borderColor: danger ? c.danger : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              if (danger) ...[Icon(Icons.warning_amber_rounded, color: c.danger), SizedBox(width: ax.space.sm)],
-              Flexible(
-                child: Semantics(header: true, child: Text(title, style: ax.typo.title.copyWith(color: danger ? c.danger : c.text))),
+          if (title != null)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.md),
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: ax.space.md,
+                runSpacing: ax.space.sm,
+                children: [
+                  Semantics(header: true, child: Text(title!, style: ax.typo.title.copyWith(color: c.text))),
+                  if (actions.isNotEmpty)
+                    Wrap(spacing: ax.space.sm, runSpacing: ax.space.sm, crossAxisAlignment: WrapCrossAlignment.center, children: actions),
+                ],
               ),
-              if (help != null) help!,
-              const Spacer(),
-              if (trailing != null) trailing!,
-            ],
-          ),
-          SizedBox(height: ax.space.xs),
-          Text(explanation, style: ax.typo.body.copyWith(color: c.textMuted)),
-          SizedBox(height: ax.space.md),
-          child,
+            ),
+          ...rows,
+          if (footnote != null) ...[
+            divider,
+            Padding(
+              padding: EdgeInsets.all(ax.space.lg),
+              child: Text(footnote!, style: ax.typo.caption.copyWith(color: c.textMuted)),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-/// A label with its value (and optional trailing widgets) that wraps rather
-/// than overflows on narrow screens.
-class KvRow extends StatelessWidget {
-  const KvRow(this.label, this.value, {super.key, this.trailing, this.mono = false});
+/// A line of muted text inside a [SettingsCard] (an empty state).
+class SettingsMessage extends StatelessWidget {
+  const SettingsMessage(this.text, {super.key});
 
-  final String label;
-  final String value;
-  final bool mono;
-  final Widget? trailing;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    return Padding(
+      padding: EdgeInsets.all(ax.space.lg),
+      child: Text(text, style: ax.typo.body.copyWith(color: ax.colors.textMuted)),
+    );
+  }
+}
+
+/// An error line (and optional retry) inside a [SettingsCard].
+class SettingsError extends StatelessWidget {
+  const SettingsError(this.text, {super.key, this.onRetry});
+
+  final String text;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: ax.space.xs + 2),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: ax.space.md,
-        runSpacing: ax.space.xs,
+      padding: EdgeInsets.all(ax.space.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 140),
-            child: Text(label, style: ax.typo.body.copyWith(color: c.textMuted)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.error_outline, size: 18, color: c.danger),
+              SizedBox(width: ax.space.sm),
+              Expanded(child: Text(text, style: ax.typo.body.copyWith(color: c.danger))),
+            ],
           ),
-          Text(value, style: (mono ? ax.typo.mono : ax.typo.body).copyWith(color: c.text, fontWeight: FontWeight.w600)),
-          if (trailing != null) trailing!,
+          if (onRetry != null) ...[SizedBox(height: ax.space.sm), AxButton.secondary(label: 'Retry', small: true, onPressed: onRetry)],
         ],
       ),
+    );
+  }
+}
+
+/// A small spinner inside a [SettingsCard] while something loads.
+class SettingsLoading extends StatelessWidget {
+  const SettingsLoading({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(context.ax.space.lg),
+      child: const Align(alignment: Alignment.centerLeft, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
     );
   }
 }
