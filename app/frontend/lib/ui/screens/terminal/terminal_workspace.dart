@@ -35,6 +35,7 @@ class TerminalWorkspace extends StatefulWidget {
     this.showAccessoryBar,
     this.onOpenAdminMode,
     this.runningSinceText,
+    this.onReorderSessions,
   });
 
   final List<TerminalSession> sessions;
@@ -55,6 +56,7 @@ class TerminalWorkspace extends StatefulWidget {
   final bool? showAccessoryBar;
   final VoidCallback? onOpenAdminMode;
   final String? runningSinceText;
+  final void Function(int oldIndex, int newIndex)? onReorderSessions;
 
   @override
   State<TerminalWorkspace> createState() => _TerminalWorkspaceState();
@@ -106,6 +108,23 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
     await saveTerminalSnippets(next);
   }
 
+  void _handleReorderSessions(int oldIndex, int newIndex) {
+    if (widget.onReorderSessions != null) {
+      widget.onReorderSessions!(oldIndex, newIndex);
+    } else {
+      final currentSelected =
+          widget.sessions.isNotEmpty && widget.selected >= 0 && widget.selected < widget.sessions.length
+              ? widget.sessions[widget.selected]
+              : null;
+      final session = widget.sessions.removeAt(oldIndex);
+      widget.sessions.insert(newIndex, session);
+      if (currentSelected != null) {
+        final newSel = widget.sessions.indexOf(currentSelected);
+        if (newSel != -1) widget.onSelect(newSel);
+      }
+    }
+  }
+
   void _openSnippetsSheet() {
     showSnippetsBottomSheet(
       context: context,
@@ -129,25 +148,44 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
         final isPhone = MediaQuery.sizeOf(context).width < kTerminalPhoneWidth;
         final showAccessory = widget.showAccessoryBar ?? isPhone;
 
-        final tabs = SingleChildScrollView(
+        final tabs = ReorderableListView.builder(
           scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < widget.sessions.length; i++)
-                _SessionTab(
-                  session: widget.sessions[i],
+          buildDefaultDragHandles: false,
+          shrinkWrap: true,
+          itemCount: widget.sessions.length,
+          onReorderItem: _handleReorderSessions,
+          proxyDecorator: (child, index, animation) {
+            return Material(
+              color: Colors.transparent,
+              elevation: 4,
+              shadowColor: Colors.black.withValues(alpha: tp.isDark ? 0.5 : 0.15),
+              child: child,
+            );
+          },
+          footer: Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4, left: 2),
+              child: AxIconButton(icon: Icons.add, tooltip: 'New session', color: tp.textMuted, onPressed: widget.onNew),
+            ),
+          ),
+          itemBuilder: (context, i) {
+            final session = widget.sessions[i];
+            return Align(
+              key: ValueKey(session),
+              alignment: Alignment.bottomLeft,
+              child: ReorderableDragStartListener(
+                index: i,
+                child: _SessionTab(
+                  session: session,
                   selected: i == widget.selected,
                   narrow: !wide,
                   onTap: () => widget.onSelect(i),
                   onEnd: () => widget.onEnd(i),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4, left: 2),
-                child: AxIconButton(icon: Icons.add, tooltip: 'New session', color: tp.textMuted, onPressed: widget.onNew),
               ),
-            ],
-          ),
+            );
+          },
         );
 
         final adminButton =

@@ -143,6 +143,18 @@ class _TerminalScreenState extends State<TerminalScreen> {
     _refreshServerSessions(backend);
   }
 
+  void _reorderSessions(int oldIndex, int newIndex) {
+    setState(() {
+      final currentSelected = _sessions.isNotEmpty && _tab >= 0 && _tab < _sessions.length ? _sessions[_tab] : null;
+      final session = _sessions.removeAt(oldIndex);
+      _sessions.insert(newIndex, session);
+      if (currentSelected != null) {
+        final newSel = _sessions.indexOf(currentSelected);
+        if (newSel != -1) _tab = newSel;
+      }
+    });
+  }
+
   Future<void> _endSession(int index, ArchangeldConnection backend) async {
     final session = _sessions[index];
     final ok = await confirmEndSession(context, session.name);
@@ -317,6 +329,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
       serverName: registry.active?.name,
       onOpenAdminMode: () => context.read<AppState>().go(AxSection.settings),
       runningSinceText: runningSince,
+      onReorderSessions: _reorderSessions,
     );
   }
 }

@@ -96,6 +96,14 @@ Future<TerminalHarness> pumpWorkspace(
                 serverName: h.serverName,
                 showAccessoryBar: h.showAccessoryBar,
                 onOpenAdminMode: h.onOpenAdminMode ?? () => h.events.add('open-admin'),
+                onReorderSessions: (oldIndex, newIndex) {
+                  setState(() {
+                    final cur = h.sessions[h.selected];
+                    final s = h.sessions.removeAt(oldIndex);
+                    h.sessions.insert(newIndex, s);
+                    h.selected = h.sessions.indexOf(cur);
+                  });
+                },
               ),
             ),
       ),
@@ -235,6 +243,25 @@ void main() {
 
       final termView = tester.widget<TerminalView>(find.byType(TerminalView));
       expect(termView.theme, kTerminalLightTheme);
+
+      await finish(tester, h);
+    });
+
+    testWidgets('dragging session tab reorders tabs', (tester) async {
+      final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main', 'shell-2']);
+      h.channels[0].serverStdout(utf8.encode('ready\n'));
+      await tester.pump();
+
+      expect(h.sessions[0].name, 'main');
+      expect(h.sessions[1].name, 'shell-2');
+
+      // Drag tab "main" to the right past "shell-2"
+      final firstTab = find.text('main');
+      await tester.timedDrag(firstTab, const Offset(120, 0), const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(h.sessions[0].name, 'shell-2');
+      expect(h.sessions[1].name, 'main');
 
       await finish(tester, h);
     });
