@@ -22,7 +22,7 @@ import 'package:archangel/services/ssh_transport.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/ui/screens/settings/settings_view.dart';
-import 'package:archangel/ui/theme.dart';
+import 'package:archangel/ui/ui.dart';
 import 'package:archangel/widgets/uninstall_dialog.dart';
 
 import '../test_utils.dart';
@@ -176,13 +176,18 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('layout', () {
-    testWidgets('wide: the section list shows and Servers is chosen by default', (tester) async {
+    testWidgets('wide: the section list shows and Archangel OS is chosen by default', (tester) async {
       await _pumpSettings(tester);
       for (final id in SettingsSectionId.values) {
         expect(find.byKey(ValueKey('settings-nav-${id.name}')), findsOneWidget, reason: id.name);
       }
       expect(find.text('Settings'), findsNothing);
       expect(find.text('Archangel v${AppVersion.archangel}'), findsNothing);
+      expect(find.byType(AxWordmark), findsWidgets);
+      expect(find.text('System Information'), findsOneWidget);
+      expect(find.text('Developer Options & Diagnostics'), findsOneWidget);
+
+      await _open(tester, SettingsSectionId.servers);
       expect(find.text('Add a server'), findsOneWidget);
       expect(find.text('Server a'), findsOneWidget);
       expect(find.text('Repair server permissions'), findsNothing);
@@ -244,6 +249,7 @@ void main() {
   group('servers', () {
     testWidgets('the active server shows In use and the others a Switch to it button', (tester) async {
       await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.servers);
       expect(find.text('In use'), findsOneWidget);
       expect(find.text('Switch to it'), findsOneWidget);
       expect(find.byTooltip('More for Server a'), findsOneWidget);
@@ -252,6 +258,7 @@ void main() {
 
     testWidgets('Switch to it makes that server the active one', (tester) async {
       final h = await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.servers);
       await _tapText(tester, 'Switch to it');
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       expect(h.registry.activeId, 'b');
@@ -259,6 +266,7 @@ void main() {
 
     testWidgets('Rename changes the name', (tester) async {
       final h = await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.servers);
       await tester.tap(find.byTooltip('More for Server b'));
       await _settle(tester);
       await tester.tap(find.text('Rename'));
@@ -273,6 +281,7 @@ void main() {
 
     testWidgets('Remove explains it only forgets the server on this device and removes a non-active one', (tester) async {
       final h = await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.servers);
       await tester.tap(find.byTooltip('More for Server b'));
       await _settle(tester);
       await tester.tap(find.text('Remove'));
@@ -486,10 +495,39 @@ void main() {
       await _tapText(tester, 'Full screen');
       expect(h.app.fullScreen, isTrue);
     });
+  });
+
+  group('archangel os', () {
+    testWidgets('displays wordmark, system info, and developer diagnostics', (tester) async {
+      await _pumpSettings(tester);
+      expect(find.byType(AxWordmark), findsWidgets);
+      expect(find.text('Sovereign personal cloud system'), findsOneWidget);
+      expect(find.text('System Information'), findsOneWidget);
+      expect(find.text('Archangel OS'), findsWidgets);
+      expect(find.text('Host platform'), findsOneWidget);
+      expect(find.text('Dart runtime engine'), findsOneWidget);
+      expect(find.text('Active Server Node'), findsOneWidget);
+      expect(find.text('Developer Options & Diagnostics'), findsOneWidget);
+      expect(find.text('System diagnostic report'), findsOneWidget);
+    });
+
+    testWidgets('View report button opens diagnostic dialog and can be closed', (tester) async {
+      await _pumpSettings(tester);
+      await _tapText(tester, 'View report');
+      expect(find.text('System Diagnostic Report'), findsOneWidget);
+      expect(find.textContaining('Archangel OS Unified Diagnostic Snapshot'), findsOneWidget);
+      await _tapText(tester, 'Close');
+      expect(find.text('System Diagnostic Report'), findsNothing);
+    });
+
+    testWidgets('Copy report button copies diagnostics to clipboard and shows snackbar', (tester) async {
+      await _pumpSettings(tester);
+      await _tapText(tester, 'Copy report');
+      expect(find.text('Diagnostic report copied to clipboard'), findsOneWidget);
+    });
 
     testWidgets('Replay buttons play the chosen start-up animation', (tester) async {
       final h = await _pumpSettings(tester);
-      await _open(tester, SettingsSectionId.appearance);
       final before = h.app.bootReplay;
       await _tapText(tester, 'Replay first launch');
       expect(h.app.bootReplay, before + 1);
@@ -503,7 +541,7 @@ void main() {
     testWidgets('shows both versions, Check now and the footnote', (tester) async {
       await _pumpSettings(tester);
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-      await _open(tester, SettingsSectionId.updates);
+      await _open(tester, SettingsSectionId.about);
       expect(find.text('Archangel OS app'), findsOneWidget);
       expect(find.text('Version ${AppVersion.current}'), findsOneWidget);
       expect(find.text('Server program'), findsOneWidget);
@@ -514,7 +552,7 @@ void main() {
 
     testWidgets('the Server program row is hidden when unpaired', (tester) async {
       await _pumpSettings(tester, paired: false);
-      await _open(tester, SettingsSectionId.updates);
+      await _open(tester, SettingsSectionId.about);
       expect(find.text('Archangel OS app'), findsOneWidget);
       expect(find.text('Server program'), findsNothing);
     });

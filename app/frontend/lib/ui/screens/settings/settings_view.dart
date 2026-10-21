@@ -7,12 +7,12 @@ import 'servers_section.dart';
 
 /// The Settings sections, in the order they are listed.
 enum SettingsSectionId {
+  about('Archangel OS', Icons.auto_awesome_rounded),
   servers('Servers', Icons.dns_outlined),
   devices('Devices', Icons.devices_outlined),
   admin('Admin mode', Icons.key_outlined),
   security('Security', Icons.shield_outlined),
   appearance('Appearance', Icons.light_mode_outlined),
-  updates('Updates', Icons.download_outlined),
   danger('Danger zone', Icons.warning_amber_rounded);
 
   const SettingsSectionId(this.label, this.icon);
@@ -23,12 +23,12 @@ enum SettingsSectionId {
   bool get needsPairing => this == devices || this == admin;
 
   Widget get content => switch (this) {
+    about => const ArchangelOsSection(),
     servers => const ServersSection(),
     devices => const DevicesSection(),
     admin => const AdminModeSection(),
     security => const SecuritySection(),
     appearance => const AppearanceSection(),
-    updates => const UpdatesSection(),
     danger => const DangerZoneSection(),
   };
 }
@@ -49,7 +49,7 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
-  SettingsSectionId _selected = SettingsSectionId.servers;
+  SettingsSectionId _selected = SettingsSectionId.about;
 
   /// Narrow only: whether the chosen section is open (instead of the list).
   bool _opened = false;
@@ -59,7 +59,7 @@ class _SettingsViewState extends State<SettingsView> {
       if (!s.needsPairing || widget.paired) s,
   ];
 
-  SettingsSectionId get _current => _visible.contains(_selected) ? _selected : SettingsSectionId.servers;
+  SettingsSectionId get _current => _visible.contains(_selected) ? _selected : SettingsSectionId.about;
 
   @override
   Widget build(BuildContext context) {
