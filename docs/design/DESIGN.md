@@ -75,7 +75,7 @@ least 3 s, then fades.
 | Shell, Desktop mode, boot | signed off | built |
 | Home | signed off | built |
 | Apps, Run an app | signed off | built |
-| Settings | in prototype, needs Ray's sign-off | spec ready: `specs/settings.md` |
+| Settings | signed off | to build: `specs/settings.md` |
 | Terminal ("Pro console") | in prototype | old version |
 | Files, Activity, Services | to design | old version |
 | Setup wizard | partly | partly |

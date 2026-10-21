@@ -1,8 +1,6 @@
 # Spec: Settings
 
-Status: **waiting for Ray's sign-off on the prototype** (open
-`docs/design/prototype.html`, then go to Settings in both Desktop and phone
-view). Don't build it until this line says "signed off".
+Status: **signed off** by Ray. Ready to build.
 
 Goal: rebuild Settings to match the prototype. Keep everything the current
 Settings can do, put it into clear sections, and use the Halo look.
