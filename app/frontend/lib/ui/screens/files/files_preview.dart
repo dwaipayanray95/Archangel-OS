@@ -111,7 +111,11 @@ class _FilePreviewBodyState extends State<FilePreviewBody> {
 
     if (content != null && content.path == e.path) {
       if (content.isBinary) {
-        return _unsupportedBlock(context, 'There\'s no preview for this kind of file. Download it to open it on this device.');
+        return _unsupportedBlock(
+          context,
+          'There\'s no preview for this kind of file. Download it to open it on this device.',
+          icon: fileIconFor(e),
+        );
       }
 
       final lines = content.lines.join('\n');
@@ -125,14 +129,14 @@ class _FilePreviewBodyState extends State<FilePreviewBody> {
             constraints: const BoxConstraints(maxHeight: 240),
             padding: EdgeInsets.all(ax.space.md),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F111A),
+              color: c.surfaceAlt,
               borderRadius: BorderRadius.circular(ax.radii.md),
-              border: Border.all(color: const Color(0x1AFFFFFF)),
+              border: Border.all(color: c.border),
             ),
             child: SingleChildScrollView(
               child: SelectableText(
                 lines.isEmpty ? '(empty file)' : lines,
-                style: ax.typo.mono.copyWith(fontSize: 12, height: 1.6, color: const Color(0xFFE2E8F0)),
+                style: ax.typo.mono.copyWith(fontSize: 12, height: 1.6, color: c.text),
               ),
             ),
           ),
@@ -142,16 +146,28 @@ class _FilePreviewBodyState extends State<FilePreviewBody> {
       );
     }
 
-    return _unsupportedBlock(context, 'There\'s no preview for this kind of file. Download it to open it on this device.');
+    return _unsupportedBlock(
+      context,
+      'There\'s no preview for this kind of file. Download it to open it on this device.',
+      icon: fileIconFor(e),
+    );
   }
 
-  Widget _unsupportedBlock(BuildContext context, String text) {
+  Widget _unsupportedBlock(BuildContext context, String text, {IconData icon = Icons.insert_drive_file_outlined}) {
     final ax = context.ax;
     final c = ax.colors;
     return Container(
-      padding: EdgeInsets.all(ax.space.lg),
-      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md)),
-      child: Center(child: Text(text, textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: c.textMuted))),
+      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.xl),
+      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 32, color: c.textMuted),
+          SizedBox(height: ax.space.sm),
+          Text(text, textAlign: TextAlign.center, style: ax.typo.body.copyWith(fontSize: 13, color: c.textMuted)),
+        ],
+      ),
     );
   }
 }

@@ -150,31 +150,59 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top row: Breadcrumbs on the left, action icon(s) on the right
+          // Header row: Title + subtitle on the left, action button(s) on the right
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _BreadcrumbBar(
-                  path: effectivePath,
-                  rootPath: rootPath,
-                  collapseNarrow: false,
-                  onTapCrumb: (path) {
-                    setState(() => _selectedFile = null);
-                    files.loadDirectory(path);
-                  },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(header: true, child: Text('Files', style: ax.typo.headline.copyWith(color: c.text))),
+                    Padding(
+                      padding: EdgeInsets.only(top: ax.space.xs),
+                      child: Text(
+                        'Everything here lives on your server, not on someone else\'s cloud.',
+                        style: ax.typo.body.copyWith(color: c.textMuted),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              SizedBox(width: ax.space.sm),
-              AxIconButton(
-                icon: Icons.terminal_rounded,
-                tooltip: 'Open terminal here',
-                onPressed: () => widget.onOpenTerminal(effectivePath),
+              SizedBox(width: ax.space.md),
+              Wrap(
+                spacing: ax.space.sm,
+                runSpacing: ax.space.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Tooltip(
+                    message: 'Open terminal here',
+                    child: AxButton.secondary(
+                      icon: Icons.terminal_rounded,
+                      label: 'Open terminal here',
+                      onPressed: () => widget.onOpenTerminal(effectivePath),
+                    ),
+                  ),
+                  if (files.supportsUpload)
+                    Tooltip(
+                      message: 'Upload',
+                      child: AxButton(icon: Icons.upload_rounded, label: 'Upload', onPressed: () => _handleUpload(effectivePath)),
+                    ),
+                ],
               ),
-              if (files.supportsUpload) ...[
-                SizedBox(width: ax.space.xs),
-                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
-              ],
             ],
+          ),
+          SizedBox(height: ax.space.lg),
+
+          // Breadcrumbs row
+          _BreadcrumbBar(
+            path: effectivePath,
+            rootPath: rootPath,
+            collapseNarrow: false,
+            onTapCrumb: (path) {
+              setState(() => _selectedFile = null);
+              files.loadDirectory(path);
+            },
           ),
           SizedBox(height: ax.space.md),
 
@@ -371,20 +399,23 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           onSelected: _setSort,
           itemBuilder:
               (context) => [for (final choice in FilesSortChoice.values) PopupMenuItem(value: choice, child: Text(choice.menuLabel))],
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.sm),
-            decoration: BoxDecoration(
-              color: c.surfaceAlt,
-              borderRadius: BorderRadius.circular(ax.radii.pill),
-              border: Border.all(color: c.border),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Sort: ${_sort.buttonLabel}', style: ax.typo.label.copyWith(color: c.text)),
-                SizedBox(width: ax.space.xs),
-                Icon(Icons.arrow_drop_down_rounded, size: 18, color: c.textMuted),
-              ],
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.sm),
+              decoration: BoxDecoration(
+                color: c.surfaceAlt,
+                borderRadius: BorderRadius.circular(ax.radii.pill),
+                border: Border.all(color: c.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Sort: ${_sort.buttonLabel}', style: ax.typo.label.copyWith(color: c.text)),
+                  SizedBox(width: ax.space.xs),
+                  Icon(Icons.arrow_drop_down_rounded, size: 18, color: c.textMuted),
+                ],
+              ),
             ),
           ),
         ),
@@ -396,12 +427,15 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           excludeSemantics: true,
           onTap: files.toggleShowHidden,
           child: InkWell(
+            mouseCursor: SystemMouseCursors.click,
             borderRadius: BorderRadius.circular(ax.radii.sm),
             onTap: files.toggleShowHidden,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IgnorePointer(child: Switch(value: files.showHidden, onChanged: (_) {})),
+                IgnorePointer(
+                  child: Switch(value: files.showHidden, onChanged: (_) {}, activeThumbColor: c.accent, activeTrackColor: c.accentWash),
+                ),
                 SizedBox(width: ax.space.xs),
                 Text(wide ? 'Show hidden files' : 'Hidden', style: ax.typo.body.copyWith(color: c.text)),
               ],
@@ -494,15 +528,16 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
     }
 
     // 4. File list
+    final c = context.ax.colors;
     if (wide) {
       return Column(
         children: [
           _WideTableHeader(currentSort: _sort, onSortChanged: _setSort),
-          const Divider(height: 1),
+          Divider(height: 1, color: c.border),
           Expanded(
             child: ListView.separated(
               itemCount: filteredEntries.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
               itemBuilder: (context, i) {
                 final e = filteredEntries[i];
                 final selected = _selectedFile?.path == e.path;
@@ -517,7 +552,7 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: filteredEntries.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
         itemBuilder: (context, i) {
           final e = filteredEntries[i];
           final selected = _selectedFile?.path == e.path;
@@ -580,6 +615,7 @@ class _CrumbChip extends StatelessWidget {
       selected: isLast,
       label: isLast ? 'Current folder: ${crumb.label}' : 'Go to ${crumb.label}',
       child: InkWell(
+        mouseCursor: isLast ? SystemMouseCursors.basic : SystemMouseCursors.click,
         borderRadius: BorderRadius.circular(ax.radii.sm),
         onTap: isLast ? null : onTap,
         child: Padding(
@@ -662,6 +698,7 @@ class _HeaderColumn extends StatelessWidget {
     return Align(
       alignment: alignment,
       child: InkWell(
+        mouseCursor: SystemMouseCursors.click,
         onTap: onTap,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -694,6 +731,7 @@ class _WideTableRow extends StatelessWidget {
     final formattedDate = formatFileDate(entry.mtime);
 
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Container(
         height: 46,
@@ -763,6 +801,7 @@ class _NarrowTableRow extends StatelessWidget {
     final subtitle = entrySubtitle(entry);
 
     return InkWell(
+      mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Container(
         height: 56,

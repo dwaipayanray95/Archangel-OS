@@ -200,18 +200,70 @@ IconData fileIconFor(FileEntryModel e) {
   if (e.isLog) return Icons.receipt_long_outlined;
   if (isImageFile(e)) return Icons.image_outlined;
   final name = e.name.toLowerCase();
+
+  // Video files
+  if (name.endsWith('.mp4') ||
+      name.endsWith('.mkv') ||
+      name.endsWith('.mov') ||
+      name.endsWith('.avi') ||
+      name.endsWith('.webm') ||
+      name.endsWith('.m4v')) {
+    return Icons.movie_outlined;
+  }
+
+  // Audio files
+  if (name.endsWith('.mp3') ||
+      name.endsWith('.wav') ||
+      name.endsWith('.flac') ||
+      name.endsWith('.aac') ||
+      name.endsWith('.ogg') ||
+      name.endsWith('.m4a')) {
+    return Icons.audio_file_outlined;
+  }
+
+  // Archives
+  if (name.endsWith('.zip') ||
+      name.endsWith('.tar') ||
+      name.endsWith('.gz') ||
+      name.endsWith('.tgz') ||
+      name.endsWith('.7z') ||
+      name.endsWith('.rar') ||
+      name.endsWith('.bz2') ||
+      name.endsWith('.xz')) {
+    return Icons.folder_zip_outlined;
+  }
+
+  // PDF and documents
+  if (name.endsWith('.pdf')) {
+    return Icons.picture_as_pdf_outlined;
+  }
+
+  // Code and text
   if (name.endsWith('.txt') ||
       name.endsWith('.md') ||
       name.endsWith('.json') ||
       name.endsWith('.yaml') ||
       name.endsWith('.yml') ||
       name.endsWith('.sh') ||
+      name.endsWith('.bash') ||
+      name.endsWith('.zsh') ||
       name.endsWith('.dart') ||
       name.endsWith('.go') ||
       name.endsWith('.html') ||
       name.endsWith('.css') ||
       name.endsWith('.js') ||
-      name.endsWith('.ts')) {
+      name.endsWith('.ts') ||
+      name.endsWith('.tsx') ||
+      name.endsWith('.jsx') ||
+      name.endsWith('.py') ||
+      name.endsWith('.rs') ||
+      name.endsWith('.c') ||
+      name.endsWith('.cpp') ||
+      name.endsWith('.h') ||
+      name.endsWith('.sql') ||
+      name.endsWith('.env') ||
+      name.endsWith('.xml') ||
+      name.endsWith('.toml')) {
     return Icons.description_outlined;
   }
   return Icons.insert_drive_file_outlined;

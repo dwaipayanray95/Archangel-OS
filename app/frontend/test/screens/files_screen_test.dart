@@ -196,7 +196,13 @@ void main() {
       await _pump(tester, svc, const Size(1400, 900));
       expect(tester.takeException(), isNull);
 
-      // Action icon buttons
+      // Header title & subtitle (wide only)
+      expect(find.text('Files'), findsOneWidget);
+      expect(find.text('Everything here lives on your server, not on someone else\'s cloud.'), findsOneWidget);
+
+      // Actions on wide: labeled buttons with tooltips
+      expect(find.widgetWithText(AxButton, 'Open terminal here'), findsOneWidget);
+      expect(find.widgetWithText(AxButton, 'Upload'), findsOneWidget);
       expect(find.byTooltip('Open terminal here'), findsOneWidget);
       expect(find.byTooltip('Upload'), findsOneWidget);
 
@@ -264,6 +270,7 @@ void main() {
       // Icon buttons with tooltips on narrow
       expect(find.byTooltip('Open terminal here'), findsOneWidget);
       expect(find.byTooltip('Upload'), findsOneWidget);
+      expect(find.text('Everything here lives on your server, not on someone else\'s cloud.'), findsNothing);
 
       // Breadcrumbs collapsed with ellipsis
       expect(find.text('…'), findsOneWidget);
@@ -639,6 +646,16 @@ void main() {
 
       final byLargest = sortEntries(entries, sort: FilesSortChoice.largest);
       expect(byLargest.map((e) => e.name), ['folder_a', 'folder_b', 'a.txt', 'b.txt']);
+    });
+
+    test('fileIconFor categorizes various file types', () {
+      expect(fileIconFor(_entry('folder', kind: 'dir')), Icons.folder_rounded);
+      expect(fileIconFor(_entry('movie.mp4')), Icons.movie_outlined);
+      expect(fileIconFor(_entry('song.mp3')), Icons.audio_file_outlined);
+      expect(fileIconFor(_entry('archive.zip')), Icons.folder_zip_outlined);
+      expect(fileIconFor(_entry('doc.pdf')), Icons.picture_as_pdf_outlined);
+      expect(fileIconFor(_entry('code.dart')), Icons.description_outlined);
+      expect(fileIconFor(_entry('unknown.xyz')), Icons.insert_drive_file_outlined);
     });
   });
 }
