@@ -264,6 +264,42 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(WidePreviewCard), findsOneWidget);
     });
+
+    testWidgets('no overflow in 600px desktop window when tiled (preview uses narrow view with back)', (tester) async {
+      final svc = _FakeFiles(
+        fakeListing: _listing(),
+        fakeSupportsUpload: true,
+        fakeSupportsPrivateLink: true,
+        fakeFileContent: const FileContentResult(
+          path: '/home/archangel/projects/notes/notes.txt',
+          name: 'notes.txt',
+          sizeBytes: 1000,
+          lines: ["version: '3.8'", '', 'services:', '  tcu-backend:'],
+          lineCount: 4,
+          truncated: false,
+          isBinary: false,
+          mimeType: 'text/plain',
+        ),
+      );
+
+      await _pump(tester, svc, const Size(600, 700));
+      expect(tester.takeException(), isNull);
+
+      // Tapping file does not overflow and uses NarrowPreviewView
+      await tester.tap(find.text('notes.txt'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(NarrowPreviewView), findsOneWidget);
+      expect(find.byType(WidePreviewCard), findsNothing);
+
+      // Closing returns to file list
+      await tester.tap(find.text('‹ notes'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NarrowPreviewView), findsNothing);
+      expect(find.text('notes.txt'), findsOneWidget);
+    });
   });
 
   group('Narrow 340 and 390 layout', () {

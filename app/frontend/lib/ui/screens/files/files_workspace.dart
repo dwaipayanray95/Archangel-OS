@@ -8,6 +8,7 @@ import 'files_preview.dart';
 import 'files_upload.dart';
 
 const double kFilesWideMinWidth = 560.0;
+const double kFilesSideBySidePreviewMinWidth = 800.0;
 
 class FilesWorkspace extends StatefulWidget {
   const FilesWorkspace({
@@ -131,6 +132,11 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // When a file preview is active, side-by-side layout needs at least 800px.
+        // Below that (such as in tiled windows), show the preview in full-width view.
+        if (_selectedFile != null && constraints.maxWidth < kFilesSideBySidePreviewMinWidth) {
+          return _buildNarrow(context);
+        }
         final wide = constraints.maxWidth >= kFilesWideMinWidth;
         return wide ? _buildWide(context) : _buildNarrow(context);
       },
