@@ -580,7 +580,7 @@ void main() {
   });
 
   group('Upload and Private Link', () {
-    testWidgets('buttons hidden when service reports unsupported', (tester) async {
+    testWidgets('Upload is present; shows unsupported snackbar when service reports unsupported', (tester) async {
       final svc = _FakeFiles(
         fakeListing: _listing(),
         fakeSupportsUpload: false,
@@ -599,7 +599,11 @@ void main() {
 
       await _pump(tester, svc, const Size(1400, 900));
 
-      expect(find.byTooltip('Upload'), findsNothing);
+      // Upload button is present next to terminal
+      expect(find.byTooltip('Upload'), findsOneWidget);
+      await tester.tap(find.byTooltip('Upload'));
+      await tester.pump();
+      expect(find.text('Upload is not supported yet'), findsOneWidget);
 
       await tester.tap(find.text('notes.txt'));
       await tester.pump();

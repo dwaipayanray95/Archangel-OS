@@ -79,9 +79,11 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
   }
 
   Future<void> _handleUpload(String currentFolder) async {
-    // Ray adds the upload endpoint to backend. For now, FilesService reports unsupported.
-    // In tests with a fake service, supportsUpload returns true.
-    if (!widget.files.supportsUpload) return;
+    // Ray adds the upload endpoint to backend. When not supported yet, show snackbar.
+    if (!widget.files.supportsUpload) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload is not supported yet')));
+      return;
+    }
 
     // Simulate / invoke upload for selected files
     final dummyFiles = [const UploadFileItem(name: 'upload1.txt', sizeBytes: 1024)];
@@ -177,10 +179,8 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
                 tooltip: 'Open terminal here',
                 onPressed: () => widget.onOpenTerminal(effectivePath),
               ),
-              if (files.supportsUpload) ...[
-                SizedBox(width: ax.space.xs),
-                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
-              ],
+              SizedBox(width: ax.space.xs),
+              AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
             ],
           ),
           SizedBox(height: ax.space.md),
@@ -291,10 +291,8 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
                 tooltip: 'Open terminal here',
                 onPressed: () => widget.onOpenTerminal(effectivePath),
               ),
-              if (files.supportsUpload) ...[
-                SizedBox(width: ax.space.xs),
-                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
-              ],
+              SizedBox(width: ax.space.xs),
+              AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
             ],
           ),
           SizedBox(height: ax.space.md),
