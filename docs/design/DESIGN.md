@@ -78,5 +78,6 @@ least 3 s, then fades.
 | Settings | signed off | built |
 | Terminal ("Pro console") | signed off | built |
 | Files | signed off | built |
-| Activity, Services | to design | old version |
+| Activity | signed off | to build: `specs/activity.md` |
+| Services | signed off | to build: `specs/services.md` |
 | Setup wizard | partly | partly |
