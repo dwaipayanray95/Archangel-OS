@@ -11,6 +11,7 @@ import '../../services/devops_service.dart';
 import '../../services/files_service.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
+import '../../services/window_service.dart';
 import '../../widgets/command_palette.dart';
 import '../../widgets/notif_panel.dart';
 import '../components/ax_glass.dart';
@@ -27,6 +28,7 @@ import 'status_strip.dart';
 
 const _kOpenPalette = SingleActivator(LogicalKeyboardKey.keyK, meta: true);
 const _kOpenPaletteCtrl = SingleActivator(LogicalKeyboardKey.keyK, control: true);
+const _kToggleFullScreen = SingleActivator(LogicalKeyboardKey.f11);
 
 /// Below this width the phone layout (bottom bar + More) is used.
 const double kPhoneBreakpoint = 720;
@@ -268,7 +270,11 @@ class _ArchangelShellState extends State<ArchangelShell> {
         );
 
         return CallbackShortcuts(
-          bindings: {_kOpenPalette: app.openPalette, _kOpenPaletteCtrl: app.openPalette},
+          bindings: {
+            _kOpenPalette: app.openPalette,
+            _kOpenPaletteCtrl: app.openPalette,
+            _kToggleFullScreen: WindowService.toggleFullScreen,
+          },
           child: Focus(
             autofocus: true,
             // Back: close overlay -> Home -> leave the app. (Dialogs and
