@@ -504,7 +504,7 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           Expanded(
             child: ListView.separated(
               itemCount: filteredEntries.length,
-              separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
+              separatorBuilder: (_, _) => Divider(height: 1, color: c.border),
               itemBuilder: (context, i) {
                 final e = filteredEntries[i];
                 final selected = _selectedFile?.path == e.path;
@@ -524,7 +524,7 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: filteredEntries.length,
-        separatorBuilder: (_, __) => Divider(height: 1, color: c.border),
+        separatorBuilder: (_, _) => Divider(height: 1, color: c.border),
         itemBuilder: (context, i) {
           final e = filteredEntries[i];
           final selected = _selectedFile?.path == e.path;

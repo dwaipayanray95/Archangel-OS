@@ -31,7 +31,7 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/wireguard_flutter/darwin
 
 SPEC CHECKSUMS:
-  file_selector_macos: 9e9e068e90ebee155097d00e89ae91edb2374db7
+  file_selector_macos: 3af0fddc391c32a6a3956a7d3898ca3a86057a4f
   FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
   mobile_scanner: 9157936403f5a0644ca3779a38ff8404c5434a93
   url_launcher_macos: f87a979182d112f911de6820aefddaf56ee9fbfd
