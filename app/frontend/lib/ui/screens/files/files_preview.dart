@@ -236,8 +236,46 @@ class _PreviewActionButtonsState extends State<PreviewActionButtons> {
   }
 }
 
+/// Compact, elegant icon button for the preview panel header.
+class _PreviewHeaderIconButton extends StatelessWidget {
+  const _PreviewHeaderIconButton({required this.icon, required this.tooltip, required this.onPressed, this.loading = false});
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        mouseCursor: loading ? SystemMouseCursors.basic : SystemMouseCursors.click,
+        borderRadius: BorderRadius.circular(ax.radii.sm),
+        onTap: loading ? null : onPressed,
+        child: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: c.surfaceAlt,
+            borderRadius: BorderRadius.circular(ax.radii.sm),
+            border: Border.all(color: c.border),
+          ),
+          alignment: Alignment.center,
+          child:
+              loading
+                  ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent))
+                  : Icon(icon, size: 16, color: c.textMuted),
+        ),
+      ),
+    );
+  }
+}
+
 /// Wide preview card (300px wide, beside list).
-class WidePreviewCard extends StatelessWidget {
+class WidePreviewCard extends StatefulWidget {
   const WidePreviewCard({super.key, required this.entry, required this.files, required this.onClose});
 
   final FileEntryModel entry;
@@ -245,9 +283,30 @@ class WidePreviewCard extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
+  State<WidePreviewCard> createState() => _WidePreviewCardState();
+}
+
+class _WidePreviewCardState extends State<WidePreviewCard> {
+  bool _downloading = false;
+
+  Future<void> _handleDownload() async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await widget.files.downloadToDisk(widget.entry.path);
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed'))));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
+    final entry = widget.entry;
     final formattedDate = formatFileDate(entry.mtime);
     final meta = formattedDate.isEmpty ? entry.size : '${entry.size} · $formattedDate';
 
@@ -264,17 +323,35 @@ class WidePreviewCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(entry.name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text), softWrap: true),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text), softWrap: true),
+                        SizedBox(height: ax.space.xs),
+                        Text(meta, style: ax.typo.caption.copyWith(color: c.textMuted)),
+                      ],
+                    ),
                   ),
-                  AxIconButton(icon: Icons.close_rounded, tooltip: 'Close preview', onPressed: onClose),
+                  SizedBox(width: ax.space.sm),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _PreviewHeaderIconButton(
+                        icon: Icons.download_rounded,
+                        tooltip: 'Download',
+                        loading: _downloading,
+                        onPressed: _handleDownload,
+                      ),
+                      SizedBox(width: ax.space.xs),
+                      _PreviewHeaderIconButton(icon: Icons.close_rounded, tooltip: 'Close preview', onPressed: widget.onClose),
+                    ],
+                  ),
                 ],
               ),
-              SizedBox(height: ax.space.xs),
-              Text(meta, style: ax.typo.caption.copyWith(color: c.textMuted)),
               SizedBox(height: ax.space.md),
-              FilePreviewBody(entry: entry, files: files),
+              FilePreviewBody(entry: entry, files: widget.files),
               SizedBox(height: ax.space.md),
-              PreviewActionButtons(entry: entry, files: files),
+              PreviewActionButtons(entry: entry, files: widget.files),
             ],
           ),
         ),
@@ -284,7 +361,7 @@ class WidePreviewCard extends StatelessWidget {
 }
 
 /// Narrow full-screen preview view with ghost back button.
-class NarrowPreviewView extends StatelessWidget {
+class NarrowPreviewView extends StatefulWidget {
   const NarrowPreviewView({super.key, required this.entry, required this.files, required this.onClose});
 
   final FileEntryModel entry;
@@ -292,10 +369,31 @@ class NarrowPreviewView extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
+  State<NarrowPreviewView> createState() => _NarrowPreviewViewState();
+}
+
+class _NarrowPreviewViewState extends State<NarrowPreviewView> {
+  bool _downloading = false;
+
+  Future<void> _handleDownload() async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final res = await widget.files.downloadToDisk(widget.entry.path);
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed'))));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
-    final parentName = parentBaseNameOf(entry.path, rootPath: files.rootPath);
+    final entry = widget.entry;
+    final parentName = parentBaseNameOf(entry.path, rootPath: widget.files.rootPath);
     final formattedDate = formatFileDate(entry.mtime);
     final parentDir = parentDirOf(entry.path);
 
@@ -304,7 +402,18 @@ class NarrowPreviewView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Align(alignment: Alignment.centerLeft, child: AxButton.ghost(label: '‹ $parentName', onPressed: onClose)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              AxButton.ghost(label: '‹ $parentName', onPressed: widget.onClose),
+              _PreviewHeaderIconButton(
+                icon: Icons.download_rounded,
+                tooltip: 'Download',
+                loading: _downloading,
+                onPressed: _handleDownload,
+              ),
+            ],
+          ),
           SizedBox(height: ax.space.md),
           Text(entry.name, style: ax.typo.mono.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text), softWrap: true),
           SizedBox(height: ax.space.lg),
@@ -321,9 +430,9 @@ class NarrowPreviewView extends StatelessWidget {
             ),
           ),
           SizedBox(height: ax.space.lg),
-          FilePreviewBody(entry: entry, files: files),
+          FilePreviewBody(entry: entry, files: widget.files),
           SizedBox(height: ax.space.lg),
-          PreviewActionButtons(entry: entry, files: files),
+          PreviewActionButtons(entry: entry, files: widget.files),
         ],
       ),
     );

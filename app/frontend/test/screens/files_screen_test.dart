@@ -196,15 +196,18 @@ void main() {
       await _pump(tester, svc, const Size(1400, 900));
       expect(tester.takeException(), isNull);
 
-      // Header title & subtitle (wide only)
-      expect(find.text('Files'), findsOneWidget);
-      expect(find.text('Everything here lives on your server, not on someone else\'s cloud.'), findsOneWidget);
+      // No redundant screen header / subheader
+      expect(find.text('Files'), findsNothing);
+      expect(find.text('Everything here lives on your server, not on someone else\'s cloud.'), findsNothing);
 
-      // Actions on wide: labeled buttons with tooltips
-      expect(find.widgetWithText(AxButton, 'Open terminal here'), findsOneWidget);
-      expect(find.widgetWithText(AxButton, 'Upload'), findsOneWidget);
+      // Actions on wide: icon buttons with tooltips
       expect(find.byTooltip('Open terminal here'), findsOneWidget);
       expect(find.byTooltip('Upload'), findsOneWidget);
+
+      // Download option in the file panel
+      expect(find.byTooltip('Download notes.txt'), findsOneWidget);
+      expect(find.byTooltip('Download photo.jpg'), findsOneWidget);
+      expect(find.byTooltip('Download docs'), findsNothing);
 
       // List headers
       expect(find.text('Name'), findsOneWidget);
@@ -215,8 +218,10 @@ void main() {
       await tester.tap(find.text('notes.txt'));
       await tester.pump();
 
-      // Wide preview card displays Download and Copy private link
+      // Wide preview card displays compact close, top download icon, and action buttons
       expect(find.byType(WidePreviewCard), findsOneWidget);
+      expect(find.byTooltip('Close preview'), findsOneWidget);
+      expect(find.byTooltip('Download'), findsWidgets);
       expect(find.widgetWithText(AxButton, 'Download'), findsOneWidget);
       expect(find.text('Copy private link'), findsOneWidget);
       expect(find.text('Showing the whole file.'), findsOneWidget);

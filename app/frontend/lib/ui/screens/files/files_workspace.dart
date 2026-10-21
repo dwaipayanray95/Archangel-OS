@@ -118,6 +118,13 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
     }
   }
 
+  Future<void> _handleDownloadFile(FileEntryModel entry) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await widget.files.downloadToDisk(entry.path);
+    if (!mounted) return;
+    messenger.showSnackBar(SnackBar(content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed'))));
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -150,59 +157,31 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header row: Title + subtitle on the left, action button(s) on the right
+          // Top row: Breadcrumbs on the left, action icon(s) on the right
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Semantics(header: true, child: Text('Files', style: ax.typo.headline.copyWith(color: c.text))),
-                    Padding(
-                      padding: EdgeInsets.only(top: ax.space.xs),
-                      child: Text(
-                        'Everything here lives on your server, not on someone else\'s cloud.',
-                        style: ax.typo.body.copyWith(color: c.textMuted),
-                      ),
-                    ),
-                  ],
+                child: _BreadcrumbBar(
+                  path: effectivePath,
+                  rootPath: rootPath,
+                  collapseNarrow: false,
+                  onTapCrumb: (path) {
+                    setState(() => _selectedFile = null);
+                    files.loadDirectory(path);
+                  },
                 ),
               ),
-              SizedBox(width: ax.space.md),
-              Wrap(
-                spacing: ax.space.sm,
-                runSpacing: ax.space.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Tooltip(
-                    message: 'Open terminal here',
-                    child: AxButton.secondary(
-                      icon: Icons.terminal_rounded,
-                      label: 'Open terminal here',
-                      onPressed: () => widget.onOpenTerminal(effectivePath),
-                    ),
-                  ),
-                  if (files.supportsUpload)
-                    Tooltip(
-                      message: 'Upload',
-                      child: AxButton(icon: Icons.upload_rounded, label: 'Upload', onPressed: () => _handleUpload(effectivePath)),
-                    ),
-                ],
+              SizedBox(width: ax.space.sm),
+              AxIconButton(
+                icon: Icons.terminal_rounded,
+                tooltip: 'Open terminal here',
+                onPressed: () => widget.onOpenTerminal(effectivePath),
               ),
+              if (files.supportsUpload) ...[
+                SizedBox(width: ax.space.xs),
+                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
+              ],
             ],
-          ),
-          SizedBox(height: ax.space.lg),
-
-          // Breadcrumbs row
-          _BreadcrumbBar(
-            path: effectivePath,
-            rootPath: rootPath,
-            collapseNarrow: false,
-            onTapCrumb: (path) {
-              setState(() => _selectedFile = null);
-              files.loadDirectory(path);
-            },
           ),
           SizedBox(height: ax.space.md),
 
@@ -541,7 +520,12 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
               itemBuilder: (context, i) {
                 final e = filteredEntries[i];
                 final selected = _selectedFile?.path == e.path;
-                return _WideTableRow(entry: e, selected: selected, onTap: () => _onOpen(e));
+                return _WideTableRow(
+                  entry: e,
+                  selected: selected,
+                  onTap: () => _onOpen(e),
+                  onDownload: e.isDir ? null : () => _handleDownloadFile(e),
+                );
               },
             ),
           ),
@@ -556,7 +540,12 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
         itemBuilder: (context, i) {
           final e = filteredEntries[i];
           final selected = _selectedFile?.path == e.path;
-          return _NarrowTableRow(entry: e, selected: selected, onTap: () => _onOpen(e));
+          return _NarrowTableRow(
+            entry: e,
+            selected: selected,
+            onTap: () => _onOpen(e),
+            onDownload: e.isDir ? null : () => _handleDownloadFile(e),
+          );
         },
       );
     }
@@ -676,6 +665,7 @@ class _WideTableHeader extends StatelessWidget {
               onTap: () => onSortChanged(FilesSortChoice.newest),
             ),
           ),
+          const SizedBox(width: 40), // Download column spacer
         ],
       ),
     );
@@ -716,11 +706,12 @@ class _HeaderColumn extends StatelessWidget {
 }
 
 class _WideTableRow extends StatelessWidget {
-  const _WideTableRow({required this.entry, required this.selected, required this.onTap});
+  const _WideTableRow({required this.entry, required this.selected, required this.onTap, this.onDownload});
 
   final FileEntryModel entry;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -775,6 +766,31 @@ class _WideTableRow extends StatelessWidget {
                 style: ax.typo.mono.copyWith(color: c.textMuted),
               ),
             ),
+
+            // Download action
+            SizedBox(
+              width: 40,
+              child:
+                  entry.isDir || onDownload == null
+                      ? const SizedBox.shrink()
+                      : Align(
+                        alignment: Alignment.centerRight,
+                        child: Tooltip(
+                          message: 'Download ${entry.name}',
+                          child: InkWell(
+                            mouseCursor: SystemMouseCursors.click,
+                            borderRadius: BorderRadius.circular(ax.radii.sm),
+                            onTap: onDownload,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              alignment: Alignment.center,
+                              child: Icon(Icons.download_rounded, size: 18, color: c.textMuted),
+                            ),
+                          ),
+                        ),
+                      ),
+            ),
           ],
         ),
       ),
@@ -786,11 +802,12 @@ class _WideTableRow extends StatelessWidget {
 // Narrow Table Row (54-60 tall)
 // ----------------------------------------------------------------------------
 class _NarrowTableRow extends StatelessWidget {
-  const _NarrowTableRow({required this.entry, required this.selected, required this.onTap});
+  const _NarrowTableRow({required this.entry, required this.selected, required this.onTap, this.onDownload});
 
   final FileEntryModel entry;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onDownload;
 
   @override
   Widget build(BuildContext context) {
@@ -835,7 +852,23 @@ class _NarrowTableRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (entry.isDir) Icon(Icons.chevron_right_rounded, size: 20, color: c.textSubtle),
+            if (entry.isDir)
+              Icon(Icons.chevron_right_rounded, size: 20, color: c.textSubtle)
+            else if (onDownload != null)
+              Tooltip(
+                message: 'Download ${entry.name}',
+                child: InkWell(
+                  mouseCursor: SystemMouseCursors.click,
+                  borderRadius: BorderRadius.circular(ax.radii.sm),
+                  onTap: onDownload,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
+                    child: Icon(Icons.download_rounded, size: 18, color: c.textMuted),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
