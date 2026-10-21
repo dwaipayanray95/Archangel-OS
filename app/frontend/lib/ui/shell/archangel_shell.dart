@@ -96,6 +96,9 @@ class _ArchangelShellState extends State<ArchangelShell> {
     _lastPairing = _backend.pairingGeneration;
     _backend.addListener(_onBackendChanged);
     _desk.addListener(_onDeskChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WindowService.setFullScreen(true);
+    });
   }
 
   @override

@@ -11,6 +11,7 @@ class MainFlutterWindow: NSWindow {
     self.setContentSize(NSSize(width: 1280, height: 720))
     self.contentMinSize = NSSize(width: 800, height: 560)
     self.center()
+    self.collectionBehavior.insert([.fullScreenPrimary, .fullScreenAllowsTiling])
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     WireGuardMacOS.register(with: flutterViewController.engine.binaryMessenger)

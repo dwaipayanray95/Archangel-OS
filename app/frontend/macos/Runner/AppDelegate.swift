@@ -14,8 +14,10 @@ class AppDelegate: FlutterAppDelegate {
   override func applicationDidFinishLaunching(_ notification: Notification) {
     super.applicationDidFinishLaunching(notification)
     // Launch in full screen mode like a game
-    DispatchQueue.main.async {
-      if let window = NSApplication.shared.windows.first, !window.styleMask.contains(.fullScreen) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+      let win = NSApplication.shared.windows.first(where: { $0 is MainFlutterWindow }) ?? NSApplication.shared.mainWindow ?? NSApplication.shared.windows.first
+      if let window = win, !window.styleMask.contains(.fullScreen) {
+        window.makeKeyAndOrderFront(nil)
         window.toggleFullScreen(nil)
       }
     }
