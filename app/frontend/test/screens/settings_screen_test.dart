@@ -556,6 +556,18 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('settings-show-health-widget')));
       await _settle(tester);
       expect(h.desktopPrefs.showWidget, isFalse);
+
+      // Wallpaper wordmark
+      expect(find.byKey(const ValueKey('settings-wallpaper-wordmark')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings-wallpaper-wordmark')));
+      await _settle(tester);
+      expect(h.desktopPrefs.showWallpaperWordmark, isFalse);
+
+      // Wallpaper subtitle
+      expect(find.byKey(const ValueKey('settings-wallpaper-subtitle')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('settings-wallpaper-subtitle')));
+      await _settle(tester);
+      expect(h.desktopPrefs.showWallpaperSubtitle, isFalse);
     });
   });
 

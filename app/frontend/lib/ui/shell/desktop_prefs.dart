@@ -76,6 +76,8 @@ class DesktopPrefs extends ChangeNotifier {
   DockSize _dockSize = DockSize.medium;
   bool _autoHide = false;
   bool _showWidget = true;
+  bool _showWallpaperWordmark = true;
+  bool _showWallpaperSubtitle = true;
   List<AxSection> _pinned = List.of(AxSection.values);
 
   DeskWallpaper get wallpaper => _wallpaper;
@@ -83,6 +85,8 @@ class DesktopPrefs extends ChangeNotifier {
   DockSize get dockSize => _dockSize;
   bool get autoHide => _autoHide;
   bool get showWidget => _showWidget;
+  bool get showWallpaperWordmark => _showWallpaperWordmark;
+  bool get showWallpaperSubtitle => _showWallpaperSubtitle;
 
   /// The dock's apps, in order.
   List<AxSection> get pinned => List.unmodifiable(_pinned);
@@ -92,6 +96,8 @@ class DesktopPrefs extends ChangeNotifier {
   set dockSize(DockSize v) => _set(() => _dockSize = v);
   set autoHide(bool v) => _set(() => _autoHide = v);
   set showWidget(bool v) => _set(() => _showWidget = v);
+  set showWallpaperWordmark(bool v) => _set(() => _showWallpaperWordmark = v);
+  set showWallpaperSubtitle(bool v) => _set(() => _showWallpaperSubtitle = v);
 
   bool isPinned(AxSection s) => _pinned.contains(s);
 
@@ -115,6 +121,8 @@ class DesktopPrefs extends ChangeNotifier {
     _dockSize = DockSize.medium;
     _autoHide = false;
     _showWidget = true;
+    _showWallpaperWordmark = true;
+    _showWallpaperSubtitle = true;
     _pinned = List.of(AxSection.values);
   });
 
@@ -141,6 +149,8 @@ class DesktopPrefs extends ChangeNotifier {
     'size': _dockSize.name,
     'autoHide': _autoHide,
     'widget': _showWidget,
+    'showWordmark': _showWallpaperWordmark,
+    'showSubtitle': _showWallpaperSubtitle,
     'pinned': [for (final s in _pinned) s.name],
   };
 
@@ -151,6 +161,8 @@ class DesktopPrefs extends ChangeNotifier {
     _dockSize = pick(DockSize.values, j['size'], DockSize.medium);
     _autoHide = j['autoHide'] == true;
     _showWidget = j['widget'] != false;
+    _showWallpaperWordmark = j['showWordmark'] != false;
+    _showWallpaperSubtitle = j['showSubtitle'] != false;
     final pins = j['pinned'];
     if (pins is List) {
       _pinned = [

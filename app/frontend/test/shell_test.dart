@@ -249,6 +249,31 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('wallpaper wordmark and subtitle can be hidden via desktop preferences', (tester) async {
+      final prefs = DesktopPrefs();
+      await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
+      await _settle(tester);
+
+      // Close the default seeded windows to reveal the empty desktop
+      for (final name in ['Home', 'Terminal', 'Files']) {
+        await tester.tap(find.byTooltip('Close $name'));
+        await _settle(tester);
+      }
+
+      // By default subtitle is shown
+      expect(find.text('Open something from the dock below.'), findsOneWidget);
+
+      // Hide subtitle
+      prefs.showWallpaperSubtitle = false;
+      await _settle(tester);
+      expect(find.text('Open something from the dock below.'), findsNothing);
+
+      // Hide wordmark
+      prefs.showWallpaperWordmark = false;
+      await _settle(tester);
+      expect(find.text('Open something from the dock below.'), findsNothing);
+    });
+
     testWidgets('Archangel OS menu offers system actions and opens Settings', (tester) async {
       await pumpAppShell(tester, layout: AxLayout.desktop);
       await _settle(tester);

@@ -735,13 +735,35 @@ class _EmptyDesk extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final c = ax.colors;
+    final prefs = context.watch<DesktopPrefs>();
+    final showWordmark = prefs.showWallpaperWordmark;
+    final showSubtitle = prefs.showWallpaperSubtitle;
+
+    if (!showWordmark && !showSubtitle) {
+      return const SizedBox.shrink();
+    }
+
+    final isDarkWallpaper =
+        prefs.wallpaper == DeskWallpaper.halo ? Theme.of(context).brightness == Brightness.dark : prefs.wallpaper != DeskWallpaper.mist;
+
+    final textColor = isDarkWallpaper ? const Color(0xFFF4F5FB) : const Color(0xFF121420);
+    final subtitleColor = isDarkWallpaper ? const Color(0x99F4F5FB) : const Color(0x99121420);
+
+    final dockPos = prefs.dockPosition;
+    final subtitleText = switch (dockPos) {
+      DockPosition.bottom => 'Open something from the dock below.',
+      DockPosition.left => 'Open something from the dock on the left.',
+      DockPosition.right => 'Open something from the dock on the right.',
+    };
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const AxWordmark(size: 30),
-          SizedBox(height: ax.space.sm),
-          Text('Open something from the dock below.', style: ax.typo.body.copyWith(color: ax.colors.textMuted)),
+          if (showWordmark) AxWordmark(size: 32, color: textColor, osColor: c.accent),
+          if (showWordmark && showSubtitle) SizedBox(height: ax.space.sm),
+          if (showSubtitle) Text(subtitleText, style: ax.typo.body.copyWith(color: subtitleColor)),
         ],
       ),
     );

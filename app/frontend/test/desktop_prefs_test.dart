@@ -16,6 +16,8 @@ void main() {
     expect(p.dockSize, DockSize.medium);
     expect(p.autoHide, isFalse);
     expect(p.showWidget, isTrue);
+    expect(p.showWallpaperWordmark, isTrue);
+    expect(p.showWallpaperSubtitle, isTrue);
     expect(p.pinned, AxSection.values);
     expect(p.reserve, EdgeInsets.only(bottom: DockSize.medium.button + 44));
   });
@@ -49,6 +51,8 @@ void main() {
           ..dockSize = DockSize.small
           ..autoHide = true
           ..showWidget = false
+          ..showWallpaperWordmark = false
+          ..showWallpaperSubtitle = false
           ..togglePin(AxSection.files);
     final q = DesktopPrefs()..applyJson(p.toJson());
     expect(q.toJson(), p.toJson());
@@ -61,6 +65,8 @@ void main() {
         });
     expect(r.wallpaper, DeskWallpaper.halo);
     expect(r.dockPosition, DockPosition.bottom);
+    expect(r.showWallpaperWordmark, isTrue);
+    expect(r.showWallpaperSubtitle, isTrue);
     expect(r.pinned, [AxSection.home]);
   });
 
@@ -68,9 +74,13 @@ void main() {
     final p =
         DesktopPrefs()
           ..wallpaper = DeskWallpaper.graphite
+          ..showWallpaperWordmark = false
+          ..showWallpaperSubtitle = false
           ..togglePin(AxSection.home)
           ..reset();
     expect(p.wallpaper, DeskWallpaper.halo);
+    expect(p.showWallpaperWordmark, isTrue);
+    expect(p.showWallpaperSubtitle, isTrue);
     expect(p.pinned, AxSection.values);
   });
 

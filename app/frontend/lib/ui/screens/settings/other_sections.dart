@@ -402,6 +402,28 @@ class AppearanceSection extends StatelessWidget {
                 Switch(key: const ValueKey('settings-show-health-widget'), value: p.showWidget, onChanged: (v) => p.showWidget = v),
               ],
             ),
+            AxListTile(
+              title: 'Wallpaper wordmark',
+              subtitle: 'Display the Archangel OS wordmark in the center of the desktop.',
+              controls: [
+                Switch(
+                  key: const ValueKey('settings-wallpaper-wordmark'),
+                  value: p.showWallpaperWordmark,
+                  onChanged: (v) => p.showWallpaperWordmark = v,
+                ),
+              ],
+            ),
+            AxListTile(
+              title: 'Wallpaper subtitle',
+              subtitle: 'Display "Open something from the dock" guidance on an empty desktop.',
+              controls: [
+                Switch(
+                  key: const ValueKey('settings-wallpaper-subtitle'),
+                  value: p.showWallpaperSubtitle,
+                  onChanged: (v) => p.showWallpaperSubtitle = v,
+                ),
+              ],
+            ),
           ],
           AxListTile(
             title: 'Desktop',
