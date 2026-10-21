@@ -150,48 +150,31 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
+          // Top row: Breadcrumbs on the left, action icon(s) on the right
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Files', style: ax.typo.title.copyWith(fontSize: 24, fontWeight: FontWeight.w700, color: c.text)),
-                    SizedBox(height: ax.space.xs),
-                    Text(
-                      'Everything here lives on your server, not on someone else\'s cloud.',
-                      style: ax.typo.body.copyWith(color: c.textMuted),
-                    ),
-                  ],
+                child: _BreadcrumbBar(
+                  path: effectivePath,
+                  rootPath: rootPath,
+                  collapseNarrow: false,
+                  onTapCrumb: (path) {
+                    setState(() => _selectedFile = null);
+                    files.loadDirectory(path);
+                  },
                 ),
               ),
-              Wrap(
-                spacing: ax.space.sm,
-                children: [
-                  AxButton.secondary(
-                    label: 'Open terminal here',
-                    icon: Icons.terminal_rounded,
-                    onPressed: () => widget.onOpenTerminal(effectivePath),
-                  ),
-                  if (files.supportsUpload)
-                    AxButton(label: 'Upload', icon: Icons.upload_rounded, onPressed: () => _handleUpload(effectivePath)),
-                ],
+              SizedBox(width: ax.space.sm),
+              AxIconButton(
+                icon: Icons.terminal_rounded,
+                tooltip: 'Open terminal here',
+                onPressed: () => widget.onOpenTerminal(effectivePath),
               ),
+              if (files.supportsUpload) ...[
+                SizedBox(width: ax.space.xs),
+                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
+              ],
             ],
-          ),
-          SizedBox(height: ax.space.lg),
-
-          // Breadcrumbs
-          _BreadcrumbBar(
-            path: effectivePath,
-            rootPath: rootPath,
-            collapseNarrow: false,
-            onTapCrumb: (path) {
-              setState(() => _selectedFile = null);
-              files.loadDirectory(path);
-            },
           ),
           SizedBox(height: ax.space.md),
 
@@ -281,10 +264,21 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Narrow Header
+          // Top row: Breadcrumbs on the left (collapsed to … on narrow), action icon(s) on the right
           Row(
             children: [
-              Expanded(child: Text('Files', style: ax.typo.title.copyWith(fontSize: 20, fontWeight: FontWeight.w700, color: c.text))),
+              Expanded(
+                child: _BreadcrumbBar(
+                  path: effectivePath,
+                  rootPath: rootPath,
+                  collapseNarrow: true,
+                  onTapCrumb: (path) {
+                    setState(() => _selectedFile = null);
+                    files.loadDirectory(path);
+                  },
+                ),
+              ),
+              SizedBox(width: ax.space.xs),
               AxIconButton(
                 icon: Icons.terminal_rounded,
                 tooltip: 'Open terminal here',
@@ -292,26 +286,9 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
               ),
               if (files.supportsUpload) ...[
                 SizedBox(width: ax.space.xs),
-                IconButton(
-                  icon: const Icon(Icons.upload_rounded),
-                  tooltip: 'Upload',
-                  style: IconButton.styleFrom(backgroundColor: c.accent, foregroundColor: c.onAccent, minimumSize: const Size(44, 44)),
-                  onPressed: () => _handleUpload(effectivePath),
-                ),
+                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
               ],
             ],
-          ),
-          SizedBox(height: ax.space.md),
-
-          // Breadcrumbs (collapsed to … on narrow)
-          _BreadcrumbBar(
-            path: effectivePath,
-            rootPath: rootPath,
-            collapseNarrow: true,
-            onTapCrumb: (path) {
-              setState(() => _selectedFile = null);
-              files.loadDirectory(path);
-            },
           ),
           SizedBox(height: ax.space.md),
 

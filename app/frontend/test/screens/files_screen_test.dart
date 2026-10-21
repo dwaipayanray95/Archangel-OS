@@ -196,13 +196,9 @@ void main() {
       await _pump(tester, svc, const Size(1400, 900));
       expect(tester.takeException(), isNull);
 
-      // Title & subtitle on wide
-      expect(find.text('Files'), findsOneWidget);
-      expect(find.text('Everything here lives on your server, not on someone else\'s cloud.'), findsOneWidget);
-
-      // Header buttons
-      expect(find.text('Open terminal here'), findsOneWidget);
-      expect(find.text('Upload'), findsOneWidget);
+      // Action icon buttons
+      expect(find.byTooltip('Open terminal here'), findsOneWidget);
+      expect(find.byTooltip('Upload'), findsOneWidget);
 
       // List headers
       expect(find.text('Name'), findsOneWidget);
@@ -591,7 +587,7 @@ void main() {
 
       await _pump(tester, svc, const Size(1400, 900));
 
-      expect(find.widgetWithText(AxButton, 'Upload'), findsNothing);
+      expect(find.byTooltip('Upload'), findsNothing);
 
       await tester.tap(find.text('notes.txt'));
       await tester.pump();
@@ -604,8 +600,8 @@ void main() {
 
       await _pump(tester, svc, const Size(1400, 900));
 
-      expect(find.widgetWithText(AxButton, 'Upload'), findsOneWidget);
-      await tester.tap(find.widgetWithText(AxButton, 'Upload'));
+      expect(find.byTooltip('Upload'), findsOneWidget);
+      await tester.tap(find.byTooltip('Upload'));
       await tester.pump();
 
       expect(find.text('Uploaded 1 file'), findsOneWidget);
