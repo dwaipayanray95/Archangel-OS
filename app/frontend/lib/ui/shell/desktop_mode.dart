@@ -33,6 +33,9 @@ const double kDeskSnapEdge = 10;
 /// Corner threshold along the edge for snapping into quadrant corners.
 const double kDeskSnapCorner = 64;
 
+/// Margin and spacing gap between arranged windows and the desktop edges.
+const double kDeskWindowGap = 4.0;
+
 /// Where a dragged window will land when let go.
 enum DeskSnap { none, maximize, left, right, topLeft, topRight, bottomLeft, bottomRight, thirdLeft, thirdCenter, thirdRight }
 
@@ -93,7 +96,7 @@ class DesktopWindows extends ChangeNotifier {
 
   /// The rectangle a window takes when snapped to [snap].
   Rect? snapRect(DeskSnap snap) {
-    const g = 8.0;
+    const g = kDeskWindowGap;
     final half = (area.width - g * 3) / 2;
     final halfH = (area.height - g * 3) / 2;
     final third = (area.width - g * 4) / 3;
@@ -324,7 +327,7 @@ class DesktopWindows extends ChangeNotifier {
   void tidy() {
     final shown = stacked.where((w) => !w.minimized).toList()..sort((a, b) => a.section.index.compareTo(b.section.index));
     if (shown.isEmpty) return;
-    const g = 12.0;
+    const g = kDeskWindowGap;
     final cols = shown.length <= 3 ? shown.length : (shown.length / 2).ceil();
     final rows = (shown.length / cols).ceil();
     final cw = (area.width - g * (cols + 1)) / cols;

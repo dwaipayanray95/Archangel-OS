@@ -59,7 +59,7 @@ void main() {
     expect(d.windowFor(AxSection.apps)!.rect.size, kDeskMinWindow);
     d.toggleMaximize(AxSection.apps);
     expect(d.windowFor(AxSection.apps)!.maximized, isTrue);
-    expect(d.windowFor(AxSection.apps)!.rect.width, 1200 - 16);
+    expect(d.windowFor(AxSection.apps)!.rect.width, 1200 - 8);
     d.toggleMaximize(AxSection.apps);
     expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
     expect(d.windowFor(AxSection.apps)!.rect.size, kDeskMinWindow);
@@ -83,13 +83,13 @@ void main() {
     d.endMove(AxSection.apps);
     final w = d.windowFor(AxSection.apps)!;
     expect(d.snapPreview, isNull);
-    expect(w.rect.left, 8);
-    expect(w.rect.width, closeTo((1200 - 24) / 2, 0.01));
+    expect(w.rect.left, 4);
+    expect(w.rect.width, closeTo((1200 - 12) / 2, 0.01));
     expect(w.maximized, isTrue);
 
     // Fitting to a new size keeps it on the left half.
     d.fitTo(const Size(1000, 600));
-    expect(d.windowFor(AxSection.apps)!.rect.width, closeTo((1000 - 24) / 2, 0.01));
+    expect(d.windowFor(AxSection.apps)!.rect.width, closeTo((1000 - 12) / 2, 0.01));
 
     // Pulling it away gives back its old size.
     d.move(AxSection.apps, const Offset(40, 40), pointer: const Offset(400, 200));
@@ -106,7 +106,7 @@ void main() {
     expect(d.snapAt(const Offset(600, 300)), DeskSnap.none);
     d.move(AxSection.files, Offset.zero, pointer: const Offset(1195, 300));
     d.endMove(AxSection.files);
-    expect(d.windowFor(AxSection.files)!.rect.right, closeTo(1200 - 8, 0.01));
+    expect(d.windowFor(AxSection.files)!.rect.right, closeTo(1200 - 4, 0.01));
   });
 
   test('trigger margin is reduced to 10 dp to prevent accidental snaps', () {
@@ -152,26 +152,26 @@ void main() {
     final bl = d.snapRect(DeskSnap.bottomLeft)!;
     final br = d.snapRect(DeskSnap.bottomRight)!;
 
-    final expectedW = (1200 - 24) / 2;
-    final expectedH = (700 - 24) / 2;
+    final expectedW = (1200 - 12) / 2;
+    final expectedH = (700 - 12) / 2;
 
-    expect(tl.left, 8.0);
-    expect(tl.top, 8.0);
+    expect(tl.left, 4.0);
+    expect(tl.top, 4.0);
     expect(tl.width, closeTo(expectedW, 0.01));
     expect(tl.height, closeTo(expectedH, 0.01));
 
-    expect(tr.right, closeTo(1200 - 8, 0.01));
-    expect(tr.top, 8.0);
+    expect(tr.right, closeTo(1200 - 4, 0.01));
+    expect(tr.top, 4.0);
     expect(tr.width, closeTo(expectedW, 0.01));
     expect(tr.height, closeTo(expectedH, 0.01));
 
-    expect(bl.left, 8.0);
-    expect(bl.bottom, closeTo(700 - 8, 0.01));
+    expect(bl.left, 4.0);
+    expect(bl.bottom, closeTo(700 - 4, 0.01));
     expect(bl.width, closeTo(expectedW, 0.01));
     expect(bl.height, closeTo(expectedH, 0.01));
 
-    expect(br.right, closeTo(1200 - 8, 0.01));
-    expect(br.bottom, closeTo(700 - 8, 0.01));
+    expect(br.right, closeTo(1200 - 4, 0.01));
+    expect(br.bottom, closeTo(700 - 4, 0.01));
     expect(br.width, closeTo(expectedW, 0.01));
     expect(br.height, closeTo(expectedH, 0.01));
   });
@@ -188,18 +188,18 @@ void main() {
     final t2 = d.snapRect(DeskSnap.thirdCenter)!;
     final t3 = d.snapRect(DeskSnap.thirdRight)!;
 
-    final thirdW = (1200 - 32) / 3;
-    expect(t1.left, 8.0);
+    final thirdW = (1200 - 16) / 3;
+    expect(t1.left, 4.0);
     expect(t1.width, closeTo(thirdW, 0.01));
-    expect(t1.height, 700 - 16);
+    expect(t1.height, 700 - 8);
 
-    expect(t2.left, closeTo(8 + thirdW + 8, 0.01));
+    expect(t2.left, closeTo(4 + thirdW + 4, 0.01));
     expect(t2.width, closeTo(thirdW, 0.01));
-    expect(t2.height, 700 - 16);
+    expect(t2.height, 700 - 8);
 
-    expect(t3.right, closeTo(1200 - 8, 0.01));
+    expect(t3.right, closeTo(1200 - 4, 0.01));
     expect(t3.width, closeTo(thirdW, 0.01));
-    expect(t3.height, 700 - 16);
+    expect(t3.height, 700 - 8);
   });
 
   test('holding Alt/Option snaps into thirds along any edge', () {
