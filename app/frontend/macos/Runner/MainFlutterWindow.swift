@@ -41,13 +41,5 @@ class MainFlutterWindow: NSWindow {
     }
 
     super.awakeFromNib()
-
-    // Launch in full screen mode like a game.
-    DispatchQueue.main.async { [weak self] in
-      guard let self = self else { return }
-      if !self.styleMask.contains(.fullScreen) {
-        self.toggleFullScreen(nil)
-      }
-    }
   }
 }

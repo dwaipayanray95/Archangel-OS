@@ -7,7 +7,7 @@ import 'file_helpers.dart';
 import 'files_preview.dart';
 import 'files_upload.dart';
 
-const double kFilesWideMinWidth = 720.0;
+const double kFilesWideMinWidth = 560.0;
 
 class FilesWorkspace extends StatefulWidget {
   const FilesWorkspace({
@@ -713,20 +713,20 @@ class _WideTableRow extends StatelessWidget {
       mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Container(
-        height: 46,
+        height: 40,
         padding: EdgeInsets.symmetric(horizontal: ax.space.lg),
         color: selected ? c.accentWash : null,
         child: Row(
           children: [
             // Tile icon
             Container(
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: entry.isDir ? c.accentWash : c.surfaceHigh,
                 borderRadius: BorderRadius.circular(ax.radii.sm),
               ),
-              child: Icon(icon, size: 18, color: entry.isDir ? c.accent : c.textMuted),
+              child: Icon(icon, size: 16, color: entry.isDir ? c.accent : c.textMuted),
             ),
             SizedBox(width: ax.space.md),
 
@@ -809,19 +809,19 @@ class _NarrowTableRow extends StatelessWidget {
       mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Container(
-        height: 56,
+        height: 48,
         padding: EdgeInsets.symmetric(horizontal: ax.space.md),
         color: selected ? c.accentWash : null,
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: entry.isDir ? c.accentWash : c.surfaceHigh,
                 borderRadius: BorderRadius.circular(ax.radii.sm),
               ),
-              child: Icon(icon, size: 20, color: entry.isDir ? c.accent : c.textMuted),
+              child: Icon(icon, size: 18, color: entry.isDir ? c.accent : c.textMuted),
             ),
             SizedBox(width: ax.space.md),
             Expanded(

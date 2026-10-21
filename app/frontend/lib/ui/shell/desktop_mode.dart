@@ -19,7 +19,7 @@ import 'server_switcher.dart';
 import 'status_strip.dart';
 
 /// Height of Desktop mode's top bar.
-const double kDeskTopBarHeight = 48;
+const double kDeskTopBarHeight = 42;
 
 /// Width of the health widget in the desktop's top-right corner.
 const double kDeskWidgetWidth = 248;
@@ -134,20 +134,20 @@ class DesktopWindows extends ChangeNotifier {
     _seeded = true;
     if (_windows.isNotEmpty) return;
     final a = Size(math.max(kDeskMinWindow.width * 2 + 64, area.width - rightInset), area.height);
-    final homeW = math.min(440.0, a.width * 0.36);
-    _add(AxSection.home, Rect.fromLTWH(24, 16, homeW, math.max(kDeskMinWindow.height, a.height - 32)));
-    final right = 24 + homeW + 20;
-    final termW = math.max(kDeskMinWindow.width, math.min(640.0, a.width - right - 24));
-    _add(AxSection.terminal, Rect.fromLTWH(right, 16, termW, math.max(kDeskMinWindow.height, a.height * 0.52)));
-    final filesW = math.max(kDeskMinWindow.width, math.min(680.0, a.width - right - 64));
-    final filesTop = math.min(a.height * 0.36, a.height - kDeskMinWindow.height - 8);
+    final homeW = math.min(380.0, a.width * 0.32);
+    _add(AxSection.home, Rect.fromLTWH(20, 12, homeW, math.max(kDeskMinWindow.height, a.height - 24)));
+    final right = 20 + homeW + 16;
+    final termW = math.max(kDeskMinWindow.width, math.min(600.0, a.width - right - 20));
+    _add(AxSection.terminal, Rect.fromLTWH(right, 12, termW, math.max(kDeskMinWindow.height, a.height * 0.50)));
+    final filesW = math.max(kDeskMinWindow.width, math.min(620.0, a.width - right - 40));
+    final filesTop = math.min(a.height * 0.38, a.height - kDeskMinWindow.height - 8);
     _add(
       AxSection.files,
       Rect.fromLTWH(
-        math.min(right + 60, math.max(24, a.width - filesW - 24)),
-        math.max(16, filesTop),
+        math.min(right + 40, math.max(20, a.width - filesW - 20)),
+        math.max(12, filesTop),
         filesW,
-        math.max(kDeskMinWindow.height, a.height - filesTop - 16),
+        math.max(kDeskMinWindow.height, a.height - filesTop - 12),
       ),
     );
   }

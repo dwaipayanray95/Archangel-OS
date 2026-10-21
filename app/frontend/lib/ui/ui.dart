@@ -12,4 +12,3 @@ export 'components/help_tip.dart';
 export 'components/ssh_credentials_form.dart';
 export 'components/state_views.dart';
 export 'components/status_badge.dart';
-export 'components/ax_scaled_canvas.dart';

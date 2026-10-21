@@ -14,7 +14,6 @@ import 'services/update_check_service.dart';
 import 'services/wireguard_controller.dart';
 import 'services/server_registry.dart';
 import 'ui/boot/boot_splash.dart';
-import 'ui/components/ax_scaled_canvas.dart';
 import 'ui/shell/archangel_shell.dart';
 import 'ui/shell/desktop_prefs.dart';
 import 'ui/theme.dart';
@@ -63,8 +62,8 @@ class ArchangelApp extends StatelessWidget {
               themeMode: app.themeMode,
               scrollBehavior: _NoOverscrollBehavior(),
               // The start-up animation plays over everything while the app
-              // bootstraps underneath, scaled for elegant desktop viewing.
-              builder: (context, child) => AxScaledCanvas(scale: app.uiScale, child: BootGate(child: child ?? const SizedBox.shrink())),
+              // bootstraps underneath.
+              builder: (context, child) => BootGate(child: child ?? const SizedBox.shrink()),
               home: const _RootRouter(),
             ),
       ),

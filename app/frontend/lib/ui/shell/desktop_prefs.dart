@@ -59,9 +59,9 @@ enum DeskWallpaper {
 enum DockPosition { bottom, left, right }
 
 enum DockSize {
-  small(40, 20),
-  medium(48, 22),
-  large(58, 28);
+  small(36, 18),
+  medium(42, 20),
+  large(50, 24);
 
   const DockSize(this.button, this.icon);
   final double button;
