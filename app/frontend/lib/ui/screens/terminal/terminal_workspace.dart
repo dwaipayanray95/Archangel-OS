@@ -123,6 +123,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                   onTap: () => widget.onSelect(i),
                   onEnd: () => widget.onEnd(i),
                 ),
+              AxIconButton(icon: Icons.add, tooltip: 'New session', color: kConMuted, onPressed: widget.onNew),
             ],
           ),
         );
@@ -138,42 +139,22 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
             child: Row(
               children: [
                 Expanded(child: tabs),
-                AxIconButton(icon: Icons.add, tooltip: 'New session', color: kConMuted, onPressed: widget.onNew),
-                Container(width: 1, height: 20, margin: EdgeInsets.symmetric(horizontal: ax.space.xs), color: kConLine),
+                SizedBox(width: ax.space.sm),
                 Text('ray@${widget.serverName ?? 'server'}', style: ax.typo.mono.copyWith(fontSize: 12, color: kConMuted)),
                 if (widget.adminModeEnabled != null) ...[SizedBox(width: ax.space.sm), adminChip],
                 SizedBox(width: ax.space.xs),
-                _TextButton(
-                  label: 'A−',
-                  tooltip: 'Smaller text',
-                  onPressed:
-                      widget.fontSize > kTerminalMinFont
-                          ? () => widget.onFontSize((widget.fontSize - 1).clamp(kTerminalMinFont, kTerminalMaxFont))
-                          : null,
-                ),
-                _TextButton(
-                  label: 'A+',
-                  tooltip: 'Bigger text',
-                  onPressed:
-                      widget.fontSize < kTerminalMaxFont
-                          ? () => widget.onFontSize((widget.fontSize + 1).clamp(kTerminalMinFont, kTerminalMaxFont))
-                          : null,
-                ),
-                AxIconButton(icon: Icons.copy_outlined, tooltip: 'Copy selection', color: kConMuted, onPressed: widget.onCopy),
-                AxIconButton(icon: Icons.content_paste_outlined, tooltip: 'Paste', color: kConMuted, onPressed: widget.onPaste),
                 AxIconButton(
                   icon: Icons.code,
                   tooltip: 'Snippets',
                   color: _snippetsOpen ? kConAccent : kConMuted,
                   onPressed: () => setState(() => _snippetsOpen = !_snippetsOpen),
                 ),
-                PopupMenuButton<String>(
-                  tooltip: 'More',
-                  icon: const Icon(Icons.more_horiz, color: kConMuted),
-                  onSelected: (val) {
-                    if (val == 'sessions') widget.onShowSessions();
-                  },
-                  itemBuilder: (_) => const [PopupMenuItem(value: 'sessions', child: Text('Sessions on this server'))],
+                _TerminalMoreMenu(
+                  fontSize: widget.fontSize,
+                  onFontSize: widget.onFontSize,
+                  onCopy: widget.onCopy,
+                  onPaste: widget.onPaste,
+                  onShowSessions: widget.onShowSessions,
                 ),
               ],
             ),
@@ -187,8 +168,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
             child: Row(
               children: [
                 Expanded(child: tabs),
-                AxIconButton(icon: Icons.add, tooltip: 'New session', color: kConMuted, onPressed: widget.onNew),
-                _NarrowMoreMenu(
+                _TerminalMoreMenu(
                   fontSize: widget.fontSize,
                   onFontSize: widget.onFontSize,
                   onSnippets: _openSnippetsSheet,
@@ -415,45 +395,11 @@ class _AdminChip extends StatelessWidget {
   }
 }
 
-class _TextButton extends StatelessWidget {
-  const _TextButton({required this.label, required this.tooltip, required this.onPressed});
-
-  final String label;
-  final String tooltip;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onPressed,
-        child: SizedBox(
-          width: 34,
-          height: 34,
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontFamily: kUiFontFamily,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-                color: onPressed != null ? kConMuted : kConMuted.withValues(alpha: 0.4),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NarrowMoreMenu extends StatelessWidget {
-  const _NarrowMoreMenu({
+class _TerminalMoreMenu extends StatelessWidget {
+  const _TerminalMoreMenu({
     required this.fontSize,
     required this.onFontSize,
-    required this.onSnippets,
+    this.onSnippets,
     required this.onCopy,
     required this.onPaste,
     required this.onShowSessions,
@@ -461,7 +407,7 @@ class _NarrowMoreMenu extends StatelessWidget {
 
   final double fontSize;
   final ValueChanged<double> onFontSize;
-  final VoidCallback onSnippets;
+  final VoidCallback? onSnippets;
   final VoidCallback onCopy;
   final VoidCallback onPaste;
   final VoidCallback onShowSessions;
@@ -474,7 +420,7 @@ class _NarrowMoreMenu extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
       onSelected: (val) {
         if (val == 'snippets') {
-          onSnippets();
+          onSnippets?.call();
         } else if (val == 'copy') {
           onCopy();
         } else if (val == 'paste') {
@@ -484,50 +430,9 @@ class _NarrowMoreMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) {
-        final ax = context.ax;
         return [
-          _CustomMenuItem(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Text size', style: ax.typo.body),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Tooltip(
-                      message: 'Smaller text',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(ax.radii.sm),
-                        onTap:
-                            fontSize > kTerminalMinFont ? () => onFontSize((fontSize - 1).clamp(kTerminalMinFont, kTerminalMaxFont)) : null,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          child: Text('A−', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text('${fontSize.toInt()}', style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600)),
-                    ),
-                    Tooltip(
-                      message: 'Bigger text',
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(ax.radii.sm),
-                        onTap:
-                            fontSize < kTerminalMaxFont ? () => onFontSize((fontSize + 1).clamp(kTerminalMinFont, kTerminalMaxFont)) : null,
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          child: Text('A+', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const PopupMenuItem(value: 'snippets', child: Text('Snippets')),
+          _TextSizeMenuItem(initialFontSize: fontSize, onFontSize: onFontSize),
+          if (onSnippets != null) const PopupMenuItem(value: 'snippets', child: Text('Snippets')),
           const PopupMenuItem(value: 'copy', child: Text('Copy selection')),
           const PopupMenuItem(value: 'paste', child: Text('Paste')),
           const PopupMenuDivider(),
@@ -538,24 +443,81 @@ class _NarrowMoreMenu extends StatelessWidget {
   }
 }
 
-class _CustomMenuItem<T> extends PopupMenuEntry<T> {
-  const _CustomMenuItem({required this.child});
+class _TextSizeMenuItem extends PopupMenuEntry<String> {
+  const _TextSizeMenuItem({required this.initialFontSize, required this.onFontSize});
 
-  final Widget child;
+  final double initialFontSize;
+  final ValueChanged<double> onFontSize;
 
   @override
   double get height => 48;
 
   @override
-  bool represents(T? value) => false;
+  bool represents(String? value) => false;
 
   @override
-  State<_CustomMenuItem<T>> createState() => _CustomMenuItemState<T>();
+  State<_TextSizeMenuItem> createState() => _TextSizeMenuItemState();
 }
 
-class _CustomMenuItemState<T> extends State<_CustomMenuItem<T>> {
+class _TextSizeMenuItemState extends State<_TextSizeMenuItem> {
+  late double _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialFontSize;
+  }
+
+  void _step(double delta) {
+    final next = (_current + delta).clamp(kTerminalMinFont, kTerminalMaxFont);
+    if (next != _current) {
+      setState(() => _current = next);
+      widget.onFontSize(next);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: widget.child);
+    final ax = context.ax;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Text size', style: ax.typo.body),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Tooltip(
+                message: 'Smaller text',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(ax.radii.sm),
+                  onTap: _current > kTerminalMinFont ? () => _step(-1) : null,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Text('A−', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text('${_current.toInt()}', style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600)),
+              ),
+              Tooltip(
+                message: 'Bigger text',
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(ax.radii.sm),
+                  onTap: _current < kTerminalMaxFont ? () => _step(1) : null,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    child: Text('A+', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

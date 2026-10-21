@@ -39,21 +39,18 @@ at 390 on phones without overflow.
    - Selected tab gets the raised background.
    - × tooltip/semantics: "End session <name>". Narrow: × shows only on the
      selected tab.
-2. **+** icon button, tooltip "New session". Opens the next free name.
-3. Wide only: a separator, then `ray@<server>` (mono, muted).
+2. **+** icon button, tooltip "New session" (travels directly after the tabs). Opens the next free name.
+3. Wide only: `ray@<server>` (mono, muted).
 4. Wide only: **Admin chip** (see below).
-5. Wide only: **A−** ("Smaller text"), **A+** ("Bigger text"), **Copy**
-   ("Copy selection"), **Paste** ("Paste"), **Snippets** toggle ("Snippets",
-   pressed when the panel is open).
+5. Wide only: **Snippets** toggle ("Snippets", pressed when the panel is open).
 6. **⋯** ("More") menu, always shown.
 
 ### More menu
 
-- Row "Text size" with A− · current size (mono) · A+ (narrow only; wide has the
-  buttons in the bar)
-- Snippets (narrow only)
-- Copy selection (narrow only)
-- Paste (narrow only)
+- Row "Text size" with A− · current size (mono) · A+ (live updates text size)
+- Snippets (narrow only; wide has the toggle button in the bar)
+- Copy selection
+- Paste
 - divider
 - Sessions on this server (opens the existing `SessionsDialog`)
 

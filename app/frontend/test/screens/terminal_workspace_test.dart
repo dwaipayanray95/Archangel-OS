@@ -149,8 +149,10 @@ void main() {
   });
 
   group('Wide (1400x900 Simple)', () {
-    testWidgets('tabs, +, A−/A+, Copy, Paste, Snippets, ⋯ present', (tester) async {
+    testWidgets('tabs, +, Server, Admin chip, Snippets, ⋯ present; A−/A+, Copy, Paste in More', (tester) async {
       final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main', 'shell-2'], adminModeEnabled: false);
+      h.channels[0].serverStdout(utf8.encode('ready'));
+      await tester.pump();
 
       // Tabs present
       expect(find.text('main'), findsOneWidget);
@@ -162,16 +164,29 @@ void main() {
       // ray@<server>
       expect(find.text('ray@hal-9000'), findsOneWidget);
 
-      // A−, A+, Copy, Paste, Snippets, ⋯
-      expect(find.byTooltip('Smaller text'), findsOneWidget);
-      expect(find.byTooltip('Bigger text'), findsOneWidget);
-      expect(find.byTooltip('Copy selection'), findsOneWidget);
-      expect(find.byTooltip('Paste'), findsOneWidget);
+      // Admin chip shows "Admin off" when disabled
+      expect(find.text('Admin off'), findsOneWidget);
+
+      // Snippets, ⋯ directly on the top bar
       expect(find.byTooltip('Snippets'), findsOneWidget);
       expect(find.byTooltip('More'), findsOneWidget);
 
-      // Admin chip shows "Admin off" when disabled
-      expect(find.text('Admin off'), findsOneWidget);
+      // A−, A+, Copy, Paste are clean inside More (not cluttering the top bar)
+      expect(find.byTooltip('Smaller text'), findsNothing);
+      expect(find.byTooltip('Copy selection'), findsNothing);
+
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Text size'), findsOneWidget);
+      expect(find.byTooltip('Smaller text'), findsOneWidget);
+      expect(find.byTooltip('Bigger text'), findsOneWidget);
+      expect(find.text('Copy selection'), findsOneWidget);
+      expect(find.text('Paste'), findsOneWidget);
+      expect(find.text('Sessions on this server'), findsOneWidget);
+
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
 
       await finish(tester, h);
     });
@@ -655,6 +670,11 @@ void main() {
   group('Text size', () {
     testWidgets('clamps at min/max and persists', (tester) async {
       final h = await pumpWorkspace(tester, size: const Size(1400, 900));
+      h.channels[0].serverStdout(utf8.encode('ready'));
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
 
       // Increase
       await tester.tap(find.byTooltip('Bigger text'));
