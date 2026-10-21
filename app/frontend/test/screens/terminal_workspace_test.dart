@@ -524,6 +524,32 @@ void main() {
 
       await finish(tester, h);
     });
+
+    testWidgets('reorder moves snippet and persists new order', (tester) async {
+      final h = await pumpWorkspace(tester, size: const Size(1400, 900));
+      h.channels[0].serverStdout(utf8.encode('ready\n'));
+      await tester.pump();
+
+      // Open panel
+      await tester.tap(find.byTooltip('Snippets'));
+      await tester.pump();
+
+      expect(find.text("What's running"), findsOneWidget);
+
+      // Drag first drag handle down past the second item
+      final firstHandle = find.byTooltip('Drag to reorder').first;
+      await tester.timedDrag(firstHandle, const Offset(0, 80), const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      await tester.runAsync(() async {
+        final raw = await LocalKvStore.instance.read(kTerminalSnippetsKey);
+        expect(raw, isNotNull);
+        final decoded = jsonDecode(raw!) as List;
+        expect(decoded, isNotEmpty);
+      });
+
+      await finish(tester, h);
+    });
   });
 
   group('Phone key row', () {

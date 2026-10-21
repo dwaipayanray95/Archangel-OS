@@ -131,6 +131,7 @@ class SnippetsView extends StatelessWidget {
     required this.onSelect,
     required this.onSave,
     required this.onDelete,
+    this.onReorder,
     this.inSheet = false,
   });
 
@@ -138,6 +139,7 @@ class SnippetsView extends StatelessWidget {
   final ValueChanged<TerminalSnippet> onSelect;
   final VoidCallback onSave;
   final ValueChanged<TerminalSnippet> onDelete;
+  final ReorderCallback? onReorder;
   final bool inSheet;
 
   @override
@@ -146,34 +148,49 @@ class SnippetsView extends StatelessWidget {
     final c = ax.colors;
 
     final header = Padding(
-      padding: EdgeInsets.fromLTRB(ax.space.md, ax.space.md, ax.space.md, ax.space.xs),
+      padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.sm, ax.space.sm, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Snippets', style: ax.typo.title.copyWith(color: inSheet ? c.text : kConText)),
-          SizedBox(height: ax.space.xs),
-          Text(
-            'Tap one to put it on the command line. It runs only when you press Enter.',
-            style: ax.typo.caption.copyWith(color: inSheet ? c.textMuted : kConMuted),
-          ),
+          Text('Snippets', style: ax.typo.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: inSheet ? c.text : kConText)),
+          const SizedBox(height: 2),
+          Text('Tap to insert on command line.', style: ax.typo.caption.copyWith(fontSize: 11, color: inSheet ? c.textMuted : kConMuted)),
         ],
       ),
     );
 
     final list = Expanded(
-      child: ListView.separated(
-        padding: EdgeInsets.symmetric(horizontal: ax.space.sm, vertical: ax.space.xs),
+      child: ReorderableListView.builder(
+        padding: EdgeInsets.symmetric(horizontal: ax.space.xs, vertical: 2),
         itemCount: snippets.length,
-        separatorBuilder: (_, __) => SizedBox(height: ax.space.xs),
+        onReorderItem: onReorder,
+        buildDefaultDragHandles: false,
+        proxyDecorator: (child, index, animation) {
+          return Material(
+            color: inSheet ? ax.colors.surface : kConBarBg,
+            elevation: 6,
+            shadowColor: Colors.black.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(ax.radii.sm),
+            child: child,
+          );
+        },
         itemBuilder: (context, index) {
           final s = snippets[index];
-          return _SnippetTile(snippet: s, onSelect: () => onSelect(s), onDelete: () => onDelete(s), inSheet: inSheet);
+          return _SnippetTile(
+            key: ValueKey('snippet_${s.name}_${s.command}'),
+            index: index,
+            snippet: s,
+            onSelect: () => onSelect(s),
+            onDelete: () => onDelete(s),
+            inSheet: inSheet,
+            reorderable: onReorder != null,
+          );
         },
       ),
     );
 
     final bottomButton = Padding(
-      padding: EdgeInsets.all(ax.space.md),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
       child: AxButton.secondary(label: '+ Save a snippet', onPressed: onSave),
     );
 
@@ -182,12 +199,22 @@ class SnippetsView extends StatelessWidget {
 }
 
 class _SnippetTile extends StatelessWidget {
-  const _SnippetTile({required this.snippet, required this.onSelect, required this.onDelete, required this.inSheet});
+  const _SnippetTile({
+    super.key,
+    required this.index,
+    required this.snippet,
+    required this.onSelect,
+    required this.onDelete,
+    required this.inSheet,
+    required this.reorderable,
+  });
 
+  final int index;
   final TerminalSnippet snippet;
   final VoidCallback onSelect;
   final VoidCallback onDelete;
   final bool inSheet;
+  final bool reorderable;
 
   void _showContextMenu(BuildContext context, Offset globalPos) {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
@@ -208,27 +235,58 @@ class _SnippetTile extends StatelessWidget {
     final fg = inSheet ? c.text : kConText;
     final cmdColor = inSheet ? c.accent : kConAccent;
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(ax.radii.sm),
-      child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(ax.radii.sm),
-        onTap: onSelect,
-        onLongPress: () {
-          final box = context.findRenderObject() as RenderBox?;
-          final pos = box != null ? box.localToGlobal(box.size.center(Offset.zero)) : Offset.zero;
-          _showContextMenu(context, pos);
-        },
-        onSecondaryTapUp: (details) => _showContextMenu(context, details.globalPosition),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: ax.space.sm, vertical: ax.space.sm),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(snippet.name, style: ax.typo.caption.copyWith(fontFamily: kUiFontFamily, fontWeight: FontWeight.w600, color: fg)),
-              SizedBox(height: ax.space.xs - 2),
-              Text(snippet.command, style: ax.typo.mono.copyWith(fontSize: 12, color: cmdColor)),
-            ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(ax.radii.sm),
+          onTap: onSelect,
+          onLongPress: () {
+            final box = context.findRenderObject() as RenderBox?;
+            final pos = box != null ? box.localToGlobal(box.size.center(Offset.zero)) : Offset.zero;
+            _showContextMenu(context, pos);
+          },
+          onSecondaryTapUp: (details) => _showContextMenu(context, details.globalPosition),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        snippet.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ax.typo.caption.copyWith(fontFamily: kUiFontFamily, fontWeight: FontWeight.w600, fontSize: 12, color: fg),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        snippet.command,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ax.typo.mono.copyWith(fontSize: 11, color: cmdColor),
+                      ),
+                    ],
+                  ),
+                ),
+                if (reorderable)
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: Tooltip(
+                      message: 'Drag to reorder',
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(Icons.drag_indicator, size: 16, color: kConMuted.withValues(alpha: 0.45)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -242,6 +300,7 @@ Future<void> showSnippetsBottomSheet({
   required ValueChanged<TerminalSnippet> onSelect,
   required VoidCallback onSave,
   required ValueChanged<TerminalSnippet> onDelete,
+  ReorderCallback? onReorder,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -272,6 +331,7 @@ Future<void> showSnippetsBottomSheet({
                   },
                   onSave: onSave,
                   onDelete: onDelete,
+                  onReorder: onReorder,
                 ),
               ),
             ],

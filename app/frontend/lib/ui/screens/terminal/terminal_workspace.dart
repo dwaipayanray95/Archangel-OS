@@ -98,8 +98,23 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
     current.typeText(s.command);
   }
 
+  Future<void> _reorderSnippets(int oldIndex, int newIndex) async {
+    final next = List<TerminalSnippet>.from(_snippets);
+    final item = next.removeAt(oldIndex);
+    next.insert(newIndex, item);
+    setState(() => _snippets = next);
+    await saveTerminalSnippets(next);
+  }
+
   void _openSnippetsSheet() {
-    showSnippetsBottomSheet(context: context, snippets: _snippets, onSelect: _applySnippet, onSave: _saveSnippet, onDelete: _deleteSnippet);
+    showSnippetsBottomSheet(
+      context: context,
+      snippets: _snippets,
+      onSelect: _applySnippet,
+      onSave: _saveSnippet,
+      onDelete: _deleteSnippet,
+      onReorder: _reorderSnippets,
+    );
   }
 
   @override
@@ -116,6 +131,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
         final tabs = SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               for (var i = 0; i < widget.sessions.length; i++)
                 _SessionTab(
@@ -125,7 +141,10 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                   onTap: () => widget.onSelect(i),
                   onEnd: () => widget.onEnd(i),
                 ),
-              AxIconButton(icon: Icons.add, tooltip: 'New session', color: kConMuted, onPressed: widget.onNew),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4, left: 2),
+                child: AxIconButton(icon: Icons.add, tooltip: 'New session', color: kConMuted, onPressed: widget.onNew),
+              ),
             ],
           ),
         );
@@ -138,28 +157,49 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
         Widget topBar;
         if (wide) {
           topBar = Container(
-            height: 46,
-            padding: EdgeInsets.symmetric(horizontal: ax.space.xs),
-            decoration: const BoxDecoration(color: kConBarBg, border: Border(bottom: BorderSide(color: kConLine))),
-            child: Row(
+            height: 44,
+            decoration: const BoxDecoration(color: kConBarBg),
+            child: Stack(
               children: [
-                Expanded(child: tabs),
-                SizedBox(width: ax.space.sm),
-                Text('ray@${widget.serverName ?? 'server'}', style: ax.typo.mono.copyWith(fontSize: 12, color: kConMuted)),
-                if (widget.adminModeEnabled != null) ...[SizedBox(width: ax.space.xs), adminButton],
-                SizedBox(width: ax.space.xs),
-                AxIconButton(
-                  icon: Icons.code,
-                  tooltip: 'Snippets',
-                  color: _snippetsOpen ? kConAccent : kConMuted,
-                  onPressed: () => setState(() => _snippetsOpen = !_snippetsOpen),
-                ),
-                _TerminalMoreMenu(
-                  fontSize: widget.fontSize,
-                  onFontSize: widget.onFontSize,
-                  onCopy: widget.onCopy,
-                  onPaste: widget.onPaste,
-                  onShowSessions: widget.onShowSessions,
+                Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: kConLine)),
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: ax.space.xs),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(child: tabs),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.dns_outlined, size: 12, color: kConMuted.withValues(alpha: 0.6)),
+                              const SizedBox(width: 4),
+                              Text('ray@${widget.serverName ?? 'server'}', style: ax.typo.mono.copyWith(fontSize: 11.5, color: kConMuted)),
+                              SizedBox(width: ax.space.sm),
+                              Container(width: 1, height: 14, color: kConLine),
+                              SizedBox(width: ax.space.sm),
+                              if (widget.adminModeEnabled != null) ...[adminButton, SizedBox(width: ax.space.xs)],
+                              AxIconButton(
+                                icon: Icons.code,
+                                tooltip: 'Snippets',
+                                color: _snippetsOpen ? kConAccent : kConMuted,
+                                onPressed: () => setState(() => _snippetsOpen = !_snippetsOpen),
+                              ),
+                              _TerminalMoreMenu(
+                                fontSize: widget.fontSize,
+                                onFontSize: widget.onFontSize,
+                                onCopy: widget.onCopy,
+                                onPaste: widget.onPaste,
+                                onShowSessions: widget.onShowSessions,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -167,19 +207,32 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
         } else {
           // Narrow top bar
           topBar = Container(
-            height: 46,
-            padding: EdgeInsets.symmetric(horizontal: ax.space.xs),
-            decoration: const BoxDecoration(color: kConBarBg, border: Border(bottom: BorderSide(color: kConLine))),
-            child: Row(
+            height: 44,
+            decoration: const BoxDecoration(color: kConBarBg),
+            child: Stack(
               children: [
-                Expanded(child: tabs),
-                _TerminalMoreMenu(
-                  fontSize: widget.fontSize,
-                  onFontSize: widget.onFontSize,
-                  onSnippets: _openSnippetsSheet,
-                  onCopy: widget.onCopy,
-                  onPaste: widget.onPaste,
-                  onShowSessions: widget.onShowSessions,
+                Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: kConLine)),
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: ax.space.xs),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(child: tabs),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: _TerminalMoreMenu(
+                            fontSize: widget.fontSize,
+                            onFontSize: widget.onFontSize,
+                            onSnippets: _openSnippetsSheet,
+                            onCopy: widget.onCopy,
+                            onPaste: widget.onPaste,
+                            onShowSessions: widget.onShowSessions,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -204,53 +257,20 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isSpinning)
-                    SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: statusColor))
+                    SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: statusColor))
                   else
-                    Icon(statusIcon, size: 14, color: statusColor),
+                    Icon(statusIcon, size: 13, color: statusColor),
                   SizedBox(width: ax.space.xs),
-                  Text(statusText, style: ax.typo.mono.copyWith(fontSize: 11.5, color: statusColor, fontWeight: FontWeight.w600)),
+                  Text(statusText, style: ax.typo.mono.copyWith(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
                 ],
               );
 
-              if (wide) {
-                final running = widget.runningSinceText ?? 'running';
-                return Container(
-                  height: 36,
-                  padding: EdgeInsets.symmetric(horizontal: ax.space.md),
-                  decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
-                  child: Row(
-                    children: [
-                      statusBadge,
-                      Text(' · ', style: ax.typo.mono.copyWith(color: kConMuted, fontSize: 11.5)),
-                      Flexible(
-                        child: Text(
-                          'session "${current.name}" · $running',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ax.typo.mono.copyWith(color: kConMuted, fontSize: 11.5),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Spacer(),
-                      Flexible(
-                        child: Text(
-                          'Keeps running on your server when you close the app',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: ax.typo.mono.copyWith(color: kConMuted, fontSize: 11.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              } else {
-                return Container(
-                  height: 36,
-                  padding: EdgeInsets.symmetric(horizontal: ax.space.md),
-                  decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
-                  child: Row(children: [statusBadge, const Spacer(), if (widget.adminModeEnabled != null) adminButton]),
-                );
-              }
+              return Container(
+                height: 30,
+                padding: EdgeInsets.symmetric(horizontal: ax.space.md),
+                decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
+                child: Row(children: [statusBadge, const Spacer(), if (!wide && widget.adminModeEnabled != null) adminButton]),
+              );
             },
           );
         }
@@ -283,7 +303,13 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                         width: 260,
                         child: Container(
                           decoration: const BoxDecoration(color: kConSnipsBg, border: Border(left: BorderSide(color: kConLine))),
-                          child: SnippetsView(snippets: _snippets, onSelect: _applySnippet, onSave: _saveSnippet, onDelete: _deleteSnippet),
+                          child: SnippetsView(
+                            snippets: _snippets,
+                            onSelect: _applySnippet,
+                            onSave: _saveSnippet,
+                            onDelete: _deleteSnippet,
+                            onReorder: _reorderSnippets,
+                          ),
                         ),
                       ),
                   ],
@@ -319,10 +345,60 @@ class _SessionTab extends StatelessWidget {
           SessionStatus.error || SessionStatus.closed => kConLiveDotGrey,
         };
 
-        return Padding(
-          padding: const EdgeInsets.only(right: 2),
+        if (selected) {
+          return Container(
+            height: 36,
+            margin: const EdgeInsets.only(right: 3),
+            decoration: const BoxDecoration(
+              color: kTerminalBg,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
+              border: Border(top: BorderSide(color: kConLine), left: BorderSide(color: kConLine), right: BorderSide(color: kConLine)),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+                    onTap: onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 6, 8, 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(width: 7, height: 7, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+                          SizedBox(width: ax.space.sm),
+                          Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600, color: kConText)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Semantics(
+                    button: true,
+                    label: 'End session ${session.name}',
+                    child: Tooltip(
+                      message: 'End session ${session.name}',
+                      child: InkWell(
+                        customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        onTap: onEnd,
+                        child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: kConMuted)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Container(
+          height: 32,
+          margin: const EdgeInsets.only(right: 3, bottom: 2),
+          decoration: BoxDecoration(color: Colors.transparent, borderRadius: BorderRadius.circular(ax.radii.sm)),
           child: Material(
-            color: selected ? kConTabSelectedBg : Colors.transparent,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(ax.radii.sm),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -331,21 +407,22 @@ class _SessionTab extends StatelessWidget {
                   customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.sm)),
                   onTap: onTap,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(width: 7, height: 7, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
-                        SizedBox(width: ax.space.sm),
-                        Text(
-                          session.name,
-                          style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500, color: selected ? kConText : kConMuted),
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(color: dotColor.withValues(alpha: 0.6), shape: BoxShape.circle),
                         ),
+                        SizedBox(width: ax.space.sm),
+                        Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500, color: kConMuted)),
                       ],
                     ),
                   ),
                 ),
-                if (!narrow || selected)
+                if (!narrow)
                   Semantics(
                     button: true,
                     label: 'End session ${session.name}',
@@ -375,12 +452,32 @@ class _AdminButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AxIconButton(
-      icon: Icons.key,
-      tooltip: 'Admin mode',
-      color: enabled ? const Color(0xFFFFC66E) : kConMuted,
-      selected: enabled,
-      onPressed: onToggle != null ? () => onToggle!(!enabled) : null,
+    final color = enabled ? const Color(0xFFFFC66E) : kConMuted;
+    return Tooltip(
+      message: 'Admin mode',
+      child: Semantics(
+        label: 'Admin mode',
+        toggled: enabled,
+        button: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: onToggle != null ? () => onToggle!(!enabled) : null,
+          child: Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.14) : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.08),
+                width: 1,
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Icon(Icons.key_rounded, size: 13.5, color: color),
+          ),
+        ),
+      ),
     );
   }
 }
