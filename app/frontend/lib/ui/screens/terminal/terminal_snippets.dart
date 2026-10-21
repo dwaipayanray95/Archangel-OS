@@ -146,15 +146,19 @@ class SnippetsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
+    final tp = context.terminalPalette;
 
     final header = Padding(
       padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.sm, ax.space.sm, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Snippets', style: ax.typo.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: inSheet ? c.text : kConText)),
+          Text('Snippets', style: ax.typo.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: inSheet ? c.text : tp.text)),
           const SizedBox(height: 2),
-          Text('Tap to insert on command line.', style: ax.typo.caption.copyWith(fontSize: 11, color: inSheet ? c.textMuted : kConMuted)),
+          Text(
+            'Tap to insert on command line.',
+            style: ax.typo.caption.copyWith(fontSize: 11, color: inSheet ? c.textMuted : tp.textMuted),
+          ),
         ],
       ),
     );
@@ -167,9 +171,9 @@ class SnippetsView extends StatelessWidget {
         buildDefaultDragHandles: false,
         proxyDecorator: (child, index, animation) {
           return Material(
-            color: inSheet ? ax.colors.surface : kConBarBg,
+            color: inSheet ? ax.colors.surface : tp.barBg,
             elevation: 6,
-            shadowColor: Colors.black.withValues(alpha: 0.5),
+            shadowColor: Colors.black.withValues(alpha: tp.isDark ? 0.5 : 0.15),
             borderRadius: BorderRadius.circular(ax.radii.sm),
             child: child,
           );
@@ -232,8 +236,9 @@ class _SnippetTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
-    final fg = inSheet ? c.text : kConText;
-    final cmdColor = inSheet ? c.accent : kConAccent;
+    final tp = context.terminalPalette;
+    final fg = inSheet ? c.text : tp.text;
+    final cmdColor = inSheet ? c.accent : tp.accent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -281,7 +286,7 @@ class _SnippetTile extends StatelessWidget {
                       message: 'Drag to reorder',
                       child: Padding(
                         padding: const EdgeInsets.all(4),
-                        child: Icon(Icons.drag_indicator, size: 16, color: kConMuted.withValues(alpha: 0.45)),
+                        child: Icon(Icons.drag_indicator, size: 16, color: tp.textMuted.withValues(alpha: 0.45)),
                       ),
                     ),
                   ),

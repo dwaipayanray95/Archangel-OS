@@ -24,8 +24,7 @@ is below.
 
 ## Layout
 
-The console is always dark (its own palette, as in the prototype `.con`), in
-Pearl and Dawn. The app chrome around it follows the theme.
+The console adapts to the active app theme: deep navy in Dawn (dark) and soft pearl in Pearl (light). In both modes, every ANSI foreground colour meets ≥ 4.5:1 contrast against its background. The app chrome around it seamlessly follows the theme.
 
 Decide **wide** vs **narrow** with `LayoutBuilder` on the given width:
 wide ≥ 640, narrow < 640. Must work at 340 wide inside a Desktop window and

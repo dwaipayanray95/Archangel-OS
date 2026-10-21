@@ -20,12 +20,13 @@ class TerminalAccessoryBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final tp = context.terminalPalette;
     return ListenableBuilder(
       listenable: session,
       builder: (context, _) {
         return Container(
           key: const ValueKey('terminal-accessory-bar'),
-          decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
+          decoration: BoxDecoration(color: tp.barBg, border: Border(top: BorderSide(color: tp.line))),
           padding: EdgeInsets.symmetric(horizontal: ax.space.xs, vertical: ax.space.xs),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -70,9 +71,10 @@ class _Key extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    final fg = active ? const Color(0xFF0B0D1A) : kConText;
-    final bg = active ? kConAccent : kConTabSelectedBg;
-    final border = active ? kConAccent : const Color(0x1FFFFFFF);
+    final tp = context.terminalPalette;
+    final fg = active ? (tp.isDark ? const Color(0xFF0B0D1A) : Colors.white) : tp.text;
+    final bg = active ? tp.accent : (tp.isDark ? tp.tabSelectedBg : tp.bg);
+    final border = active ? tp.accent : tp.line;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),

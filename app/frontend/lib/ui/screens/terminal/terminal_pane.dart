@@ -61,6 +61,7 @@ class _TerminalPaneState extends State<TerminalPane> {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
+    final tp = context.terminalPalette;
     final session = widget.session;
 
     return ListenableBuilder(
@@ -105,7 +106,7 @@ class _TerminalPaneState extends State<TerminalPane> {
               ),
             Expanded(
               child: ColoredBox(
-                color: kTerminalBg,
+                color: tp.termBg,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -117,7 +118,7 @@ class _TerminalPaneState extends State<TerminalPane> {
                         controller: widget.controller,
                         focusNode: widget.focusNode,
                         autofocus: true,
-                        theme: kTerminalTheme,
+                        theme: tp.termTheme,
                         textStyle: TerminalStyle(
                           fontSize: widget.fontSize,
                           height: 1.25,
@@ -149,13 +150,13 @@ class _TerminalPaneState extends State<TerminalPane> {
                             Text(
                               session.noDataTimedOut ? 'Still waiting. Your server is slow to answer.' : 'Reaching your server…',
                               textAlign: TextAlign.center,
-                              style: ax.typo.title.copyWith(color: kConText),
+                              style: ax.typo.title.copyWith(color: tp.text),
                             ),
                             SizedBox(height: ax.space.xs),
                             Text(
                               'Opening session "${session.name}".',
                               textAlign: TextAlign.center,
-                              style: ax.typo.caption.copyWith(color: kConMuted),
+                              style: ax.typo.caption.copyWith(color: tp.textMuted),
                             ),
                             if (session.noDataTimedOut) ...[
                               SizedBox(height: ax.space.lg),
@@ -170,14 +171,14 @@ class _TerminalPaneState extends State<TerminalPane> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.cloud_off, size: 36, color: kConMuted),
+                            Icon(Icons.cloud_off, size: 36, color: tp.textMuted),
                             SizedBox(height: ax.space.md),
-                            Text('Disconnected', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: kConText)),
+                            Text('Disconnected', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: tp.text)),
                             SizedBox(height: ax.space.xs),
                             Text(
                               'Your session is still running on the server. Reconnect to pick up where you left off.',
                               textAlign: TextAlign.center,
-                              style: ax.typo.body.copyWith(color: kConMuted),
+                              style: ax.typo.body.copyWith(color: tp.textMuted),
                             ),
                             SizedBox(height: ax.space.lg),
                             AxButton(label: 'Reconnect', icon: Icons.refresh, onPressed: session.reconnect),
@@ -190,11 +191,11 @@ class _TerminalPaneState extends State<TerminalPane> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.info_outline, size: 36, color: kConMuted),
+                            Icon(Icons.info_outline, size: 36, color: tp.textMuted),
                             SizedBox(height: ax.space.md),
-                            Text('This session ended', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: kConText)),
+                            Text('This session ended', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: tp.text)),
                             SizedBox(height: ax.space.xs),
-                            Text('The shell exited.', textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: kConMuted)),
+                            Text('The shell exited.', textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: tp.textMuted)),
                             SizedBox(height: ax.space.lg),
                             AxButton(label: 'Start a new session', icon: Icons.refresh, onPressed: session.reconnect),
                           ],
@@ -270,16 +271,17 @@ class _OverlayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final tp = context.terminalPalette;
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 380),
         margin: EdgeInsets.all(ax.space.lg),
         padding: EdgeInsets.all(ax.space.xl),
         decoration: BoxDecoration(
-          color: kConBarBg,
+          color: tp.barBg,
           borderRadius: BorderRadius.circular(ax.radii.lg),
-          border: Border.all(color: kConLine),
-          boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8))],
+          border: Border.all(color: tp.line),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: tp.isDark ? 0.4 : 0.08), blurRadius: 24, offset: const Offset(0, 8))],
         ),
         child: child,
       ),

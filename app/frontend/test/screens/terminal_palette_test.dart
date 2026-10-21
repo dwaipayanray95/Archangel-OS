@@ -16,15 +16,38 @@ double _contrast(Color a, Color b) {
 }
 
 void main() {
-  test('every terminal text colour is >= 4.5:1 on the terminal background', () {
-    final colors = terminalForegroundColors(kTerminalTheme);
-    expect(colors, hasLength(17));
-    for (final c in colors) {
-      expect(_contrast(c, kTerminalBg), greaterThanOrEqualTo(4.5), reason: '#${c.toARGB32().toRadixString(16)}');
-    }
+  group('Dawn (dark) terminal palette', () {
+    test('every terminal text colour is >= 4.5:1 on the terminal background', () {
+      final colors = terminalForegroundColors(kTerminalTheme);
+      expect(colors, hasLength(17));
+      for (final c in colors) {
+        expect(_contrast(c, kTerminalBg), greaterThanOrEqualTo(4.5), reason: '#${c.toARGB32().toRadixString(16)}');
+      }
+    });
+
+    test('cursor stands out from the background (>= 3:1)', () {
+      expect(_contrast(kTerminalTheme.cursor, kTerminalBg), greaterThanOrEqualTo(3));
+    });
   });
 
-  test('cursor stands out from the background (>= 3:1)', () {
-    expect(_contrast(kTerminalTheme.cursor, kTerminalBg), greaterThanOrEqualTo(3));
+  group('Pearl (light) terminal palette', () {
+    test('every terminal text colour is >= 4.5:1 on the terminal background', () {
+      final colors = terminalForegroundColors(kTerminalLightTheme);
+      expect(colors, hasLength(17));
+      for (final c in colors) {
+        expect(_contrast(c, kTerminalLightBg), greaterThanOrEqualTo(4.5), reason: '#${c.toARGB32().toRadixString(16)}');
+      }
+    });
+
+    test('cursor stands out from the background (>= 3:1)', () {
+      expect(_contrast(kTerminalLightTheme.cursor, kTerminalLightBg), greaterThanOrEqualTo(3));
+    });
+  });
+
+  test('TerminalPalette returns correct instance for brightness', () {
+    expect(TerminalPalette.of(Brightness.dark).isDark, isTrue);
+    expect(TerminalPalette.of(Brightness.light).isDark, isFalse);
+    expect(TerminalPalette.of(Brightness.dark).termBg, kTerminalBg);
+    expect(TerminalPalette.of(Brightness.light).termBg, kTerminalLightBg);
   });
 }

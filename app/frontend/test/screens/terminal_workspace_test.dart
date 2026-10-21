@@ -13,6 +13,7 @@ import 'package:archangel/services/terminal_session.dart';
 import 'package:archangel/ui/components/ax_button.dart';
 import 'package:archangel/ui/screens/terminal/sessions_dialog.dart';
 import 'package:archangel/ui/screens/terminal/terminal_accessory_bar.dart';
+import 'package:archangel/ui/screens/terminal/terminal_palette.dart';
 import 'package:archangel/ui/screens/terminal/terminal_snippets.dart';
 import 'package:archangel/ui/screens/terminal/terminal_workspace.dart';
 import 'package:archangel/ui/theme.dart';
@@ -43,6 +44,7 @@ Future<TerminalHarness> pumpWorkspace(
   String? serverName = 'hal-9000',
   bool? showAccessoryBar,
   VoidCallback? onOpenAdminMode,
+  Brightness brightness = Brightness.dark,
 }) async {
   final sessions = <TerminalSession>[];
   final channels = <FakeTerminalChannel>[];
@@ -69,7 +71,7 @@ Future<TerminalHarness> pumpWorkspace(
 
   await tester.pumpWidget(
     MaterialApp(
-      theme: buildTheme(Brightness.dark),
+      theme: buildTheme(brightness),
       home: StatefulBuilder(
         builder:
             (context, setState) => Scaffold(
@@ -219,6 +221,20 @@ void main() {
       await tester.pump();
 
       expect(h.events, contains('toggle-admin true'));
+
+      await finish(tester, h);
+    });
+
+    testWidgets('renders in Pearl (light) theme with light terminal background and palette', (tester) async {
+      final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main'], brightness: Brightness.light);
+      h.channels[0].serverStdout(utf8.encode('welcome to pearl\n'));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('main'), findsOneWidget);
+
+      final termView = tester.widget<TerminalView>(find.byType(TerminalView));
+      expect(termView.theme, kTerminalLightTheme);
 
       await finish(tester, h);
     });

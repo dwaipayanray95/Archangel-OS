@@ -120,6 +120,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final tp = context.terminalPalette;
     final current = widget.sessions.isNotEmpty ? widget.sessions[widget.selected] : null;
 
     return LayoutBuilder(
@@ -143,7 +144,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                 ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4, left: 2),
-                child: AxIconButton(icon: Icons.add, tooltip: 'New session', color: kConMuted, onPressed: widget.onNew),
+                child: AxIconButton(icon: Icons.add, tooltip: 'New session', color: tp.textMuted, onPressed: widget.onNew),
               ),
             ],
           ),
@@ -158,10 +159,10 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
         if (wide) {
           topBar = Container(
             height: 44,
-            decoration: const BoxDecoration(color: kConBarBg),
+            decoration: BoxDecoration(color: tp.barBg),
             child: Stack(
               children: [
-                Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: kConLine)),
+                Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: tp.line)),
                 Positioned.fill(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: ax.space.xs),
@@ -174,17 +175,20 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.dns_outlined, size: 12, color: kConMuted.withValues(alpha: 0.6)),
+                              Icon(Icons.dns_outlined, size: 12, color: tp.textMuted.withValues(alpha: 0.6)),
                               const SizedBox(width: 4),
-                              Text('ray@${widget.serverName ?? 'server'}', style: ax.typo.mono.copyWith(fontSize: 11.5, color: kConMuted)),
+                              Text(
+                                'ray@${widget.serverName ?? 'server'}',
+                                style: ax.typo.mono.copyWith(fontSize: 11.5, color: tp.textMuted),
+                              ),
                               SizedBox(width: ax.space.sm),
-                              Container(width: 1, height: 14, color: kConLine),
+                              Container(width: 1, height: 14, color: tp.line),
                               SizedBox(width: ax.space.sm),
                               if (widget.adminModeEnabled != null) ...[adminButton, SizedBox(width: ax.space.xs)],
                               AxIconButton(
                                 icon: Icons.code,
                                 tooltip: 'Snippets',
-                                color: _snippetsOpen ? kConAccent : kConMuted,
+                                color: _snippetsOpen ? tp.accent : tp.textMuted,
                                 onPressed: () => setState(() => _snippetsOpen = !_snippetsOpen),
                               ),
                               _TerminalMoreMenu(
@@ -208,10 +212,10 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
           // Narrow top bar
           topBar = Container(
             height: 44,
-            decoration: const BoxDecoration(color: kConBarBg),
+            decoration: BoxDecoration(color: tp.barBg),
             child: Stack(
               children: [
-                Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: kConLine)),
+                Positioned(left: 0, right: 0, bottom: 0, child: Container(height: 1, color: tp.line)),
                 Positioned.fill(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: ax.space.xs),
@@ -268,7 +272,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
               return Container(
                 height: 30,
                 padding: EdgeInsets.symmetric(horizontal: ax.space.md),
-                decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
+                decoration: BoxDecoration(color: tp.barBg, border: Border(top: BorderSide(color: tp.line))),
                 child: Row(children: [statusBadge, const Spacer(), if (!wide && widget.adminModeEnabled != null) adminButton]),
               );
             },
@@ -276,7 +280,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
         }
 
         return Container(
-          color: kConBg,
+          color: tp.bg,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -302,7 +306,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                       SizedBox(
                         width: 260,
                         child: Container(
-                          decoration: const BoxDecoration(color: kConSnipsBg, border: Border(left: BorderSide(color: kConLine))),
+                          decoration: BoxDecoration(color: tp.snipsBg, border: Border(left: BorderSide(color: tp.line))),
                           child: SnippetsView(
                             snippets: _snippets,
                             onSelect: _applySnippet,
@@ -336,23 +340,24 @@ class _SessionTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final tp = context.terminalPalette;
     return ListenableBuilder(
       listenable: session,
       builder: (context, _) {
         final dotColor = switch (session.status) {
-          SessionStatus.connected => kConLiveDotGreen,
-          SessionStatus.connecting => kConLiveDotAmber,
-          SessionStatus.error || SessionStatus.closed => kConLiveDotGrey,
+          SessionStatus.connected => tp.liveDotGreen,
+          SessionStatus.connecting => tp.liveDotAmber,
+          SessionStatus.error || SessionStatus.closed => tp.liveDotGrey,
         };
 
         if (selected) {
           return Container(
             height: 36,
             margin: const EdgeInsets.only(right: 3),
-            decoration: const BoxDecoration(
-              color: kTerminalBg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
-              border: Border(top: BorderSide(color: kConLine), left: BorderSide(color: kConLine), right: BorderSide(color: kConLine)),
+            decoration: BoxDecoration(
+              color: tp.termBg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+              border: Border(top: BorderSide(color: tp.line), left: BorderSide(color: tp.line), right: BorderSide(color: tp.line)),
             ),
             child: Material(
               color: Colors.transparent,
@@ -369,7 +374,7 @@ class _SessionTab extends StatelessWidget {
                         children: [
                           Container(width: 7, height: 7, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
                           SizedBox(width: ax.space.sm),
-                          Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600, color: kConText)),
+                          Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600, color: tp.text)),
                         ],
                       ),
                     ),
@@ -382,7 +387,7 @@ class _SessionTab extends StatelessWidget {
                       child: InkWell(
                         customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         onTap: onEnd,
-                        child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: kConMuted)),
+                        child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: tp.textMuted)),
                       ),
                     ),
                   ),
@@ -417,7 +422,7 @@ class _SessionTab extends StatelessWidget {
                           decoration: BoxDecoration(color: dotColor.withValues(alpha: 0.6), shape: BoxShape.circle),
                         ),
                         SizedBox(width: ax.space.sm),
-                        Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500, color: kConMuted)),
+                        Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500, color: tp.textMuted)),
                       ],
                     ),
                   ),
@@ -431,7 +436,7 @@ class _SessionTab extends StatelessWidget {
                       child: InkWell(
                         customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         onTap: onEnd,
-                        child: const Padding(padding: EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: kConMuted)),
+                        child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: tp.textMuted)),
                       ),
                     ),
                   ),
@@ -452,7 +457,8 @@ class _AdminButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = enabled ? const Color(0xFFFFC66E) : kConMuted;
+    final tp = context.terminalPalette;
+    final color = enabled ? tp.chipOnFg : tp.textMuted;
     return Tooltip(
       message: 'Admin mode',
       child: Semantics(
@@ -466,12 +472,9 @@ class _AdminButton extends StatelessWidget {
             width: 26,
             height: 26,
             decoration: BoxDecoration(
-              color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.14) : Colors.transparent,
+              color: enabled ? tp.chipOnBg : Colors.transparent,
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.08),
-                width: 1,
-              ),
+              border: Border.all(color: enabled ? tp.chipOnFg.withValues(alpha: 0.35) : tp.line, width: 1),
             ),
             alignment: Alignment.center,
             child: Icon(Icons.key_rounded, size: 13.5, color: color),
@@ -502,14 +505,15 @@ class _TerminalMoreMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final tp = context.terminalPalette;
     return PopupMenuButton<String>(
       tooltip: 'More',
-      icon: const Icon(Icons.more_horiz, color: kConMuted),
+      icon: Icon(Icons.more_horiz, color: tp.textMuted),
       offset: const Offset(0, 44),
       elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.6),
-      color: kConBarBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: kConLine)),
+      shadowColor: Colors.black.withValues(alpha: tp.isDark ? 0.6 : 0.15),
+      color: tp.barBg,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: tp.line)),
       constraints: const BoxConstraints(minWidth: 240, maxWidth: 270),
       onSelected: (val) {
         if (val == 'snippets') {
@@ -530,26 +534,26 @@ class _TerminalMoreMenu extends StatelessWidget {
               value: 'snippets',
               height: 38,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('Snippets', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+              child: Text('Snippets', style: ax.typo.body.copyWith(fontSize: 13, color: tp.text)),
             ),
           PopupMenuItem<String>(
             value: 'copy',
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Copy selection', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+            child: Text('Copy selection', style: ax.typo.body.copyWith(fontSize: 13, color: tp.text)),
           ),
           PopupMenuItem<String>(
             value: 'paste',
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Paste', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+            child: Text('Paste', style: ax.typo.body.copyWith(fontSize: 13, color: tp.text)),
           ),
-          const PopupMenuDivider(height: 1),
+          PopupMenuDivider(height: 1),
           PopupMenuItem<String>(
             value: 'sessions',
             height: 38,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Sessions on this server', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+            child: Text('Sessions on this server', style: ax.typo.body.copyWith(fontSize: 13, color: tp.text)),
           ),
         ];
       },
@@ -593,12 +597,13 @@ class _TextSizeMenuItemState extends State<_TextSizeMenuItem> {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
+    final tp = context.terminalPalette;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text('Text size', style: ax.typo.body.copyWith(fontSize: 13, color: kConText)),
+          Text('Text size', style: ax.typo.body.copyWith(fontSize: 13, color: tp.text)),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -610,14 +615,14 @@ class _TextSizeMenuItemState extends State<_TextSizeMenuItem> {
                   onTap: _current > kTerminalMinFont ? () => _step(-1) : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(color: tp.text.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                     child: Text(
                       'A−',
                       style: TextStyle(
                         fontFamily: kUiFontFamily,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
-                        color: _current > kTerminalMinFont ? kConText : kConMuted.withValues(alpha: 0.35),
+                        color: _current > kTerminalMinFont ? tp.text : tp.textMuted.withValues(alpha: 0.35),
                       ),
                     ),
                   ),
@@ -627,7 +632,7 @@ class _TextSizeMenuItemState extends State<_TextSizeMenuItem> {
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
                   '${_current.toInt()}',
-                  style: ax.typo.mono.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: kConAccent),
+                  style: ax.typo.mono.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: tp.accent),
                 ),
               ),
               Tooltip(
@@ -638,14 +643,14 @@ class _TextSizeMenuItemState extends State<_TextSizeMenuItem> {
                   onTap: _current < kTerminalMaxFont ? () => _step(1) : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(color: tp.text.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6)),
                     child: Text(
                       'A+',
                       style: TextStyle(
                         fontFamily: kUiFontFamily,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
-                        color: _current < kTerminalMaxFont ? kConText : kConMuted.withValues(alpha: 0.35),
+                        color: _current < kTerminalMaxFont ? tp.text : tp.textMuted.withValues(alpha: 0.35),
                       ),
                     ),
                   ),
