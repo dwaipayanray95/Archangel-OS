@@ -109,6 +109,137 @@ void main() {
     expect(d.windowFor(AxSection.files)!.rect.right, closeTo(1200 - 8, 0.01));
   });
 
+  test('trigger margin is reduced to 10 dp to prevent accidental snaps', () {
+    final d = desk();
+    // 11 dp away from edges does NOT snap:
+    expect(d.snapAt(const Offset(11, 300)), DeskSnap.none);
+    expect(d.snapAt(const Offset(1200 - 11, 300)), DeskSnap.none);
+    expect(d.snapAt(const Offset(600, 11)), DeskSnap.none);
+    expect(d.snapAt(const Offset(600, 700 - 11)), DeskSnap.none);
+
+    // Within 10 dp snaps deliberately:
+    expect(d.snapAt(const Offset(9, 300)), DeskSnap.left);
+    expect(d.snapAt(const Offset(1200 - 9, 300)), DeskSnap.right);
+    expect(d.snapAt(const Offset(600, 9)), DeskSnap.maximize);
+    expect(d.snapAt(const Offset(600, 700 - 9)), DeskSnap.thirdCenter);
+  });
+
+  test('4 corners snap into 1/4 screen quadrants', () {
+    final d = desk();
+    // Top-left corner:
+    expect(d.snapAt(const Offset(5, 5)), DeskSnap.topLeft);
+    expect(d.snapAt(const Offset(40, 5)), DeskSnap.topLeft);
+    expect(d.snapAt(const Offset(5, 40)), DeskSnap.topLeft);
+
+    // Top-right corner:
+    expect(d.snapAt(const Offset(1195, 5)), DeskSnap.topRight);
+    expect(d.snapAt(const Offset(1160, 5)), DeskSnap.topRight);
+    expect(d.snapAt(const Offset(1195, 40)), DeskSnap.topRight);
+
+    // Bottom-left corner:
+    expect(d.snapAt(const Offset(5, 695)), DeskSnap.bottomLeft);
+    expect(d.snapAt(const Offset(40, 695)), DeskSnap.bottomLeft);
+    expect(d.snapAt(const Offset(5, 660)), DeskSnap.bottomLeft);
+
+    // Bottom-right corner:
+    expect(d.snapAt(const Offset(1195, 695)), DeskSnap.bottomRight);
+    expect(d.snapAt(const Offset(1160, 695)), DeskSnap.bottomRight);
+    expect(d.snapAt(const Offset(1195, 660)), DeskSnap.bottomRight);
+
+    // Geometry check:
+    final tl = d.snapRect(DeskSnap.topLeft)!;
+    final tr = d.snapRect(DeskSnap.topRight)!;
+    final bl = d.snapRect(DeskSnap.bottomLeft)!;
+    final br = d.snapRect(DeskSnap.bottomRight)!;
+
+    final expectedW = (1200 - 24) / 2;
+    final expectedH = (700 - 24) / 2;
+
+    expect(tl.left, 8.0);
+    expect(tl.top, 8.0);
+    expect(tl.width, closeTo(expectedW, 0.01));
+    expect(tl.height, closeTo(expectedH, 0.01));
+
+    expect(tr.right, closeTo(1200 - 8, 0.01));
+    expect(tr.top, 8.0);
+    expect(tr.width, closeTo(expectedW, 0.01));
+    expect(tr.height, closeTo(expectedH, 0.01));
+
+    expect(bl.left, 8.0);
+    expect(bl.bottom, closeTo(700 - 8, 0.01));
+    expect(bl.width, closeTo(expectedW, 0.01));
+    expect(bl.height, closeTo(expectedH, 0.01));
+
+    expect(br.right, closeTo(1200 - 8, 0.01));
+    expect(br.bottom, closeTo(700 - 8, 0.01));
+    expect(br.width, closeTo(expectedW, 0.01));
+    expect(br.height, closeTo(expectedH, 0.01));
+  });
+
+  test('bottom edge snaps into 1:1:1 three-column thirds', () {
+    final d = desk();
+    // Bottom edge (outside corner zones):
+    expect(d.snapAt(const Offset(200, 695)), DeskSnap.thirdLeft);
+    expect(d.snapAt(const Offset(600, 695)), DeskSnap.thirdCenter);
+    expect(d.snapAt(const Offset(1000, 695)), DeskSnap.thirdRight);
+
+    // Geometry check:
+    final t1 = d.snapRect(DeskSnap.thirdLeft)!;
+    final t2 = d.snapRect(DeskSnap.thirdCenter)!;
+    final t3 = d.snapRect(DeskSnap.thirdRight)!;
+
+    final thirdW = (1200 - 32) / 3;
+    expect(t1.left, 8.0);
+    expect(t1.width, closeTo(thirdW, 0.01));
+    expect(t1.height, 700 - 16);
+
+    expect(t2.left, closeTo(8 + thirdW + 8, 0.01));
+    expect(t2.width, closeTo(thirdW, 0.01));
+    expect(t2.height, 700 - 16);
+
+    expect(t3.right, closeTo(1200 - 8, 0.01));
+    expect(t3.width, closeTo(thirdW, 0.01));
+    expect(t3.height, 700 - 16);
+  });
+
+  test('holding Alt/Option snaps into thirds along any edge', () {
+    final d = desk();
+    // Top edge with Alt:
+    expect(d.snapAt(const Offset(200, 5), altPressed: true), DeskSnap.thirdLeft);
+    expect(d.snapAt(const Offset(600, 5), altPressed: true), DeskSnap.thirdCenter);
+    expect(d.snapAt(const Offset(1000, 5), altPressed: true), DeskSnap.thirdRight);
+
+    // Left/Right edges with Alt:
+    expect(d.snapAt(const Offset(5, 300), altPressed: true), DeskSnap.thirdLeft);
+    expect(d.snapAt(const Offset(1195, 300), altPressed: true), DeskSnap.thirdRight);
+  });
+
+  test('corner and third snaps restore when moved away', () {
+    final d = desk()..open(AxSection.files);
+    final initial = d.windowFor(AxSection.files)!.rect;
+
+    // Drag to bottom-left corner and release:
+    d.move(AxSection.files, Offset.zero, pointer: const Offset(5, 695));
+    expect(d.snap, DeskSnap.bottomLeft);
+    d.endMove(AxSection.files);
+    expect(d.windowFor(AxSection.files)!.maximized, isTrue);
+    expect(d.windowFor(AxSection.files)!.snapped, DeskSnap.bottomLeft);
+
+    // Drag away restores:
+    d.move(AxSection.files, const Offset(30, 30), pointer: const Offset(300, 300));
+    expect(d.windowFor(AxSection.files)!.maximized, isFalse);
+    expect(d.windowFor(AxSection.files)!.rect.size, initial.size);
+    d.endMove(AxSection.files);
+
+    // Drag to middle third and release:
+    d.move(AxSection.files, Offset.zero, pointer: const Offset(600, 695));
+    expect(d.snap, DeskSnap.thirdCenter);
+    d.endMove(AxSection.files);
+    expect(d.windowFor(AxSection.files)!.maximized, isTrue);
+    expect(d.windowFor(AxSection.files)!.snapped, DeskSnap.thirdCenter);
+    expect(d.windowFor(AxSection.files)!.rect, d.snapRect(DeskSnap.thirdCenter));
+  });
+
   test('tidy lays visible windows out without overlaps', () {
     final d =
         desk()

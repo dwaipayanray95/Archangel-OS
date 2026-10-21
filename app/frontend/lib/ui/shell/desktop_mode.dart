@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/app_state.dart';
@@ -25,10 +26,13 @@ const double kDeskTopBarHeight = 42;
 const double kDeskWidgetWidth = 248;
 
 /// How close to an edge a dragged title bar must come to snap.
-const double kDeskSnapEdge = 24;
+const double kDeskSnapEdge = 10;
+
+/// Corner threshold along the edge for snapping into quadrant corners.
+const double kDeskSnapCorner = 64;
 
 /// Where a dragged window will land when let go.
-enum DeskSnap { none, left, right, maximize }
+enum DeskSnap { none, maximize, left, right, topLeft, topRight, bottomLeft, bottomRight, thirdLeft, thirdCenter, thirdRight }
 
 /// Smallest a window may be resized to.
 const Size kDeskMinWindow = Size(340, 260);
@@ -77,23 +81,97 @@ class DesktopWindows extends ChangeNotifier {
   /// The outline shown while dragging toward an edge, or null.
   Rect? get snapPreview => snapRect(_snap);
 
+  static bool get _systemAltPressed {
+    try {
+      return HardwareKeyboard.instance.isAltPressed;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// The rectangle a window takes when snapped to [snap].
   Rect? snapRect(DeskSnap snap) {
     const g = 8.0;
     final half = (area.width - g * 3) / 2;
+    final halfH = (area.height - g * 3) / 2;
+    final third = (area.width - g * 4) / 3;
     return switch (snap) {
       DeskSnap.none => null,
       DeskSnap.left => Rect.fromLTWH(g, g, half, area.height - g * 2),
       DeskSnap.right => Rect.fromLTWH(g * 2 + half, g, half, area.height - g * 2),
       DeskSnap.maximize => Rect.fromLTWH(g, g, area.width - g * 2, area.height - g * 2),
+      DeskSnap.topLeft => Rect.fromLTWH(g, g, half, halfH),
+      DeskSnap.topRight => Rect.fromLTWH(g * 2 + half, g, half, halfH),
+      DeskSnap.bottomLeft => Rect.fromLTWH(g, g * 2 + halfH, half, halfH),
+      DeskSnap.bottomRight => Rect.fromLTWH(g * 2 + half, g * 2 + halfH, half, halfH),
+      DeskSnap.thirdLeft => Rect.fromLTWH(g, g, third, area.height - g * 2),
+      DeskSnap.thirdCenter => Rect.fromLTWH(g * 2 + third, g, third, area.height - g * 2),
+      DeskSnap.thirdRight => Rect.fromLTWH(g * 3 + third * 2, g, third, area.height - g * 2),
     };
   }
 
   /// Which snap a pointer at [p] (in window-area coordinates) asks for.
-  DeskSnap snapAt(Offset p) {
-    if (p.dy <= 4) return DeskSnap.maximize;
-    if (p.dx <= kDeskSnapEdge) return DeskSnap.left;
-    if (p.dx >= area.width - kDeskSnapEdge) return DeskSnap.right;
+  ///
+  /// - Top center: [DeskSnap.maximize]
+  /// - 4 Corners: [DeskSnap.topLeft], [DeskSnap.topRight],
+  ///   [DeskSnap.bottomLeft], [DeskSnap.bottomRight] (quadrants)
+  /// - Left / Right mid-edges: [DeskSnap.left], [DeskSnap.right] (halves)
+  /// - Bottom edge: 1:1:1 thirds ([DeskSnap.thirdLeft], [DeskSnap.thirdCenter], [DeskSnap.thirdRight])
+  /// - Holding Alt / Option while dragging to any edge: 1:1:1 thirds
+  DeskSnap snapAt(Offset p, {bool? altPressed}) {
+    final alt = altPressed ?? _systemAltPressed;
+    final nearLeft = p.dx <= kDeskSnapEdge;
+    final nearRight = p.dx >= area.width - kDeskSnapEdge;
+    final nearTop = p.dy <= kDeskSnapEdge;
+    final nearBottom = p.dy >= area.height - kDeskSnapEdge;
+
+    if (!nearLeft && !nearRight && !nearTop && !nearBottom) {
+      return DeskSnap.none;
+    }
+
+    if (alt) {
+      if (p.dx < area.width / 3) return DeskSnap.thirdLeft;
+      if (p.dx > area.width * 2 / 3) return DeskSnap.thirdRight;
+      return DeskSnap.thirdCenter;
+    }
+
+    final corner = math.min(kDeskSnapCorner, area.height * 0.25);
+
+    // 1. Check four corners first (triggered near corner along either adjacent edge).
+    final isTopCorner = p.dy <= corner;
+    final isBottomCorner = p.dy >= area.height - corner;
+    final isLeftCorner = p.dx <= corner;
+    final isRightCorner = p.dx >= area.width - corner;
+
+    if ((nearTop && isLeftCorner) || (nearLeft && isTopCorner)) {
+      return DeskSnap.topLeft;
+    }
+    if ((nearTop && isRightCorner) || (nearRight && isTopCorner)) {
+      return DeskSnap.topRight;
+    }
+    if ((nearBottom && isLeftCorner) || (nearLeft && isBottomCorner)) {
+      return DeskSnap.bottomLeft;
+    }
+    if ((nearBottom && isRightCorner) || (nearRight && isBottomCorner)) {
+      return DeskSnap.bottomRight;
+    }
+
+    // 2. Top edge (between corners) -> Maximize
+    if (nearTop) {
+      return DeskSnap.maximize;
+    }
+
+    // 3. Bottom edge (between corners) -> 1:1:1 Thirds
+    if (nearBottom) {
+      if (p.dx < area.width / 3) return DeskSnap.thirdLeft;
+      if (p.dx > area.width * 2 / 3) return DeskSnap.thirdRight;
+      return DeskSnap.thirdCenter;
+    }
+
+    // 4. Left and Right edges (between corners) -> Halves
+    if (nearLeft) return DeskSnap.left;
+    if (nearRight) return DeskSnap.right;
+
     return DeskSnap.none;
   }
 
@@ -198,6 +276,7 @@ class DesktopWindows extends ChangeNotifier {
     if (w.maximized) {
       w.rect = _clamp(w.restoreRect!);
       w.restoreRect = null;
+      w.snapped = DeskSnap.none;
     } else {
       w.restoreRect = w.rect;
       w.snapped = DeskSnap.maximize;
@@ -208,20 +287,21 @@ class DesktopWindows extends ChangeNotifier {
   }
 
   /// Moves [s] by [delta]. [pointer] (window-area coordinates) drives
-  /// edge snapping: near the left/right edge or the top, a preview shows
+  /// edge snapping: near screen edges and corners, a preview shows
   /// where the window will land on [endMove].
-  void move(AxSection s, Offset delta, {Offset? pointer}) {
+  void move(AxSection s, Offset delta, {Offset? pointer, bool? altPressed}) {
     final w = windowFor(s);
     if (w == null) return;
     if (w.maximized) {
       // Dragging a maximized or snapped window restores its size under the pointer.
       final restore = w.restoreRect!;
       w.restoreRect = null;
+      w.snapped = DeskSnap.none;
       final x = pointer == null ? w.rect.left : pointer.dx - restore.width / 2;
       w.rect = _clamp(Rect.fromLTWH(x, w.rect.top, restore.width, restore.height));
     }
     w.rect = _clamp(w.rect.shift(delta));
-    _snap = pointer == null ? DeskSnap.none : snapAt(pointer);
+    _snap = pointer == null ? DeskSnap.none : snapAt(pointer, altPressed: altPressed);
     notifyListeners();
   }
 
@@ -833,7 +913,13 @@ class _Window extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     GestureDetector(
-                      onPanUpdate: (d) => windows.move(s, d.delta, pointer: window.rect.topLeft + d.localPosition),
+                      onPanUpdate:
+                          (d) => windows.move(
+                            s,
+                            d.delta,
+                            pointer: window.rect.topLeft + d.localPosition,
+                            altPressed: HardwareKeyboard.instance.isAltPressed,
+                          ),
                       onPanEnd: (_) => windows.endMove(s),
                       onPanCancel: () => windows.endMove(s),
                       onDoubleTap: () => windows.toggleMaximize(s),
