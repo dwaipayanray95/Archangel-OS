@@ -195,29 +195,29 @@ class AxPalette {
   }
 }
 
-/// Spacing scale (dp). Compact and elegant for modern displays.
+/// Spacing scale (dp).
 class AxSpace {
   const AxSpace();
   final double xs = 4;
-  final double sm = 6;
-  final double md = 10;
-  final double lg = 14;
-  final double xl = 20;
-  final double xxl = 28;
-}
-
-/// Corner radii (dp). Tailored and modern.
-class AxRadii {
-  const AxRadii();
   final double sm = 8;
   final double md = 12;
-  final double lg = 18;
-  final double xl = 22;
+  final double lg = 16;
+  final double xl = 24;
+  final double xxl = 32;
+}
+
+/// Corner radii (dp).
+class AxRadii {
+  const AxRadii();
+  final double sm = 10;
+  final double md = 14;
+  final double lg = 20;
+  final double xl = 26;
   final double pill = 999;
 }
 
-/// Type scale. Tuned for desktop elegance: body is 13 sp (Apple desktop standard),
-/// title is 15 sp, mono is 12.5 sp.
+/// Type scale. Nothing is below 12 sp; body is 14 sp. Colours are applied by
+/// the widgets using the palette; families come from the app text theme.
 /// Bundled font families (see pubspec.yaml `fonts:`): Inter for interface
 /// text, IBM Plex Mono for the terminal, code and numbers.
 const kUiFontFamily = 'Inter';
@@ -225,22 +225,22 @@ const kMonoFontFamily = 'IBMPlexMono';
 
 class AxType {
   const AxType();
-  TextStyle get caption => const TextStyle(fontFamily: kUiFontFamily, fontSize: 11.5, height: 1.35);
-  TextStyle get body => const TextStyle(fontFamily: kUiFontFamily, fontSize: 13, height: 1.4);
-  TextStyle get label => const TextStyle(fontFamily: kUiFontFamily, fontSize: 13, fontWeight: FontWeight.w600, height: 1.3);
+  TextStyle get caption => const TextStyle(fontFamily: kUiFontFamily, fontSize: 12, height: 1.35);
+  TextStyle get body => const TextStyle(fontFamily: kUiFontFamily, fontSize: 14, height: 1.45);
+  TextStyle get label => const TextStyle(fontFamily: kUiFontFamily, fontSize: 14, fontWeight: FontWeight.w600, height: 1.3);
   TextStyle get title =>
-      const TextStyle(fontFamily: kUiFontFamily, fontSize: 15, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.16);
+      const TextStyle(fontFamily: kUiFontFamily, fontSize: 16, fontWeight: FontWeight.w600, height: 1.3, letterSpacing: -0.16);
   TextStyle get headline =>
-      const TextStyle(fontFamily: kUiFontFamily, fontSize: 22, fontWeight: FontWeight.w600, height: 1.2, letterSpacing: -0.4);
+      const TextStyle(fontFamily: kUiFontFamily, fontSize: 24, fontWeight: FontWeight.w600, height: 1.2, letterSpacing: -0.48);
 
   /// The big plain-English sentence (Home's health line, wizard titles).
   TextStyle get display =>
-      const TextStyle(fontFamily: kUiFontFamily, fontSize: 26, fontWeight: FontWeight.w600, height: 1.18, letterSpacing: -0.5);
-  TextStyle get mono => const TextStyle(fontSize: 12.5, fontFamily: kMonoFontFamily, height: 1.4);
+      const TextStyle(fontFamily: kUiFontFamily, fontSize: 28, fontWeight: FontWeight.w600, height: 1.18, letterSpacing: -0.6);
+  TextStyle get mono => const TextStyle(fontSize: 13, fontFamily: kMonoFontFamily, height: 1.4);
 
   /// Numbers on metric cards: IBM Plex Mono, tabular.
   TextStyle get metric => const TextStyle(
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: kMonoFontFamily,
     fontWeight: FontWeight.w500,
     height: 1.1,

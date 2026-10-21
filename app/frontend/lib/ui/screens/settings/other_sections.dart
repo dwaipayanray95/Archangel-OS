@@ -280,6 +280,19 @@ class AppearanceSection extends StatelessWidget {
               ),
           ],
         ),
+        AxListTile(
+          title: 'UI scale',
+          subtitle: 'Make interface elements more compact and elegant, or standard size.',
+          controls: [
+            SegmentedButton<AxUiScale>(
+              key: const ValueKey('ui-scale-choice'),
+              showSelectedIcon: false,
+              segments: [for (final s in AxUiScale.values) ButtonSegment(value: s, label: Text(s.label))],
+              selected: {app.uiScale},
+              onSelectionChanged: (s) => app.uiScale = s.first,
+            ),
+          ],
+        ),
         if (desktopPossible)
           AxListTile(
             title: 'Layout',

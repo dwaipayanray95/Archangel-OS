@@ -5,6 +5,20 @@ import '../ui/theme.dart';
 const _kThemeModeKey = 'appearance_theme_mode';
 const _kAccentKey = 'appearance_accent';
 const _kLayoutKey = 'appearance_layout';
+const _kUiScaleKey = 'appearance_ui_scale';
+
+/// UI canvas scaling on desktop/wide displays.
+enum AxUiScale {
+  small70('Small (70%)', 0.70),
+  default80('Default (80%)', 0.80),
+  large90('Large (90%)', 0.90);
+
+  const AxUiScale(this.label, this.factor);
+  final String label;
+  final double factor;
+
+  static AxUiScale fromName(String? name) => AxUiScale.values.firstWhere((s) => s.name == name, orElse: () => AxUiScale.default80);
+}
 
 /// The app's destinations, in navigation order. On phones the last three
 /// live behind the "More" tab.
@@ -86,6 +100,16 @@ class AppState extends ChangeNotifier {
     _save(_kLayoutKey, l.name);
   }
 
+  AxUiScale _uiScale = AxUiScale.default80;
+  AxUiScale get uiScale => _uiScale;
+  double get uiScaleFactor => _uiScale.factor;
+  set uiScale(AxUiScale s) {
+    if (_uiScale == s) return;
+    _uiScale = s;
+    notifyListeners();
+    _save(_kUiScaleKey, s.name);
+  }
+
   int _bootReplay = 0;
   BootKind _bootReplayKind = BootKind.short;
 
@@ -107,6 +131,7 @@ class AppState extends ChangeNotifier {
       final mode = await store.read(_kThemeModeKey);
       final accent = await store.read(_kAccentKey);
       final layout = await store.read(_kLayoutKey);
+      final scale = await store.read(_kUiScaleKey);
       if (layout != null) {
         _layout = AxLayout.values.firstWhere((l) => l.name == layout, orElse: () => AxLayout.desktop);
       }
@@ -114,6 +139,7 @@ class AppState extends ChangeNotifier {
         _themeMode = ThemeMode.values.firstWhere((m) => m.name == mode, orElse: () => kDefaultThemeMode);
       }
       if (accent != null) _accentChoice = AxAccent.fromName(accent);
+      if (scale != null) _uiScale = AxUiScale.fromName(scale);
       notifyListeners();
     } catch (_) {
       // Appearance is a convenience; defaults are fine if storage fails.
