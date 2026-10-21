@@ -61,6 +61,7 @@ class NotifPanel extends StatelessWidget {
       AxStatus.error => c.danger,
       AxStatus.info => c.info,
       AxStatus.neutral => c.textMuted,
+      AxStatus.accent => c.accent,
     };
 
     return Positioned(

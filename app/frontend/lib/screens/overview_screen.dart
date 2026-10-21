@@ -303,6 +303,7 @@ class _MetricCard extends StatelessWidget {
       AxStatus.info => (c.info, Icons.info_outline),
       AxStatus.warning => (c.warning, Icons.warning_amber_rounded),
       AxStatus.error => (c.danger, Icons.error_outline),
+      AxStatus.accent => (c.accent, null),
     };
     final barColor = switch (status) {
       AxStatus.warning => c.warning,
@@ -479,6 +480,7 @@ class _AttentionCard extends StatelessWidget {
     AxStatus.error => c.danger,
     AxStatus.info => c.info,
     AxStatus.neutral => c.textMuted,
+    AxStatus.accent => c.accent,
   };
 
   Color _wash(AxPalette c, AxStatus s) => switch (s) {
@@ -487,6 +489,7 @@ class _AttentionCard extends StatelessWidget {
     AxStatus.error => c.dangerWash,
     AxStatus.info => c.infoWash,
     AxStatus.neutral => c.surfaceHigh,
+    AxStatus.accent => c.accentWash,
   };
 }
 
