@@ -196,7 +196,9 @@ void main() {
       expect(find.byType(OverviewScreen), findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.byTooltip('Back to the Simple layout'));
+      await tester.tap(find.byTooltip('Archangel OS menu'));
+      await _settle(tester);
+      await tester.tap(find.text('Switch to Simple Layout'));
       await _settle(tester);
       expect(app.layout, AxLayout.simple);
       expect(find.byType(AxSidebar), findsOneWidget);
@@ -230,7 +232,9 @@ void main() {
       final prefs = DesktopPrefs();
       await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
       expect(find.byType(DesktopModeView), findsOneWidget);
-      await tester.tap(find.byTooltip('Customize the desktop'));
+      await tester.tap(find.byTooltip('Archangel OS menu'));
+      await _settle(tester);
+      await tester.tap(find.text('Customize Desktop…'));
       await _settle(tester);
       expect(find.byType(DesktopCustomizeDialog), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('wall-aurora')));
@@ -243,6 +247,26 @@ void main() {
       expect(find.byType(DesktopCustomizeDialog), findsNothing);
       expect(find.byKey(const ValueKey('wallpaper-aurora')), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Archangel OS menu offers system actions and opens Settings', (tester) async {
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('archangel-os-menu')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('archangel-os-menu')));
+      await _settle(tester);
+
+      expect(find.text('About Archangel OS'), findsOneWidget);
+      expect(find.text('System Settings…'), findsOneWidget);
+      expect(find.text('App Launcher'), findsOneWidget);
+      expect(find.text('Customize Desktop…'), findsOneWidget);
+      expect(find.text('Tidy Windows'), findsOneWidget);
+      expect(find.text('Switch to Simple Layout'), findsOneWidget);
+
+      await tester.tap(find.text('About Archangel OS'));
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('win-settings')), findsOneWidget);
     });
 
     testWidgets('apps left out of the dock still appear there while open', (tester) async {

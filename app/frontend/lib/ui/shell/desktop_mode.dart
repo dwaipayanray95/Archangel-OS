@@ -6,12 +6,14 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/app_state.dart';
+import '../../services/archangeld_connection.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
 import '../screens/home/home_logic.dart';
 import '../components/ax_glass.dart';
 import '../components/status_badge.dart';
 import '../components/ax_wordmark.dart';
+import '../components/confirm_dialog.dart';
 import '../theme.dart';
 import 'desktop_customize.dart';
 import 'desktop_prefs.dart';
@@ -438,7 +440,7 @@ class DesktopModeView extends StatelessWidget {
     final ax = context.ax;
     return Column(
       children: [
-        _TopBar(onSimpleLayout: onSimpleLayout, onCustomize: () => showDesktopCustomize(context)),
+        _TopBar(windows: windows, onOpen: _open, onSimpleLayout: onSimpleLayout, onCustomize: () => showDesktopCustomize(context)),
         Expanded(
           child: Stack(
             children: [
@@ -665,10 +667,16 @@ class _WidgetMeter extends StatelessWidget {
 
 /// One entry of a desktop context menu.
 class DeskMenuItem {
-  const DeskMenuItem(this.id, this.label, this.icon);
+  const DeskMenuItem(this.id, this.label, this.icon, {this.isDivider = false, this.trailing, this.danger = false});
+
+  const DeskMenuItem.divider() : id = '', label = '', icon = Icons.circle, isDivider = true, trailing = null, danger = false;
+
   final String id;
   final String label;
   final IconData icon;
+  final bool isDivider;
+  final String? trailing;
+  final bool danger;
 }
 
 /// A small right-click / long-press menu at [at] (global position).
@@ -686,25 +694,32 @@ Future<String?> showDeskMenu(BuildContext context, Offset at, List<DeskMenuItem>
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.md), side: BorderSide(color: c.glassBorder)),
     items: [
       for (final i in items)
-        PopupMenuItem<String>(
-          value: i.id,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          height: 40,
-          child: Row(
-            children: [
-              Icon(i.icon, size: 18, color: c.textMuted),
-              SizedBox(width: ax.space.sm + 2),
-              Flexible(
-                child: Text(
-                  i.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ax.typo.body.copyWith(color: c.text, fontSize: 14),
+        if (i.isDivider)
+          const PopupMenuDivider(height: 10)
+        else
+          PopupMenuItem<String>(
+            value: i.id,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: 38,
+            child: Row(
+              children: [
+                Icon(i.icon, size: 18, color: i.danger ? c.danger : c.textMuted),
+                SizedBox(width: ax.space.sm + 2),
+                Expanded(
+                  child: Text(
+                    i.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ax.typo.body.copyWith(color: i.danger ? c.danger : c.text, fontSize: 13.5),
+                  ),
                 ),
-              ),
-            ],
+                if (i.trailing != null) ...[
+                  SizedBox(width: ax.space.sm),
+                  Text(i.trailing!, style: ax.typo.mono.copyWith(color: c.textSubtle, fontSize: 11)),
+                ],
+              ],
+            ),
           ),
-        ),
     ],
   );
 }
@@ -729,7 +744,10 @@ class _EmptyDesk extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onSimpleLayout, required this.onCustomize});
+  const _TopBar({required this.windows, required this.onOpen, required this.onSimpleLayout, required this.onCustomize});
+
+  final DesktopWindows windows;
+  final void Function(AxSection) onOpen;
   final VoidCallback onSimpleLayout;
   final VoidCallback onCustomize;
 
@@ -751,8 +769,8 @@ class _TopBar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: ax.space.md),
             child: Row(
               children: [
-                const AxWordmark(size: 15),
-                SizedBox(width: ax.space.md),
+                _ArchangelSystemMenu(windows: windows, onOpen: onOpen, onSimpleLayout: onSimpleLayout, onCustomize: onCustomize),
+                SizedBox(width: ax.space.sm),
                 _MiniButton(
                   label: name,
                   mono: true,
@@ -760,15 +778,6 @@ class _TopBar extends StatelessWidget {
                   tooltip: 'Switch server',
                   onTap: () => showServerSheet(context),
                 ),
-                SizedBox(width: ax.space.sm),
-                _MiniButton(
-                  label: 'Simple layout',
-                  icon: Icons.view_sidebar_outlined,
-                  tooltip: 'Back to the Simple layout',
-                  onTap: onSimpleLayout,
-                ),
-                SizedBox(width: ax.space.sm),
-                _MiniButton(label: 'Customize', icon: Icons.tune_rounded, tooltip: 'Customize the desktop', onTap: onCustomize),
                 SizedBox(width: ax.space.md),
                 const Expanded(child: StatusStrip(showServerName: false, compact: true)),
                 SizedBox(width: ax.space.sm),
@@ -779,6 +788,137 @@ class _TopBar extends StatelessWidget {
         ),
       ),
     ).withBottomLine(c.border);
+  }
+}
+
+class _ArchangelSystemMenu extends StatefulWidget {
+  const _ArchangelSystemMenu({required this.windows, required this.onOpen, required this.onSimpleLayout, required this.onCustomize});
+
+  final DesktopWindows windows;
+  final void Function(AxSection) onOpen;
+  final VoidCallback onSimpleLayout;
+  final VoidCallback onCustomize;
+
+  @override
+  State<_ArchangelSystemMenu> createState() => _ArchangelSystemMenuState();
+}
+
+class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
+  bool _menuOpen = false;
+
+  Future<void> _openMenu() async {
+    if (_menuOpen) return;
+    setState(() => _menuOpen = true);
+
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) {
+      if (mounted) setState(() => _menuOpen = false);
+      return;
+    }
+
+    final pos = box.localToGlobal(Offset(0, box.size.height + 4));
+    final registry = context.read<ServerRegistry>();
+    final activeServer = registry.active?.name;
+    final isPaired = context.read<ArchangeldConnection>().isPaired;
+
+    final choice = await showDeskMenu(context, pos, [
+      const DeskMenuItem('about', 'About Archangel OS', Icons.auto_awesome_rounded),
+      const DeskMenuItem('settings', 'System Settings…', Icons.settings_outlined),
+      const DeskMenuItem.divider(),
+      const DeskMenuItem('launcher', 'App Launcher', Icons.apps_rounded),
+      const DeskMenuItem('customize', 'Customize Desktop…', Icons.tune_rounded),
+      const DeskMenuItem('tidy', 'Tidy Windows', Icons.grid_view_outlined),
+      const DeskMenuItem.divider(),
+      const DeskMenuItem('simple', 'Switch to Simple Layout', Icons.view_sidebar_outlined),
+      const DeskMenuItem.divider(),
+      DeskMenuItem('switch_server', 'Switch Server…', Icons.dns_outlined, trailing: activeServer),
+      if (isPaired) const DeskMenuItem('restart_server', 'Restart Server…', Icons.restart_alt_rounded),
+    ]);
+
+    if (mounted) {
+      setState(() => _menuOpen = false);
+    }
+    if (!mounted || choice == null) return;
+
+    switch (choice) {
+      case 'about':
+      case 'settings':
+        widget.onOpen(AxSection.settings);
+      case 'launcher':
+        widget.windows.toggleLauncher(true);
+      case 'customize':
+        widget.onCustomize();
+      case 'tidy':
+        widget.windows.tidy();
+      case 'simple':
+        widget.onSimpleLayout();
+      case 'switch_server':
+        showServerSheet(context);
+      case 'restart_server':
+        _confirmRestart(context);
+    }
+  }
+
+  Future<void> _confirmRestart(BuildContext context) async {
+    final monitoring = context.read<MonitoringService>();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Restart your server?',
+      message: 'Your apps stop for about a minute, then start again. Archangel reconnects automatically.',
+      confirmLabel: 'Restart',
+    );
+    if (!ok) return;
+    final result = await monitoring.rebootHost();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(result.success ? 'Restarting. Your server will be back in about a minute.' : "Couldn't restart: ${result.message}"),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    return Semantics(
+      button: true,
+      label: 'Archangel OS menu',
+      child: Tooltip(
+        message: 'Archangel OS menu',
+        child: Material(
+          color: _menuOpen ? c.surfaceHigh : Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ax.radii.sm),
+            side: BorderSide(color: _menuOpen ? c.border : Colors.transparent),
+          ),
+          child: InkWell(
+            key: const ValueKey('archangel-os-menu'),
+            onTap: _openMenu,
+            borderRadius: BorderRadius.circular(ax.radii.sm),
+            hoverColor: c.surfaceHigh.withValues(alpha: 0.5),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 30),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: ax.space.xs + 2, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const AxWordmark(size: 14.5),
+                    SizedBox(width: 2),
+                    Icon(
+                      _menuOpen ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+                      size: 16,
+                      color: _menuOpen ? c.accent : c.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
