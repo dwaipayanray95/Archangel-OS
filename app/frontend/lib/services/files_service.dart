@@ -33,6 +33,49 @@ class DownloadResult {
   bool get ok => savedPath != null;
 }
 
+class UploadFileItem {
+  final String name;
+  final int sizeBytes;
+  final Uint8List? bytes;
+  final String? path;
+  const UploadFileItem({required this.name, this.sizeBytes = 0, this.bytes, this.path});
+}
+
+class UploadProgress {
+  final int fileIndex;
+  final int totalFiles;
+  final String currentFileName;
+  final int bytesSent;
+  final int totalBytes;
+  const UploadProgress({
+    required this.fileIndex,
+    required this.totalFiles,
+    required this.currentFileName,
+    this.bytesSent = 0,
+    this.totalBytes = 0,
+  });
+}
+
+class UploadResult {
+  final bool ok;
+  final bool supported;
+  final int uploadedCount;
+  final String? error;
+  const UploadResult.unsupported([this.error = 'Upload is not supported yet']) : ok = false, supported = false, uploadedCount = 0;
+  const UploadResult.success(this.uploadedCount) : ok = true, supported = true, error = null;
+  const UploadResult.failed(this.error) : ok = false, supported = true, uploadedCount = 0;
+}
+
+class PrivateLinkResult {
+  final bool ok;
+  final bool supported;
+  final String? url;
+  final String? error;
+  const PrivateLinkResult.unsupported([this.error = 'Private link is not supported yet']) : ok = false, supported = false, url = null;
+  const PrivateLinkResult.success(this.url) : ok = true, supported = true, error = null;
+  const PrivateLinkResult.failed(this.error) : ok = false, supported = true, url = null;
+}
+
 class FilesService extends ChangeNotifier {
   // Empty means "wherever the server's configured files_root is" - the
   // backend maps an empty path query param to that root itself (see
@@ -265,6 +308,19 @@ class FilesService extends ChangeNotifier {
       debugPrint('Error downloading file $path: $e');
     }
     return null;
+  }
+
+  bool get supportsUpload => false;
+  bool get supportsPrivateLink => false;
+
+  /// Upload placeholder: reports unsupported until backend endpoints land.
+  Future<UploadResult> upload(String dir, List<UploadFileItem> files, {void Function(UploadProgress progress)? onProgress}) async {
+    return const UploadResult.unsupported();
+  }
+
+  /// Private-link placeholder: reports unsupported until backend endpoints land.
+  Future<PrivateLinkResult> privateLink(String path) async {
+    return const PrivateLinkResult.unsupported();
   }
 
   /// Downloads [path] and writes it into the user's Downloads folder (or the

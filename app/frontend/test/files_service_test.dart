@@ -22,4 +22,20 @@ void main() {
       expect(uniqueFileName('..', (_) => false), 'download');
     });
   });
+
+  group('FilesService placeholders', () {
+    test('reports unsupported for upload and privateLink by default', () async {
+      final svc = FilesService();
+      expect(svc.supportsUpload, isFalse);
+      expect(svc.supportsPrivateLink, isFalse);
+
+      final up = await svc.upload('/home', [const UploadFileItem(name: 'test.txt')]);
+      expect(up.ok, isFalse);
+      expect(up.supported, isFalse);
+
+      final link = await svc.privateLink('/home/test.txt');
+      expect(link.ok, isFalse);
+      expect(link.supported, isFalse);
+    });
+  });
 }
