@@ -130,10 +130,10 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
           ),
         );
 
-        final adminChip =
+        final adminButton =
             widget.adminModeEnabled == null
                 ? const SizedBox.shrink()
-                : _AdminSwitch(enabled: widget.adminModeEnabled!, onToggle: widget.onToggleAdminMode);
+                : _AdminButton(enabled: widget.adminModeEnabled!, onToggle: widget.onToggleAdminMode);
 
         Widget topBar;
         if (wide) {
@@ -146,7 +146,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                 Expanded(child: tabs),
                 SizedBox(width: ax.space.sm),
                 Text('ray@${widget.serverName ?? 'server'}', style: ax.typo.mono.copyWith(fontSize: 12, color: kConMuted)),
-                if (widget.adminModeEnabled != null) ...[SizedBox(width: ax.space.sm), adminChip],
+                if (widget.adminModeEnabled != null) ...[SizedBox(width: ax.space.xs), adminButton],
                 SizedBox(width: ax.space.xs),
                 AxIconButton(
                   icon: Icons.code,
@@ -248,7 +248,7 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                   height: 36,
                   padding: EdgeInsets.symmetric(horizontal: ax.space.md),
                   decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
-                  child: Row(children: [statusBadge, const Spacer(), if (widget.adminModeEnabled != null) adminChip]),
+                  child: Row(children: [statusBadge, const Spacer(), if (widget.adminModeEnabled != null) adminButton]),
                 );
               }
             },
@@ -367,72 +367,20 @@ class _SessionTab extends StatelessWidget {
   }
 }
 
-class _AdminSwitch extends StatelessWidget {
-  const _AdminSwitch({required this.enabled, this.onToggle});
+class _AdminButton extends StatelessWidget {
+  const _AdminButton({required this.enabled, this.onToggle});
 
   final bool enabled;
   final ValueChanged<bool>? onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
-    final fg = enabled ? kConChipOnFg : kConMuted;
-    final icon = enabled ? Icons.key : Icons.lock;
-    final text = enabled ? 'Admin on' : 'Admin off';
-    final tooltip = enabled ? 'Administrator commands (sudo) are allowed' : 'Administrator commands (sudo) are blocked';
-
-    return Tooltip(
-      message: tooltip,
-      child: Semantics(
-        label: 'Admin mode',
-        toggled: enabled,
-        button: true,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(ax.radii.pill),
-          onTap: onToggle != null ? () => onToggle!(!enabled) : null,
-          child: Container(
-            height: 26,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.14) : Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(ax.radii.pill),
-              border: Border.all(color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 12, color: fg),
-                SizedBox(width: ax.space.xs),
-                Text(text, style: ax.typo.caption.copyWith(fontWeight: FontWeight.w600, fontSize: 11.5, color: fg)),
-                const SizedBox(width: 6),
-                Container(
-                  width: 24,
-                  height: 14,
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: enabled ? const Color(0xFFFFC66E).withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: AnimatedAlign(
-                    duration: const Duration(milliseconds: 150),
-                    curve: Curves.easeOutCubic,
-                    alignment: enabled ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: enabled ? const Color(0xFFFFC66E) : kConMuted,
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 2, offset: const Offset(0, 1))],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    return AxIconButton(
+      icon: Icons.key,
+      tooltip: 'Admin mode',
+      color: enabled ? const Color(0xFFFFC66E) : kConMuted,
+      selected: enabled,
+      onPressed: onToggle != null ? () => onToggle!(!enabled) : null,
     );
   }
 }

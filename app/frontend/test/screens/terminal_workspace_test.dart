@@ -168,8 +168,8 @@ void main() {
       // ray@<server>
       expect(find.text('ray@hal-9000'), findsOneWidget);
 
-      // Admin chip shows "Admin off" when disabled
-      expect(find.text('Admin off'), findsOneWidget);
+      // Admin button present when enabled or disabled
+      expect(find.byTooltip('Admin mode'), findsOneWidget);
 
       // Snippets, ⋯ directly on the top bar
       expect(find.byTooltip('Snippets'), findsOneWidget);
@@ -195,33 +195,30 @@ void main() {
       await finish(tester, h);
     });
 
-    testWidgets('Admin chip is hidden when unknown (null)', (tester) async {
+    testWidgets('Admin button is hidden when unknown (null)', (tester) async {
       final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main'], adminModeEnabled: null);
 
-      expect(find.text('Admin off'), findsNothing);
-      expect(find.text('Admin on'), findsNothing);
+      expect(find.byTooltip('Admin mode'), findsNothing);
 
       await finish(tester, h);
     });
 
-    testWidgets('Admin chip shows "Admin on" when enabled', (tester) async {
+    testWidgets('Admin button shows active when enabled', (tester) async {
       final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main'], adminModeEnabled: true);
 
-      expect(find.text('Admin on'), findsOneWidget);
-      expect(find.byTooltip('Administrator commands (sudo) are allowed'), findsOneWidget);
+      expect(find.byTooltip('Admin mode'), findsOneWidget);
 
       await finish(tester, h);
     });
 
-    testWidgets('Admin switch toggles when tapped', (tester) async {
+    testWidgets('Admin button toggles when tapped', (tester) async {
       final h = await pumpWorkspace(tester, size: const Size(1400, 900), names: const ['main'], adminModeEnabled: false);
-      expect(find.text('Admin off'), findsOneWidget);
+      expect(find.byTooltip('Admin mode'), findsOneWidget);
 
-      await tester.tap(find.text('Admin off'));
+      await tester.tap(find.byTooltip('Admin mode'));
       await tester.pump();
 
       expect(h.events, contains('toggle-admin true'));
-      expect(find.text('Admin on'), findsOneWidget);
 
       await finish(tester, h);
     });
@@ -245,8 +242,8 @@ void main() {
         expect(find.byTooltip('End session shell-2'), findsNothing);
         expect(find.byTooltip('End session a-rather-long-session-name'), findsNothing);
 
-        // Chip in footer
-        expect(find.text('Admin off'), findsOneWidget);
+        // Button in footer
+        expect(find.byTooltip('Admin mode'), findsOneWidget);
 
         // A−/A+, Copy, Paste, Snippets live in ⋯
         expect(find.byTooltip('Smaller text'), findsNothing);

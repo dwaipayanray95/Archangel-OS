@@ -41,7 +41,7 @@ at 390 on phones without overflow.
      selected tab.
 2. **+** icon button, tooltip "New session" (travels directly after the tabs). Opens the next free name.
 3. Wide only: `ray@<server>` (mono, muted).
-4. Wide only: **Admin chip** (see below).
+4. Wide only: **Admin key button** (key icon, tooltip "Admin mode", toggles on/off).
 5. Wide only: **Snippets** toggle ("Snippets", pressed when the panel is open).
 6. **⋯** ("More") menu, always shown.
 
@@ -68,14 +68,14 @@ On confirm: `TerminalSessionApi.end`, then remove the tab. On error show the
 server message in a snackbar and keep the tab. Closing the window/app still
 only detaches (sessions keep running), as today.
 
-### Admin chip
+### Admin key button
 
-- Off: neutral chip, lock icon, "Admin off", tooltip "Administrator commands
-  (sudo) are blocked".
-- On: warning chip, key icon, "Admin on", tooltip "Administrator commands
-  (sudo) are allowed".
-- Unknown (`enabled == null`): hide it.
-- Narrow: the chip moves to the right end of the footer.
+- Key icon button (`Icons.key`), tooltip "Admin mode".
+- Off: muted icon (`kConMuted`).
+- On: warning tint (`#FFC66E`), selected state.
+- Unknown (`enabled == null`): hidden.
+- Pressing toggles Admin mode on/off directly.
+- Narrow: lives at the right end of the footer.
 
 ### Output
 
