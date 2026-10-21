@@ -239,24 +239,28 @@ class WidePreviewCard extends StatelessWidget {
       width: 300,
       child: AxCard(
         padding: EdgeInsets.all(ax.space.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: Text(entry.name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text), softWrap: true)),
-                AxIconButton(icon: Icons.close_rounded, tooltip: 'Close preview', onPressed: onClose),
-              ],
-            ),
-            SizedBox(height: ax.space.xs),
-            Text(meta, style: ax.typo.caption.copyWith(color: c.textMuted)),
-            SizedBox(height: ax.space.md),
-            FilePreviewBody(entry: entry, files: files),
-            SizedBox(height: ax.space.md),
-            PreviewActionButtons(entry: entry, files: files),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(entry.name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text), softWrap: true),
+                  ),
+                  AxIconButton(icon: Icons.close_rounded, tooltip: 'Close preview', onPressed: onClose),
+                ],
+              ),
+              SizedBox(height: ax.space.xs),
+              Text(meta, style: ax.typo.caption.copyWith(color: c.textMuted)),
+              SizedBox(height: ax.space.md),
+              FilePreviewBody(entry: entry, files: files),
+              SizedBox(height: ax.space.md),
+              PreviewActionButtons(entry: entry, files: files),
+            ],
+          ),
         ),
       ),
     );

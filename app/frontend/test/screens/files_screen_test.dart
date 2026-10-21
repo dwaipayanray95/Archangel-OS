@@ -219,6 +219,44 @@ void main() {
       expect(find.text('Copy private link'), findsOneWidget);
       expect(find.text('Showing the whole file.'), findsOneWidget);
     });
+
+    testWidgets('no overflow in short wide desktop window with preview open (850x450)', (tester) async {
+      final svc = _FakeFiles(
+        fakeListing: _listing(),
+        fakeSupportsUpload: true,
+        fakeSupportsPrivateLink: true,
+        fakeFileContent: const FileContentResult(
+          path: '/home/archangel/projects/notes/notes.txt',
+          name: 'notes.txt',
+          sizeBytes: 1000,
+          lines: [
+            "version: '3.8'",
+            '',
+            'services:',
+            '  tcu-backend:',
+            '    build: .',
+            '    container_name: tcu-backend',
+            '    restart: unless-stopped',
+            '    ports:',
+            '      - "9000:9000"',
+            '    environment:',
+          ],
+          lineCount: 10,
+          truncated: false,
+          isBinary: false,
+          mimeType: 'text/plain',
+        ),
+      );
+
+      await _pump(tester, svc, const Size(850, 450));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('notes.txt'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(WidePreviewCard), findsOneWidget);
+    });
   });
 
   group('Narrow 340 and 390 layout', () {
