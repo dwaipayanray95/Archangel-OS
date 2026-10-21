@@ -1,0 +1,9 @@
+PIPELINE / TO-DO
+
+- check ufw tables in app
+- intergrate plugins
+- add supabase as an inherit function
+- organize Folder
+- add more features to file explorer
+- make terminal more functional
+- ability to select VPS
