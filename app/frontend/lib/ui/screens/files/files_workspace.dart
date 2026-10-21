@@ -399,26 +399,16 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           ),
         ),
 
-        // Show hidden files switch
+        // Show hidden files icon button
         Semantics(
+          button: true,
+          label: 'Show hidden files',
           toggled: files.showHidden,
-          label: wide ? 'Show hidden files' : 'Hidden',
-          excludeSemantics: true,
-          onTap: files.toggleShowHidden,
-          child: InkWell(
-            mouseCursor: SystemMouseCursors.click,
-            borderRadius: BorderRadius.circular(ax.radii.sm),
-            onTap: files.toggleShowHidden,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IgnorePointer(
-                  child: Switch(value: files.showHidden, onChanged: (_) {}, activeThumbColor: c.accent, activeTrackColor: c.accentWash),
-                ),
-                SizedBox(width: ax.space.xs),
-                Text(wide ? 'Show hidden files' : 'Hidden', style: ax.typo.body.copyWith(color: c.text)),
-              ],
-            ),
+          child: AxIconButton(
+            icon: files.showHidden ? Icons.visibility_rounded : Icons.visibility_off_outlined,
+            tooltip: 'Show hidden files',
+            selected: files.showHidden,
+            onPressed: files.toggleShowHidden,
           ),
         ),
       ],
