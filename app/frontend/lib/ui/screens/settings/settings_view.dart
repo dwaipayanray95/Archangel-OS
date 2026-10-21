@@ -13,7 +13,7 @@ enum SettingsSectionId {
   admin('Admin mode', Icons.key_outlined),
   security('Security', Icons.shield_outlined),
   appearance('Appearance', Icons.light_mode_outlined),
-  danger('Danger zone', Icons.warning_amber_rounded);
+  system('System', Icons.tune_rounded);
 
   const SettingsSectionId(this.label, this.icon);
   final String label;
@@ -29,7 +29,7 @@ enum SettingsSectionId {
     admin => const AdminModeSection(),
     security => const SecuritySection(),
     appearance => const AppearanceSection(),
-    danger => const DangerZoneSection(),
+    system => const SystemSection(),
   };
 }
 
@@ -59,6 +59,13 @@ class _SettingsViewState extends State<SettingsView> {
       if (!s.needsPairing || widget.paired) s,
   ];
 
+  List<SettingsSectionId> get _serverSettings => [
+    for (final s in [SettingsSectionId.servers, SettingsSectionId.devices, SettingsSectionId.admin, SettingsSectionId.security])
+      if (!s.needsPairing || widget.paired) s,
+  ];
+
+  List<SettingsSectionId> get _systemSettings => const [SettingsSectionId.appearance, SettingsSectionId.system];
+
   SettingsSectionId get _current => _visible.contains(_selected) ? _selected : SettingsSectionId.about;
 
   @override
@@ -83,20 +90,51 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               SizedBox(
                 width: 220,
-                child: AxCard(
-                  padding: EdgeInsets.all(ax.space.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final s in _visible)
-                        _NavRow(
-                          key: ValueKey('settings-nav-${s.name}'),
-                          section: s,
-                          selected: s == _current,
-                          onTap: () => setState(() => _selected = s),
-                        ),
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AxCard(
+                      padding: EdgeInsets.all(ax.space.xs),
+                      child: _NavRow(
+                        key: const ValueKey('settings-nav-about'),
+                        section: SettingsSectionId.about,
+                        selected: _current == SettingsSectionId.about,
+                        onTap: () => setState(() => _selected = SettingsSectionId.about),
+                      ),
+                    ),
+                    SizedBox(height: ax.space.sm),
+                    AxCard(
+                      padding: EdgeInsets.all(ax.space.sm),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final s in _serverSettings)
+                            _NavRow(
+                              key: ValueKey('settings-nav-${s.name}'),
+                              section: s,
+                              selected: s == _current,
+                              onTap: () => setState(() => _selected = s),
+                            ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: ax.space.sm),
+                    AxCard(
+                      padding: EdgeInsets.all(ax.space.sm),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final s in _systemSettings)
+                            _NavRow(
+                              key: ValueKey('settings-nav-${s.name}'),
+                              section: s,
+                              selected: s == _current,
+                              onTap: () => setState(() => _selected = s),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               SizedBox(width: ax.space.lg),
@@ -118,25 +156,66 @@ class _SettingsViewState extends State<SettingsView> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
-            child: AxCard(
-              padding: EdgeInsets.all(ax.space.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (final s in _visible)
-                    _NavRow(
-                      key: ValueKey('settings-nav-${s.name}'),
-                      section: s,
-                      selected: false,
-                      chevron: true,
-                      onTap:
-                          () => setState(() {
-                            _selected = s;
-                            _opened = true;
-                          }),
-                    ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AxCard(
+                  padding: EdgeInsets.all(ax.space.xs),
+                  child: _NavRow(
+                    key: const ValueKey('settings-nav-about'),
+                    section: SettingsSectionId.about,
+                    selected: false,
+                    chevron: true,
+                    onTap:
+                        () => setState(() {
+                          _selected = SettingsSectionId.about;
+                          _opened = true;
+                        }),
+                  ),
+                ),
+                SizedBox(height: ax.space.sm),
+                AxCard(
+                  padding: EdgeInsets.all(ax.space.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final s in _serverSettings)
+                        _NavRow(
+                          key: ValueKey('settings-nav-${s.name}'),
+                          section: s,
+                          selected: false,
+                          chevron: true,
+                          onTap:
+                              () => setState(() {
+                                _selected = s;
+                                _opened = true;
+                              }),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: ax.space.sm),
+                AxCard(
+                  padding: EdgeInsets.all(ax.space.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final s in _systemSettings)
+                        _NavRow(
+                          key: ValueKey('settings-nav-${s.name}'),
+                          section: s,
+                          selected: false,
+                          chevron: true,
+                          onTap:
+                              () => setState(() {
+                                _selected = s;
+                                _opened = true;
+                              }),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -178,8 +257,7 @@ class _NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
-    final danger = section == SettingsSectionId.danger;
-    final fg = danger ? c.danger : (selected ? c.accent : c.text);
+    final fg = selected ? c.accent : c.text;
     final height = chevron ? (axMinTarget(context) + 8) : 42.0;
     final radius = BorderRadius.circular(12);
     return Semantics(
@@ -199,7 +277,7 @@ class _NavRow extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: ax.space.md),
             child: Row(
               children: [
-                Icon(section.icon, size: 20, color: danger ? c.danger : (selected ? c.accent : c.textMuted)),
+                Icon(section.icon, size: 20, color: selected ? c.accent : c.textMuted),
                 SizedBox(width: ax.space.md),
                 Expanded(
                   child: Text(section.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.label.copyWith(color: fg)),

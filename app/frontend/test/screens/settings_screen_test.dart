@@ -505,7 +505,6 @@ void main() {
       expect(find.text('System Information'), findsOneWidget);
       expect(find.text('Archangel OS'), findsWidgets);
       expect(find.text('Host platform'), findsOneWidget);
-      expect(find.text('Dart runtime engine'), findsOneWidget);
       expect(find.text('Active Server Node'), findsOneWidget);
       expect(find.text('Developer Options & Diagnostics'), findsOneWidget);
       expect(find.text('System diagnostic report'), findsOneWidget);
@@ -558,11 +557,28 @@ void main() {
     });
   });
 
-  group('danger zone', () {
+  group('system', () {
+    testWidgets('Clear cache and Reset app settings work', (tester) async {
+      final h = await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.system);
+      expect(find.text('Clear application cache'), findsOneWidget);
+      expect(find.text('Reset app settings'), findsOneWidget);
+
+      await _tapText(tester, 'Clear cache');
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pumpAndSettle();
+      expect(find.text('Application cache cleared'), findsOneWidget);
+
+      await _tapText(tester, 'Reset settings');
+      expect(find.text('Reset app settings to defaults?'), findsOneWidget);
+      await _tapText(tester, 'Cancel');
+      expect(h.app.uiScale, AxUiScale.default80);
+    });
+
     testWidgets('Restart server asks first, then confirms when it worked', (tester) async {
       final monitoring = _FakeMonitoring(const ProcessActionResult(success: true, message: 'ok'));
       await _pumpSettings(tester, monitoring: monitoring);
-      await _open(tester, SettingsSectionId.danger);
+      await _open(tester, SettingsSectionId.system);
       await _tapText(tester, 'Restart');
       expect(find.text('Restart your server?'), findsOneWidget);
       expect(find.textContaining('This app reconnects by itself.'), findsOneWidget);
@@ -576,7 +592,7 @@ void main() {
     testWidgets('Restart server says why when it failed', (tester) async {
       final monitoring = _FakeMonitoring(const ProcessActionResult(success: false, message: 'Admin mode is off'));
       await _pumpSettings(tester, monitoring: monitoring);
-      await _open(tester, SettingsSectionId.danger);
+      await _open(tester, SettingsSectionId.system);
       await _tapText(tester, 'Restart');
       await tester.tap(_inDialog('Restart'));
       await _settle(tester);
@@ -586,7 +602,7 @@ void main() {
     testWidgets('cancelling the restart does nothing', (tester) async {
       final monitoring = _FakeMonitoring(const ProcessActionResult(success: true, message: 'ok'));
       await _pumpSettings(tester, monitoring: monitoring);
-      await _open(tester, SettingsSectionId.danger);
+      await _open(tester, SettingsSectionId.system);
       await _tapText(tester, 'Restart');
       await tester.tap(find.text('Cancel'));
       await _settle(tester);
@@ -595,7 +611,7 @@ void main() {
 
     testWidgets('Forget this server asks first and then forgets the active server', (tester) async {
       final h = await _pumpSettings(tester);
-      await _open(tester, SettingsSectionId.danger);
+      await _open(tester, SettingsSectionId.system);
       await _tapText(tester, 'Forget');
       expect(find.text('Unpair from "Server a"?'), findsOneWidget);
       await tester.tap(_inDialog('Unpair'));
@@ -604,9 +620,9 @@ void main() {
       expect(h.registry.profiles.map((p) => p.id), ['b']);
     });
 
-    testWidgets('has the three rows with their wording', (tester) async {
+    testWidgets('has the three danger rows with their wording', (tester) async {
       await _pumpSettings(tester);
-      await _open(tester, SettingsSectionId.danger);
+      await _open(tester, SettingsSectionId.system);
       expect(find.text('Restart server'), findsOneWidget);
       expect(find.text('Forget this server'), findsOneWidget);
       expect(find.text('Remove Archangel from this server'), findsOneWidget);

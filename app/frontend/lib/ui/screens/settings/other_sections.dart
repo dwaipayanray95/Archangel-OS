@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -529,7 +530,6 @@ class ArchangelOsSection extends StatelessWidget {
                 Text(Platform.isMacOS ? 'macOS App' : Platform.operatingSystem, style: ax.typo.caption.copyWith(color: c.textMuted)),
               ],
             ),
-            AxListTile(title: 'Dart runtime engine', subtitle: Platform.version.split(' ').first, subtitleMono: true),
             AxListTile(
               title: 'Display & window configuration',
               subtitle:
@@ -743,34 +743,98 @@ class UpdatesSection extends StatelessWidget {
   }
 }
 
-/// Restart the server, forget it on this device, or uninstall Archangel.
-class DangerZoneSection extends StatelessWidget {
-  const DangerZoneSection({super.key});
+/// System maintenance, local cache & data reset, and danger zone actions.
+class SystemSection extends StatelessWidget {
+  const SystemSection({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
     final backend = context.watch<ArchangeldConnection>();
     final paired = backend.isPaired;
-    return SettingsCard(
-      danger: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AxListTile(
-          title: 'Restart server',
-          subtitle: 'Your apps stop for about a minute, then start again.',
-          controls: [AxButton.secondary(label: 'Restart', small: true, onPressed: paired ? () => _restart(context) : null)],
+        SettingsCard(
+          title: 'Storage & Cache',
+          children: [
+            AxListTile(
+              title: 'Clear application cache',
+              subtitle: 'Purge local image cache, preview caches, and temporary files on this device.',
+              controls: [AxButton.secondary(label: 'Clear cache', small: true, onPressed: () => _clearCache(context))],
+            ),
+            AxListTile(
+              title: 'Reset app settings',
+              subtitle: 'Restore display scaling, theme mode, and desktop layout to defaults.',
+              controls: [AxButton.secondary(label: 'Reset settings', small: true, onPressed: () => _resetAppSettings(context))],
+            ),
+          ],
         ),
-        AxListTile(
-          title: 'Forget this server',
-          subtitle: 'Removes it from this device only. Nothing on the server changes.',
-          controls: [AxButton.danger(label: 'Forget', small: true, onPressed: paired ? () => _forget(context) : null)],
-        ),
-        AxListTile(
-          title: 'Remove Archangel from this server',
-          subtitle: 'Uninstalls Archangel and its secure connection. Your apps and files stay.',
-          controls: [AxButton.danger(label: 'Remove', small: true, onPressed: paired ? () => showUninstallDialog(context) : null)],
+        SizedBox(height: ax.space.lg),
+        SettingsCard(
+          title: 'Danger Zone',
+          danger: true,
+          children: [
+            AxListTile(
+              title: 'Restart server',
+              subtitle: 'Your apps stop for about a minute, then start again.',
+              controls: [AxButton.secondary(label: 'Restart', small: true, onPressed: paired ? () => _restart(context) : null)],
+            ),
+            AxListTile(
+              title: 'Forget this server',
+              subtitle: 'Removes it from this device only. Nothing on the server changes.',
+              controls: [AxButton.danger(label: 'Forget', small: true, onPressed: paired ? () => _forget(context) : null)],
+            ),
+            AxListTile(
+              title: 'Remove Archangel from this server',
+              subtitle: 'Uninstalls Archangel and its secure connection. Your apps and files stay.',
+              controls: [AxButton.danger(label: 'Remove', small: true, onPressed: paired ? () => showUninstallDialog(context) : null)],
+            ),
+          ],
         ),
       ],
     );
+  }
+
+  Future<void> _clearCache(BuildContext context) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    try {
+      final tempDir = await getTemporaryDirectory();
+      if (await tempDir.exists()) {
+        await for (final entity in tempDir.list(followLinks: false)) {
+          try {
+            await entity.delete(recursive: true);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    showSnack(messenger, 'Application cache cleared');
+  }
+
+  Future<void> _resetAppSettings(BuildContext context) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Reset app settings to defaults?',
+      message:
+          'This will reset display scaling, theme mode, accent colour, and window preferences on this device. '
+          'Your server connection and cloud files will not be changed.',
+      confirmLabel: 'Reset settings',
+      danger: true,
+    );
+    if (!ok) return;
+    if (!context.mounted) return;
+
+    final app = context.read<AppState>();
+    app.uiScale = AxUiScale.default80;
+    app.themeMode = ThemeMode.system;
+    app.accentChoice = AxAccent.halo;
+    app.layout = AxLayout.desktop;
+    app.fullScreen = true;
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    showSnack(ScaffoldMessenger.maybeOf(context), 'Settings reset to defaults');
   }
 
   Future<void> _restart(BuildContext context) async {
@@ -813,3 +877,5 @@ class DangerZoneSection extends StatelessWidget {
     }
   }
 }
+
+typedef DangerZoneSection = SystemSection;

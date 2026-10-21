@@ -172,7 +172,7 @@ class _FilePreviewBodyState extends State<FilePreviewBody> {
   }
 }
 
-/// Buttons row: Download (primary) and Copy private link (secondary, hidden when unsupported).
+/// Action buttons for file preview: Copy private link (hidden when unsupported).
 class PreviewActionButtons extends StatefulWidget {
   const PreviewActionButtons({super.key, required this.entry, required this.files});
 
@@ -184,21 +184,7 @@ class PreviewActionButtons extends StatefulWidget {
 }
 
 class _PreviewActionButtonsState extends State<PreviewActionButtons> {
-  bool _downloading = false;
   bool _linking = false;
-
-  Future<void> _handleDownload() async {
-    if (_downloading) return;
-    setState(() => _downloading = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final res = await widget.files.downloadToDisk(widget.entry.path);
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(res.ok ? 'Saved to ${res.savedPath}' : (res.error ?? 'Download failed'))));
-    } finally {
-      if (mounted) setState(() => _downloading = false);
-    }
-  }
 
   Future<void> _handlePrivateLink() async {
     if (_linking) return;
@@ -221,18 +207,10 @@ class _PreviewActionButtonsState extends State<PreviewActionButtons> {
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
     final showLink = widget.files.supportsPrivateLink;
+    if (!showLink) return const SizedBox.shrink();
 
-    return Wrap(
-      spacing: ax.space.sm,
-      runSpacing: ax.space.sm,
-      children: [
-        AxButton(label: 'Download', icon: Icons.download_rounded, loading: _downloading, onPressed: _handleDownload),
-        if (showLink)
-          AxButton.secondary(label: 'Copy private link', icon: Icons.link_rounded, loading: _linking, onPressed: _handlePrivateLink),
-      ],
-    );
+    return AxButton.secondary(label: 'Copy private link', icon: Icons.link_rounded, loading: _linking, onPressed: _handlePrivateLink);
   }
 }
 

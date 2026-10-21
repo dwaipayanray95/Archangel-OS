@@ -222,7 +222,7 @@ void main() {
       expect(find.byType(WidePreviewCard), findsOneWidget);
       expect(find.byTooltip('Close preview'), findsOneWidget);
       expect(find.byTooltip('Download'), findsWidgets);
-      expect(find.widgetWithText(AxButton, 'Download'), findsOneWidget);
+      expect(find.widgetWithText(AxButton, 'Download'), findsNothing);
       expect(find.text('Copy private link'), findsOneWidget);
       expect(find.text('Showing the whole file.'), findsOneWidget);
     });
