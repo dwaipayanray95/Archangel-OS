@@ -162,9 +162,7 @@ class AdminModeSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
-                child: Semantics(header: true, child: Text('Admin mode', style: ax.typo.title.copyWith(color: c.text))),
-              ),
+              Expanded(child: Semantics(header: true, child: Text('Admin mode', style: ax.typo.title.copyWith(color: c.text)))),
               if (enabled != null)
                 Semantics(
                   label: 'Admin mode',
@@ -198,7 +196,10 @@ class AdminModeSection extends StatelessWidget {
             ),
           ] else if (svc.error == null) ...[
             SizedBox(height: ax.space.md),
-            const Align(alignment: Alignment.centerLeft, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
           ],
           if (svc.error != null) ...[
             SizedBox(height: ax.space.md),

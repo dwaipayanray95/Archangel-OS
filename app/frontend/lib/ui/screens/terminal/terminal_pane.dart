@@ -17,62 +17,244 @@ String? selectedTerminalText(TerminalSession session, TerminalController control
   return text.isEmpty ? null : text;
 }
 
-/// One session's emulator plus its status banners and (on phones) the key
-/// bar. Banners sit above the emulator rather than over it so the
-/// [TerminalView] stays mounted and keeps reporting its size.
-class TerminalPane extends StatelessWidget {
-  const TerminalPane({super.key, required this.session, required this.controller, required this.fontSize, this.focusNode});
+class TerminalPane extends StatefulWidget {
+  const TerminalPane({
+    super.key,
+    required this.session,
+    required this.controller,
+    required this.fontSize,
+    this.focusNode,
+    this.adminModeEnabled,
+    this.onOpenAdminMode,
+    this.onSnippets,
+    this.showAccessoryBar = false,
+  });
 
   final TerminalSession session;
   final TerminalController controller;
   final double fontSize;
   final FocusNode? focusNode;
+  final bool? adminModeEnabled;
+  final VoidCallback? onOpenAdminMode;
+  final VoidCallback? onSnippets;
+  final bool showAccessoryBar;
 
   static bool get _isTouchPlatform =>
       !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
 
   @override
+  State<TerminalPane> createState() => _TerminalPaneState();
+}
+
+class _TerminalPaneState extends State<TerminalPane> {
+  int _dismissedMatchCount = 0;
+
+  int _countBlockedMatches(TerminalSession session) {
+    final text = session.terminal.buffer.getText();
+    int count = 0;
+    count += 'sudo: a password is required'.allMatches(text).length;
+    count += 'is not in the sudoers file'.allMatches(text).length;
+    return count;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final phone = MediaQuery.sizeOf(context).width < kTerminalPhoneWidth;
+    final ax = context.ax;
+    final c = ax.colors;
+    final session = widget.session;
+
     return ListenableBuilder(
       listenable: session,
       builder: (context, _) {
+        final status = session.status;
+        final hasOutput = session.hasOutput;
+        final exitCode = session.exitCode;
+
+        final isConnecting = status == SessionStatus.connecting || (!hasOutput && status == SessionStatus.connected);
+        final isDisconnected = (status == SessionStatus.closed || status == SessionStatus.error) && exitCode == null;
+        final isSessionEnded = exitCode != null;
+
+        final blockedMatches = _countBlockedMatches(session);
+        final showBlockedBanner = widget.adminModeEnabled == false && blockedMatches > _dismissedMatchCount;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Banners(session: session),
+            if (session.notice != null)
+              Semantics(
+                liveRegion: true,
+                container: true,
+                child: Container(
+                  key: const ValueKey('terminal-notice'),
+                  color: c.warningWash,
+                  padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xs),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, size: 18, color: c.warning),
+                      SizedBox(width: ax.space.sm),
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: ax.space.sm),
+                          child: Text(session.notice!, style: ax.typo.body.copyWith(color: c.warning)),
+                        ),
+                      ),
+                      AxIconButton(icon: Icons.close, tooltip: 'Dismiss notice', color: c.warning, onPressed: session.dismissNotice),
+                    ],
+                  ),
+                ),
+              ),
             Expanded(
               child: ColoredBox(
                 color: kTerminalBg,
-                child: TerminalView(
-                  session.terminal,
-                  key: ValueKey('terminal-view-${session.name}-${session.terminalEpoch}'),
-                  controller: controller,
-                  focusNode: focusNode,
-                  autofocus: true,
-                  theme: kTerminalTheme,
-                  textStyle: TerminalStyle(
-                    fontSize: fontSize,
-                    height: 1.25,
-                    fontFamily: kMonoFontFamily,
-                    fontFamilyFallback: const [
-                      'Menlo',
-                      'Consolas',
-                      'Liberation Mono',
-                      'Noto Sans Mono',
-                      'Noto Sans Symbols',
-                      'Noto Color Emoji',
-                      'monospace',
-                    ],
-                  ),
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                  deleteDetection: _isTouchPlatform,
-                  keyboardType: TextInputType.text,
-                  cursorType: TerminalCursorType.block,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Opacity(
+                      opacity: isDisconnected ? 0.35 : 1.0,
+                      child: TerminalView(
+                        session.terminal,
+                        key: ValueKey('terminal-view-${session.name}-${session.terminalEpoch}'),
+                        controller: widget.controller,
+                        focusNode: widget.focusNode,
+                        autofocus: true,
+                        theme: kTerminalTheme,
+                        textStyle: TerminalStyle(
+                          fontSize: widget.fontSize,
+                          height: 1.25,
+                          fontFamily: kMonoFontFamily,
+                          fontFamilyFallback: const [
+                            'Menlo',
+                            'Consolas',
+                            'Liberation Mono',
+                            'Noto Sans Mono',
+                            'Noto Sans Symbols',
+                            'Noto Color Emoji',
+                            'monospace',
+                          ],
+                        ),
+                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                        deleteDetection: TerminalPane._isTouchPlatform,
+                        keyboardType: TextInputType.text,
+                        cursorType: TerminalCursorType.block,
+                      ),
+                    ),
+                    if (isConnecting)
+                      _OverlayCard(
+                        key: const ValueKey('terminal-connecting-overlay'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3)),
+                            SizedBox(height: ax.space.md),
+                            Text(
+                              session.noDataTimedOut ? 'Still waiting. Your server is slow to answer.' : 'Reaching your server…',
+                              textAlign: TextAlign.center,
+                              style: ax.typo.title.copyWith(color: kConText),
+                            ),
+                            SizedBox(height: ax.space.xs),
+                            Text(
+                              'Opening session "${session.name}".',
+                              textAlign: TextAlign.center,
+                              style: ax.typo.caption.copyWith(color: kConMuted),
+                            ),
+                            if (session.noDataTimedOut) ...[
+                              SizedBox(height: ax.space.lg),
+                              AxButton(label: 'Reconnect', icon: Icons.refresh, onPressed: session.reconnect),
+                            ],
+                          ],
+                        ),
+                      )
+                    else if (isDisconnected)
+                      _OverlayCard(
+                        key: const ValueKey('terminal-disconnected-overlay'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cloud_off, size: 36, color: kConMuted),
+                            SizedBox(height: ax.space.md),
+                            Text('Disconnected', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: kConText)),
+                            SizedBox(height: ax.space.xs),
+                            Text(
+                              'Your session is still running on the server. Reconnect to pick up where you left off.',
+                              textAlign: TextAlign.center,
+                              style: ax.typo.body.copyWith(color: kConMuted),
+                            ),
+                            SizedBox(height: ax.space.lg),
+                            AxButton(label: 'Reconnect', icon: Icons.refresh, onPressed: session.reconnect),
+                          ],
+                        ),
+                      )
+                    else if (isSessionEnded)
+                      _OverlayCard(
+                        key: const ValueKey('terminal-ended-overlay'),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.info_outline, size: 36, color: kConMuted),
+                            SizedBox(height: ax.space.md),
+                            Text('This session ended', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: kConText)),
+                            SizedBox(height: ax.space.xs),
+                            Text('The shell exited.', textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: kConMuted)),
+                            SizedBox(height: ax.space.lg),
+                            AxButton(label: 'Start a new session', icon: Icons.refresh, onPressed: session.reconnect),
+                          ],
+                        ),
+                      ),
+                    if (showBlockedBanner)
+                      Positioned(
+                        left: ax.space.md,
+                        right: ax.space.md,
+                        bottom: ax.space.md,
+                        child: Semantics(
+                          container: true,
+                          liveRegion: true,
+                          child: Container(
+                            key: const ValueKey('terminal-blocked-banner'),
+                            padding: EdgeInsets.all(ax.space.md),
+                            decoration: BoxDecoration(
+                              color: c.warningWash,
+                              borderRadius: BorderRadius.circular(ax.radii.md),
+                              border: Border.all(color: c.warning.withValues(alpha: 0.5)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(Icons.lock, size: 18, color: c.warning),
+                                    SizedBox(width: ax.space.sm),
+                                    Expanded(child: Text('That command needs Admin mode', style: ax.typo.title.copyWith(color: c.warning))),
+                                  ],
+                                ),
+                                SizedBox(height: ax.space.xs),
+                                Text(
+                                  'Your server blocked it because Admin mode is off. Turn it on in Settings › Admin mode, then run the command again.',
+                                  style: ax.typo.body.copyWith(color: c.text),
+                                ),
+                                SizedBox(height: ax.space.md),
+                                Wrap(
+                                  spacing: ax.space.sm,
+                                  runSpacing: ax.space.sm,
+                                  children: [
+                                    if (widget.onOpenAdminMode != null)
+                                      AxButton(label: 'Open Admin mode', onPressed: widget.onOpenAdminMode!),
+                                    AxButton.ghost(
+                                      label: 'Dismiss',
+                                      onPressed: () => setState(() => _dismissedMatchCount = blockedMatches),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-            if (phone) TerminalAccessoryBar(session: session),
+            if (widget.showAccessoryBar) TerminalAccessoryBar(session: session, onSnippets: widget.onSnippets),
           ],
         );
       },
@@ -80,104 +262,26 @@ class TerminalPane extends StatelessWidget {
   }
 }
 
-class _Banners extends StatelessWidget {
-  const _Banners({required this.session});
+class _OverlayCard extends StatelessWidget {
+  const _OverlayCard({super.key, required this.child});
 
-  final TerminalSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
-    final status = session.status;
-    final children = <Widget>[];
-
-    if (session.notice != null) {
-      children.add(
-        _Banner(
-          key: const ValueKey('terminal-notice'),
-          color: c.warningWash,
-          fg: c.warning,
-          icon: Icons.warning_amber_rounded,
-          text: session.notice!,
-          trailing: AxIconButton(icon: Icons.close, tooltip: 'Dismiss notice', color: c.warning, onPressed: session.dismissNotice),
-        ),
-      );
-    }
-
-    if (status == SessionStatus.error || status == SessionStatus.closed) {
-      final isError = status == SessionStatus.error;
-      children.add(
-        _Banner(
-          key: const ValueKey('terminal-status-banner'),
-          color: isError ? c.dangerWash : c.surfaceAlt,
-          fg: isError ? c.danger : c.textMuted,
-          icon: isError ? Icons.error_outline : Icons.info_outline,
-          text: isError ? (session.error ?? 'The connection failed.') : 'This session ended (exit code ${session.exitCode ?? 0}).',
-          trailing: AxButton.secondary(label: 'Reconnect', icon: Icons.refresh, onPressed: session.reconnect),
-        ),
-      );
-    } else if (status == SessionStatus.connecting) {
-      children.add(
-        _Banner(
-          key: const ValueKey('terminal-connecting'),
-          color: c.surfaceAlt,
-          fg: c.textMuted,
-          icon: Icons.sync,
-          text: 'Connecting to your server...',
-        ),
-      );
-    } else if (!session.hasOutput) {
-      children.add(
-        _Banner(
-          key: const ValueKey('terminal-waiting'),
-          color: c.surfaceAlt,
-          fg: c.textMuted,
-          icon: Icons.hourglass_empty,
-          text:
-              session.noDataTimedOut
-                  ? 'Still nothing from your server. Check that the secure connection is on, or open Settings.'
-                  : 'Waiting for the shell to start...',
-        ),
-      );
-    }
-
-    if (children.isEmpty) return const SizedBox.shrink();
-    return Column(mainAxisSize: MainAxisSize.min, children: children);
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner({super.key, required this.color, required this.fg, required this.icon, required this.text, this.trailing});
-
-  final Color color;
-  final Color fg;
-  final IconData icon;
-  final String text;
-  final Widget? trailing;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    return Semantics(
-      liveRegion: true,
-      container: true,
+    return Center(
       child: Container(
-        color: color,
-        padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xs),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: fg),
-            SizedBox(width: ax.space.sm),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: ax.space.sm),
-                child: Text(text, style: ax.typo.body.copyWith(color: fg)),
-              ),
-            ),
-            if (trailing != null) ...[SizedBox(width: ax.space.sm), trailing!],
-          ],
+        constraints: const BoxConstraints(maxWidth: 380),
+        margin: EdgeInsets.all(ax.space.lg),
+        padding: EdgeInsets.all(ax.space.xl),
+        decoration: BoxDecoration(
+          color: kConBarBg,
+          borderRadius: BorderRadius.circular(ax.radii.lg),
+          border: Border.all(color: kConLine),
+          boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 24, offset: Offset(0, 8))],
         ),
+        child: child,
       ),
     );
   }

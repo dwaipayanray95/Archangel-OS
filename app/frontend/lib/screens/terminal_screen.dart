@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:xterm/xterm.dart';
 
 import '../data/app_state.dart';
+import '../services/admin_mode_service.dart';
 import '../services/archangeld_connection.dart';
 import '../services/local_kv_store.dart';
+import '../services/server_registry.dart';
 import '../services/terminal_session.dart';
 import '../ui/ui.dart';
 import '../ui/screens/terminal/sessions_dialog.dart';
@@ -31,6 +33,7 @@ class _TerminalScreenState extends State<TerminalScreen> {
   bool _bootstrapping = false;
   bool _bootstrapped = false;
   double _fontSize = kTerminalDefaultFont;
+  String? _servicesHost;
 
   @override
   void initState() {
@@ -65,6 +68,16 @@ class _TerminalScreenState extends State<TerminalScreen> {
     final size = v.clamp(kTerminalMinFont, kTerminalMaxFont).toDouble();
     setState(() => _fontSize = size);
     LocalKvStore.instance.write(kTerminalFontSizeKey, size.toString()).catchError((_) {});
+  }
+
+  void _syncAdminMode(ArchangeldConnection backend) {
+    final host = backend.isPaired ? backend.host : null;
+    if (host == _servicesHost) return;
+    _servicesHost = host;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AdminModeService>().init(backend);
+    });
   }
 
   TerminalController _controllerFor(TerminalSession s) => _controllers.putIfAbsent(s, TerminalController.new);
@@ -248,6 +261,17 @@ class _TerminalScreenState extends State<TerminalScreen> {
       return const LoadingState(message: 'Opening your terminal...');
     }
 
+    final adminMode = context.watch<AdminModeService>();
+    final registry = context.watch<ServerRegistry>();
+    _syncAdminMode(backend);
+
+    final currentSession = _sessions.isNotEmpty ? _sessions[_tab] : null;
+    String? runningSince;
+    if (currentSession != null) {
+      final info = _serverSessions.where((s) => s.name == currentSession.name).firstOrNull;
+      runningSince = info?.runningSince(DateTime.now());
+    }
+
     return TerminalWorkspace(
       sessions: _sessions,
       selected: _tab,
@@ -261,6 +285,10 @@ class _TerminalScreenState extends State<TerminalScreen> {
       onFontSize: _setFontSize,
       onCopy: _copy,
       onPaste: _paste,
+      adminModeEnabled: adminMode.enabled,
+      serverName: registry.active?.name,
+      onOpenAdminMode: () => context.read<AppState>().go(AxSection.settings),
+      runningSinceText: runningSince,
     );
   }
 }

@@ -63,7 +63,9 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) => constraints.maxWidth >= kSettingsWideMinWidth ? _wide(context) : _narrow(context));
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.maxWidth >= kSettingsWideMinWidth ? _wide(context) : _narrow(context),
+    );
   }
 
   Widget _wide(BuildContext context) {
@@ -82,7 +84,12 @@ class _SettingsViewState extends State<SettingsView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final s in _visible)
-                    _NavRow(key: ValueKey('settings-nav-${s.name}'), section: s, selected: s == _current, onTap: () => setState(() => _selected = s)),
+                    _NavRow(
+                      key: ValueKey('settings-nav-${s.name}'),
+                      section: s,
+                      selected: s == _current,
+                      onTap: () => setState(() => _selected = s),
+                    ),
                 ],
               ),
             ),
@@ -110,10 +117,11 @@ class _SettingsViewState extends State<SettingsView> {
                   section: s,
                   selected: false,
                   chevron: true,
-                  onTap: () => setState(() {
-                    _selected = s;
-                    _opened = true;
-                  }),
+                  onTap:
+                      () => setState(() {
+                        _selected = s;
+                        _opened = true;
+                      }),
                 ),
             ],
           ),
@@ -180,12 +188,7 @@ class _NavRow extends StatelessWidget {
                 Icon(section.icon, size: 20, color: danger ? c.danger : (selected ? c.accent : c.textMuted)),
                 SizedBox(width: ax.space.md),
                 Expanded(
-                  child: Text(
-                    section.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ax.typo.label.copyWith(color: fg),
-                  ),
+                  child: Text(section.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.label.copyWith(color: fg)),
                 ),
                 if (chevron) Icon(Icons.chevron_right, size: 20, color: c.textMuted),
               ],

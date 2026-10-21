@@ -9,6 +9,23 @@ import 'package:xterm/xterm.dart';
 const Color kTerminalBg = Color(0xFF0B0C0B);
 const Color kTerminalFg = Color(0xFFE9EFE7);
 
+/// The console container palette (dark console in both Pearl and Dawn).
+const Color kConBg = Color(0xFF0D0F1D);
+const Color kConBarBg = Color(0xFF141729);
+const Color kConTabSelectedBg = Color(0xFF1C2036);
+const Color kConLine = Color(0x14FFFFFF); // rgba(255, 255, 255, 0.08)
+const Color kConText = Color(0xFFE6E8F5);
+const Color kConMuted = Color(0xFF9CA2C2);
+const Color kConAccent = Color(0xFF8FE3D6);
+const Color kConAccent2 = Color(0xFFC3B8FF);
+const Color kConSnipsBg = Color(0xFF10132A);
+const Color kConChipOffBg = Color(0x0FFFFFFF); // rgba(255, 255, 255, 0.06)
+const Color kConChipOnBg = Color(0x24FFC66E); // rgba(255, 197, 107, 0.14)
+const Color kConChipOnFg = Color(0xFFFFC66E);
+const Color kConLiveDotGreen = Color(0xFF6EE7A8);
+const Color kConLiveDotAmber = Color(0xFFFFC66E);
+const Color kConLiveDotGrey = Color(0xFF7F8A7C);
+
 const TerminalTheme kTerminalTheme = TerminalTheme(
   cursor: Color(0xFF7EE787),
   selection: Color(0x663B82F6),

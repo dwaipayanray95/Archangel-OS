@@ -88,7 +88,9 @@ class AxButton extends StatelessWidget {
       minimumSize: WidgetStatePropertyAll(Size(target, target)),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       padding: WidgetStatePropertyAll(
-        small ? EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xs) : EdgeInsets.symmetric(horizontal: ax.space.lg + 2, vertical: ax.space.sm),
+        small
+            ? EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xs)
+            : EdgeInsets.symmetric(horizontal: ax.space.lg + 2, vertical: ax.space.sm),
       ),
       shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.pill))),
       elevation: const WidgetStatePropertyAll(0),

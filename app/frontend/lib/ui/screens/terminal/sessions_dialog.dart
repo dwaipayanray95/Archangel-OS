@@ -12,9 +12,7 @@ import '../../theme.dart';
 Future<bool> confirmEndSession(BuildContext context, String name) => showConfirmDialog(
   context,
   title: 'End session "$name"?',
-  message:
-      'This stops everything running in this session, and anything not saved is lost. '
-      'To leave it running and come back later, use Detach instead.',
+  message: 'This stops everything running in this session, and anything not saved is lost.',
   confirmLabel: 'End session',
   danger: true,
 );

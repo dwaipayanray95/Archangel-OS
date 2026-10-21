@@ -398,7 +398,12 @@ class UpdatesSection extends StatelessWidget {
           runSpacing: ax.space.sm,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            AxButton.ghost(label: 'Check now', small: true, loading: updates.checking, onPressed: () => updates.checkForUpdates(force: true)),
+            AxButton.ghost(
+              label: 'Check now',
+              small: true,
+              loading: updates.checking,
+              onPressed: () => updates.checkForUpdates(force: true),
+            ),
             if (checked != null) Text('Last checked ${formatSettingsDate(checked)}', style: ax.typo.caption.copyWith(color: c.textMuted)),
           ],
         ),
@@ -453,7 +458,10 @@ class DangerZoneSection extends StatelessWidget {
     );
     if (!ok) return;
     final result = await monitoring.rebootHost();
-    showSnack(messenger, result.success ? 'Restarting. Your server will be back in about a minute.' : "Couldn't restart: ${result.message}");
+    showSnack(
+      messenger,
+      result.success ? 'Restarting. Your server will be back in about a minute.' : "Couldn't restart: ${result.message}",
+    );
   }
 
   Future<void> _forget(BuildContext context) async {

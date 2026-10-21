@@ -52,10 +52,7 @@ class SettingsCard extends StatelessWidget {
           ...rows,
           if (footnote != null) ...[
             divider,
-            Padding(
-              padding: EdgeInsets.all(ax.space.lg),
-              child: Text(footnote!, style: ax.typo.caption.copyWith(color: c.textMuted)),
-            ),
+            Padding(padding: EdgeInsets.all(ax.space.lg), child: Text(footnote!, style: ax.typo.caption.copyWith(color: c.textMuted))),
           ],
         ],
       ),
@@ -72,10 +69,7 @@ class SettingsMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    return Padding(
-      padding: EdgeInsets.all(ax.space.lg),
-      child: Text(text, style: ax.typo.body.copyWith(color: ax.colors.textMuted)),
-    );
+    return Padding(padding: EdgeInsets.all(ax.space.lg), child: Text(text, style: ax.typo.body.copyWith(color: ax.colors.textMuted)));
   }
 }
 
@@ -118,7 +112,10 @@ class SettingsLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(context.ax.space.lg),
-      child: const Align(alignment: Alignment.centerLeft, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+      child: const Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
     );
   }
 }

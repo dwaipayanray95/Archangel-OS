@@ -3,34 +3,35 @@ import 'package:xterm/xterm.dart';
 
 import '../../../services/terminal_session.dart';
 import '../../theme.dart';
+import 'terminal_palette.dart';
 
-/// Widths below this show the on-screen key bar (matches the shell's phone
-/// breakpoint).
+/// Widths below this show the on-screen key bar (matches the shell's phone breakpoint).
 const double kTerminalPhoneWidth = 720;
 
-/// Keys a phone keyboard lacks: Esc, Tab, a sticky Ctrl, arrows and the
+/// Keys a phone keyboard lacks: Snippets, Esc, Tab, a sticky Ctrl, arrows and the
 /// punctuation shells need. Everything goes through the emulator, so the
 /// escape sequences match what the running program expects.
 class TerminalAccessoryBar extends StatelessWidget {
-  const TerminalAccessoryBar({super.key, required this.session});
+  const TerminalAccessoryBar({super.key, required this.session, this.onSnippets});
 
   final TerminalSession session;
+  final VoidCallback? onSnippets;
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    final c = ax.colors;
     return ListenableBuilder(
       listenable: session,
       builder: (context, _) {
         return Container(
           key: const ValueKey('terminal-accessory-bar'),
-          decoration: BoxDecoration(color: c.surface, border: Border(top: BorderSide(color: c.border))),
+          decoration: const BoxDecoration(color: kConBarBg, border: Border(top: BorderSide(color: kConLine))),
           padding: EdgeInsets.symmetric(horizontal: ax.space.xs, vertical: ax.space.xs),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                _Key(icon: Icons.code, tooltip: 'Snippets', onTap: onSnippets ?? () {}),
                 _Key(label: 'Esc', tooltip: 'Escape', onTap: () => session.pressKey(TerminalKey.escape)),
                 _Key(label: 'Tab', tooltip: 'Tab', onTap: () => session.pressKey(TerminalKey.tab)),
                 _Key(
@@ -69,8 +70,10 @@ class _Key extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    final c = ax.colors;
-    final fg = active ? c.accent : c.text;
+    final fg = active ? const Color(0xFF0B0D1A) : kConText;
+    final bg = active ? kConAccent : kConTabSelectedBg;
+    final border = active ? kConAccent : const Color(0x1FFFFFFF);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: Semantics(
@@ -82,16 +85,13 @@ class _Key extends StatelessWidget {
         child: Tooltip(
           message: tooltip,
           child: Material(
-            color: active ? c.accentWash : c.surfaceAlt,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(ax.radii.sm),
-              side: BorderSide(color: active ? c.accent : c.border),
-            ),
+            color: bg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.sm), side: BorderSide(color: border)),
             child: InkWell(
               customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.sm)),
               onTap: onTap,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),

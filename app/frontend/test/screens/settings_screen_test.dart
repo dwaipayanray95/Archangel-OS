@@ -459,7 +459,11 @@ void main() {
       expect(find.text('Customize'), findsOneWidget);
 
       // A narrow window on a big screen still offers the layout choice.
-      await _pumpSettings(tester, size: const Size(1400, 900), wrap: (child) => Align(alignment: Alignment.topLeft, child: SizedBox(width: 340, child: child)));
+      await _pumpSettings(
+        tester,
+        size: const Size(1400, 900),
+        wrap: (child) => Align(alignment: Alignment.topLeft, child: SizedBox(width: 340, child: child)),
+      );
       await _open(tester, SettingsSectionId.appearance);
       expect(find.byKey(const ValueKey('layout-choice')), findsOneWidget);
       expect(tester.takeException(), isNull);

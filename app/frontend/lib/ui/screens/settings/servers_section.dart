@@ -70,8 +70,7 @@ class ServersSection extends StatelessWidget {
           label: 'Add a server',
           icon: Icons.add,
           small: true,
-          onPressed:
-              () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
         ),
       ],
       children: [

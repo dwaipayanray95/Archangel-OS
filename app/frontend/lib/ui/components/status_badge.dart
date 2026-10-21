@@ -41,7 +41,7 @@ class StatusBadge extends StatelessWidget {
       AxStatus.error => (c.danger, c.dangerWash),
       AxStatus.info => (c.info, c.infoWash),
       AxStatus.neutral => (c.textMuted, c.surfaceHigh),
-    AxStatus.accent => (c.accent, c.accentWash),
+      AxStatus.accent => (c.accent, c.accentWash),
     };
     return Semantics(
       label: label,

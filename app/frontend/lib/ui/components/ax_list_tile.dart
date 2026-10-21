@@ -130,8 +130,7 @@ class AxTileIcon extends StatelessWidget {
 /// Lays out [text] on the left and [controls] on the right on one line. When
 /// the text would get less than [minText] it puts the controls below it.
 class _SplitRow extends MultiChildRenderObjectWidget {
-  _SplitRow({required Widget text, required Widget controls, required this.gap, required this.minText})
-    : super(children: [text, controls]);
+  _SplitRow({required Widget text, required Widget controls, required this.gap, required this.minText}) : super(children: [text, controls]);
 
   final double gap;
   final double minText;

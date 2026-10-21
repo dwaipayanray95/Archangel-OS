@@ -38,6 +38,10 @@ class FakeTerminalChannel extends StreamChannelMixin implements WebSocketChannel
 
   void serverStdout(List<int> bytes) => serverSend({'type': 'stdout', 'data': base64.encode(bytes)});
 
+  void serverClose() => _incoming.close();
+
+  void serverError(Object error) => _incoming.addError(error);
+
   /// Decoded stdin payloads, in order.
   List<String> get stdin => [
     for (final f in sent)
