@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../services/local_kv_store.dart';
+import '../services/window_service.dart';
 import '../ui/theme.dart';
 
 const _kThemeModeKey = 'appearance_theme_mode';
 const _kAccentKey = 'appearance_accent';
 const _kLayoutKey = 'appearance_layout';
 const _kUiScaleKey = 'appearance_ui_scale';
+const _kFullScreenKey = 'appearance_full_screen';
 
 /// UI canvas scaling on desktop/wide displays.
 enum AxUiScale {
@@ -110,6 +112,20 @@ class AppState extends ChangeNotifier {
     _save(_kUiScaleKey, s.name);
   }
 
+  bool _fullScreen = true;
+  bool get fullScreen => _fullScreen;
+  set fullScreen(bool val) {
+    if (_fullScreen == val) return;
+    _fullScreen = val;
+    notifyListeners();
+    WindowService.setFullScreen(val);
+    _save(_kFullScreenKey, val.toString());
+  }
+
+  void toggleFullScreen() {
+    fullScreen = !_fullScreen;
+  }
+
   int _bootReplay = 0;
   BootKind _bootReplayKind = BootKind.short;
 
@@ -132,6 +148,7 @@ class AppState extends ChangeNotifier {
       final accent = await store.read(_kAccentKey);
       final layout = await store.read(_kLayoutKey);
       final scale = await store.read(_kUiScaleKey);
+      final fullScreen = await store.read(_kFullScreenKey);
       if (layout != null) {
         _layout = AxLayout.values.firstWhere((l) => l.name == layout, orElse: () => AxLayout.desktop);
       }
@@ -140,6 +157,8 @@ class AppState extends ChangeNotifier {
       }
       if (accent != null) _accentChoice = AxAccent.fromName(accent);
       if (scale != null) _uiScale = AxUiScale.fromName(scale);
+      if (fullScreen != null) _fullScreen = fullScreen == 'true';
+      WindowService.setFullScreen(_fullScreen);
       notifyListeners();
     } catch (_) {
       // Appearance is a convenience; defaults are fine if storage fails.

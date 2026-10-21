@@ -273,11 +273,7 @@ class _ArchangelShellState extends State<ArchangelShell> {
         );
 
         return CallbackShortcuts(
-          bindings: {
-            _kOpenPalette: app.openPalette,
-            _kOpenPaletteCtrl: app.openPalette,
-            _kToggleFullScreen: WindowService.toggleFullScreen,
-          },
+          bindings: {_kOpenPalette: app.openPalette, _kOpenPaletteCtrl: app.openPalette, _kToggleFullScreen: app.toggleFullScreen},
           child: Focus(
             autofocus: true,
             // Back: close overlay -> Home -> leave the app. (Dialogs and

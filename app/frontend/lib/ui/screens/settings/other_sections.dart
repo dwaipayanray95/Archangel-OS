@@ -310,6 +310,23 @@ class AppearanceSection extends StatelessWidget {
               ),
             ],
           ),
+        if (desktopPossible)
+          AxListTile(
+            title: 'Window mode',
+            subtitle: 'Run Archangel full screen like a game, or inside a standard window (F11 to toggle anytime).',
+            controls: [
+              SegmentedButton<bool>(
+                key: const ValueKey('fullscreen-choice'),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: true, label: Text('Full screen')),
+                  ButtonSegment(value: false, label: Text('Windowed')),
+                ],
+                selected: {app.fullScreen},
+                onSelectionChanged: (s) => app.fullScreen = s.first,
+              ),
+            ],
+          ),
         if (desktopPossible && app.layout == AxLayout.desktop)
           AxListTile(
             title: 'Desktop',

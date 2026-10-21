@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import '../../data/app_state.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
-import '../../services/window_service.dart';
 import '../screens/home/home_logic.dart';
 import '../components/ax_glass.dart';
 import '../components/status_badge.dart';
@@ -774,13 +773,6 @@ class _TopBar extends StatelessWidget {
                 const Expanded(child: StatusStrip(showServerName: false, compact: true)),
                 SizedBox(width: ax.space.sm),
                 const _Clock(),
-                SizedBox(width: ax.space.sm),
-                _MiniButton(
-                  label: 'Full screen',
-                  icon: Icons.fullscreen_rounded,
-                  tooltip: 'Toggle full screen (F11)',
-                  onTap: WindowService.toggleFullScreen,
-                ),
               ],
             ),
           ),

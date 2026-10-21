@@ -475,6 +475,18 @@ void main() {
       expect(find.text('Customize'), findsNothing);
     });
 
+    testWidgets('Window mode toggle updates AppState and persists', (tester) async {
+      final h = await _pumpSettings(tester, size: const Size(1400, 900));
+      await _open(tester, SettingsSectionId.appearance);
+      expect(find.byKey(const ValueKey('fullscreen-choice')), findsOneWidget);
+
+      await _tapText(tester, 'Windowed');
+      expect(h.app.fullScreen, isFalse);
+
+      await _tapText(tester, 'Full screen');
+      expect(h.app.fullScreen, isTrue);
+    });
+
     testWidgets('Replay buttons play the chosen start-up animation', (tester) async {
       final h = await _pumpSettings(tester);
       await _open(tester, SettingsSectionId.appearance);
