@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/app_state.dart';
+import '../../main.dart' show ArchangelApp;
 import '../../services/archangeld_connection.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
@@ -815,6 +817,7 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
     final activeServer = registry.active?.name;
     final isPaired = context.read<ArchangeldConnection>().isPaired;
 
+    final isMac = Platform.isMacOS;
     final choice = await showDeskMenu(context, pos, [
       const DeskMenuItem('about', 'About Archangel OS', Icons.auto_awesome_rounded),
       const DeskMenuItem('settings', 'System Settings…', Icons.settings_outlined),
@@ -827,6 +830,9 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
       const DeskMenuItem.divider(),
       DeskMenuItem('switch_server', 'Switch Server…', Icons.dns_outlined, trailing: activeServer),
       if (isPaired) const DeskMenuItem('restart_server', 'Restart Server…', Icons.restart_alt_rounded),
+      const DeskMenuItem.divider(),
+      const DeskMenuItem('restart_app', 'Restart App…', Icons.refresh_rounded),
+      DeskMenuItem('quit_app', 'Quit Archangel OS', Icons.power_settings_new_rounded, danger: true, trailing: isMac ? '⌘Q' : null),
     ]);
 
     if (mounted) {
@@ -850,6 +856,10 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
         showServerSheet(context);
       case 'restart_server':
         _confirmRestart(context);
+      case 'restart_app':
+        _confirmRestartApp(context);
+      case 'quit_app':
+        _confirmQuitApp(context);
     }
   }
 
@@ -869,6 +879,46 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
         content: Text(result.success ? 'Restarting. Your server will be back in about a minute.' : "Couldn't restart: ${result.message}"),
       ),
     );
+  }
+
+  Future<void> _confirmRestartApp(BuildContext context) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Restart Archangel OS?',
+      message: 'This reloads the app and resets running desktop windows.',
+      confirmLabel: 'Restart',
+    );
+    if (!ok) return;
+    _restartApp();
+  }
+
+  void _restartApp() {
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      runApp(const ArchangelApp());
+    }
+  }
+
+  Future<void> _confirmQuitApp(BuildContext context) async {
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Quit Archangel OS?',
+      message: 'Are you sure you want to exit the application?',
+      confirmLabel: 'Quit',
+      danger: true,
+    );
+    if (!ok) return;
+    await _quitApp();
+  }
+
+  Future<void> _quitApp() async {
+    try {
+      await SystemNavigator.pop();
+    } catch (_) {}
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
+        exit(0);
+      }
+    }
   }
 
   @override

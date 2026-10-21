@@ -263,10 +263,37 @@ void main() {
       expect(find.text('Customize Desktop…'), findsOneWidget);
       expect(find.text('Tidy Windows'), findsOneWidget);
       expect(find.text('Switch to Simple Layout'), findsOneWidget);
+      expect(find.text('Restart App…'), findsOneWidget);
+      expect(find.text('Quit Archangel OS'), findsOneWidget);
 
       await tester.tap(find.text('About Archangel OS'));
       await _settle(tester);
       expect(find.byKey(const ValueKey('win-settings')), findsOneWidget);
+    });
+
+    testWidgets('Archangel OS menu Restart App and Quit options prompt confirmation', (tester) async {
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+
+      // Open menu -> Restart App…
+      await tester.tap(find.byKey(const ValueKey('archangel-os-menu')));
+      await _settle(tester);
+      await tester.tap(find.text('Restart App…'));
+      await _settle(tester);
+      expect(find.text('Restart Archangel OS?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+      expect(find.text('Restart Archangel OS?'), findsNothing);
+
+      // Open menu -> Quit Archangel OS
+      await tester.tap(find.byKey(const ValueKey('archangel-os-menu')));
+      await _settle(tester);
+      await tester.tap(find.text('Quit Archangel OS'));
+      await _settle(tester);
+      expect(find.text('Quit Archangel OS?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await _settle(tester);
+      expect(find.text('Quit Archangel OS?'), findsNothing);
     });
 
     testWidgets('apps left out of the dock still appear there while open', (tester) async {
