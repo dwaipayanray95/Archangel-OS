@@ -70,14 +70,54 @@ class _SettingsViewState extends State<SettingsView> {
 
   Widget _wide(BuildContext context) {
     final ax = context.ax;
-    return AxPage(
-      title: 'Settings',
-      subtitle: 'Archangel v${widget.version}',
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 220,
+    final width = MediaQuery.sizeOf(context).width;
+    final pad = AxPage.paddingFor(width);
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(pad),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 220,
+                child: AxCard(
+                  padding: EdgeInsets.all(ax.space.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final s in _visible)
+                        _NavRow(
+                          key: ValueKey('settings-nav-${s.name}'),
+                          section: s,
+                          selected: s == _current,
+                          onTap: () => setState(() => _selected = s),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(width: ax.space.lg),
+              Expanded(child: _current.content),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _narrow(BuildContext context) {
+    final ax = context.ax;
+    if (!_opened) {
+      final width = MediaQuery.sizeOf(context).width;
+      final pad = AxPage.paddingFor(width);
+      return SingleChildScrollView(
+        padding: EdgeInsets.all(pad),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
             child: AxCard(
               padding: EdgeInsets.all(ax.space.sm),
               child: Column(
@@ -87,43 +127,17 @@ class _SettingsViewState extends State<SettingsView> {
                     _NavRow(
                       key: ValueKey('settings-nav-${s.name}'),
                       section: s,
-                      selected: s == _current,
-                      onTap: () => setState(() => _selected = s),
+                      selected: false,
+                      chevron: true,
+                      onTap:
+                          () => setState(() {
+                            _selected = s;
+                            _opened = true;
+                          }),
                     ),
                 ],
               ),
             ),
-          ),
-          SizedBox(width: ax.space.lg),
-          Expanded(child: _current.content),
-        ],
-      ),
-    );
-  }
-
-  Widget _narrow(BuildContext context) {
-    final ax = context.ax;
-    if (!_opened) {
-      return AxPage(
-        title: 'Settings',
-        child: AxCard(
-          padding: EdgeInsets.all(ax.space.sm),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final s in _visible)
-                _NavRow(
-                  key: ValueKey('settings-nav-${s.name}'),
-                  section: s,
-                  selected: false,
-                  chevron: true,
-                  onTap:
-                      () => setState(() {
-                        _selected = s;
-                        _opened = true;
-                      }),
-                ),
-            ],
           ),
         ),
       );

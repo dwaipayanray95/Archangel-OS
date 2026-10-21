@@ -181,7 +181,8 @@ void main() {
       for (final id in SettingsSectionId.values) {
         expect(find.byKey(ValueKey('settings-nav-${id.name}')), findsOneWidget, reason: id.name);
       }
-      expect(find.text('Archangel v${AppVersion.archangel}'), findsOneWidget);
+      expect(find.text('Settings'), findsNothing);
+      expect(find.text('Archangel v${AppVersion.archangel}'), findsNothing);
       expect(find.text('Add a server'), findsOneWidget);
       expect(find.text('Server a'), findsOneWidget);
       expect(find.text('Repair server permissions'), findsNothing);
