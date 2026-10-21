@@ -254,13 +254,16 @@ void main() {
       await pumpAppShell(tester, layout: AxLayout.desktop, desktopPrefs: prefs);
       await _settle(tester);
 
+      // Wordmark is rendered on the wallpaper even while windows are open
+      expect(find.byType(AxWordmark), findsWidgets);
+
       // Close the default seeded windows to reveal the empty desktop
       for (final name in ['Home', 'Terminal', 'Files']) {
         await tester.tap(find.byTooltip('Close $name'));
         await _settle(tester);
       }
 
-      // By default subtitle is shown
+      // By default subtitle is shown on empty desktop
       expect(find.text('Open something from the dock below.'), findsOneWidget);
 
       // Hide subtitle

@@ -478,7 +478,7 @@ class DesktopModeView extends StatelessWidget {
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        if (windows.visible.isEmpty) const IgnorePointer(child: _EmptyDesk()),
+                        Positioned.fill(child: IgnorePointer(child: _EmptyDesk(hasWindows: windows.visible.isNotEmpty))),
                         if (ghost != null)
                           Positioned.fromRect(
                             key: const ValueKey('snap-preview'),
@@ -730,7 +730,9 @@ Future<String?> showDeskMenu(BuildContext context, Offset at, List<DeskMenuItem>
 }
 
 class _EmptyDesk extends StatelessWidget {
-  const _EmptyDesk();
+  const _EmptyDesk({required this.hasWindows});
+
+  final bool hasWindows;
 
   @override
   Widget build(BuildContext context) {
@@ -738,7 +740,7 @@ class _EmptyDesk extends StatelessWidget {
     final c = ax.colors;
     final prefs = context.watch<DesktopPrefs>();
     final showWordmark = prefs.showWallpaperWordmark;
-    final showSubtitle = prefs.showWallpaperSubtitle;
+    final showSubtitle = prefs.showWallpaperSubtitle && !hasWindows;
 
     if (!showWordmark && !showSubtitle) {
       return const SizedBox.shrink();
