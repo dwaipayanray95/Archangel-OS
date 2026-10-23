@@ -562,12 +562,6 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('settings-wallpaper-wordmark')));
       await _settle(tester);
       expect(h.desktopPrefs.showWallpaperWordmark, isFalse);
-
-      // Wallpaper subtitle
-      expect(find.byKey(const ValueKey('settings-wallpaper-subtitle')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('settings-wallpaper-subtitle')));
-      await _settle(tester);
-      expect(h.desktopPrefs.showWallpaperSubtitle, isFalse);
     });
   });
 

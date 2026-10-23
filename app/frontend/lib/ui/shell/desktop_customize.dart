@@ -119,14 +119,6 @@ class DesktopCustomizeDialog extends StatelessWidget {
                       value: prefs.showWallpaperWordmark,
                       onChanged: (v) => prefs.showWallpaperWordmark = v,
                     ),
-                    SwitchListTile(
-                      key: const ValueKey('show-wallpaper-subtitle'),
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('Show desktop subtitle', style: ax.typo.body.copyWith(color: c.text)),
-                      subtitle: Text('Display "Open something from the dock" prompt.', style: ax.typo.caption.copyWith(color: c.textMuted)),
-                      value: prefs.showWallpaperSubtitle,
-                      onChanged: (v) => prefs.showWallpaperSubtitle = v,
-                    ),
                     heading('In the dock'),
                     for (final s in order)
                       _PinRow(

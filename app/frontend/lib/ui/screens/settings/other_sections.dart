@@ -413,17 +413,6 @@ class AppearanceSection extends StatelessWidget {
                 ),
               ],
             ),
-            AxListTile(
-              title: 'Wallpaper subtitle',
-              subtitle: 'Display "Open something from the dock" guidance on an empty desktop.',
-              controls: [
-                Switch(
-                  key: const ValueKey('settings-wallpaper-subtitle'),
-                  value: p.showWallpaperSubtitle,
-                  onChanged: (v) => p.showWallpaperSubtitle = v,
-                ),
-              ],
-            ),
           ],
           AxListTile(
             title: 'Desktop',
