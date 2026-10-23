@@ -57,6 +57,9 @@ class DeskWindow {
   /// How the window is snapped while [restoreRect] is set.
   DeskSnap snapped = DeskSnap.none;
 
+  /// Whether the window is currently being actively dragged or resized by pointer.
+  bool isDragging = false;
+
   /// Maximized or snapped to half the screen ("Restore" brings it back).
   bool get maximized => restoreRect != null;
 }
@@ -280,8 +283,9 @@ class DesktopWindows extends ChangeNotifier {
   void toggleMaximize(AxSection s) {
     final w = windowFor(s);
     if (w == null) return;
+    w.isDragging = false;
     if (w.maximized) {
-      w.rect = _clamp(w.restoreRect!);
+      w.rect = _clamp(w.restoreRect ?? Rect.fromLTWH(60, 20, math.min(820, area.width - 120), math.min(580, area.height - 40)));
       w.restoreRect = null;
       w.snapped = DeskSnap.none;
     } else {
@@ -293,12 +297,61 @@ class DesktopWindows extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Snaps [s] to the requested [snap] zone (e.g. left half, right half, maximize).
+  void snapWindow(AxSection s, DeskSnap snap) {
+    final w = windowFor(s);
+    if (w == null) return;
+    w.isDragging = false;
+    if (snap == DeskSnap.none) {
+      if (w.restoreRect != null) {
+        w.rect = _clamp(w.restoreRect!);
+        w.restoreRect = null;
+        w.snapped = DeskSnap.none;
+        notifyListeners();
+      }
+      return;
+    }
+    final target = snapRect(snap);
+    if (target != null) {
+      w.restoreRect ??= w.rect;
+      w.snapped = snap;
+      w.rect = target;
+      w.minimized = false;
+      w.z = ++_z;
+      notifyListeners();
+    }
+  }
+
+  /// Restores a snapped or maximized window, or minimizes it if already normal.
+  void restoreOrMinimize(AxSection s) {
+    final w = windowFor(s);
+    if (w == null) return;
+    w.isDragging = false;
+    if (w.snapped != DeskSnap.none || w.restoreRect != null) {
+      w.rect = _clamp(w.restoreRect ?? Rect.fromLTWH(60, 20, math.min(820, area.width - 120), math.min(580, area.height - 40)));
+      w.restoreRect = null;
+      w.snapped = DeskSnap.none;
+      w.z = ++_z;
+      notifyListeners();
+    } else {
+      minimize(s);
+    }
+  }
+
+  void startMove(AxSection s) {
+    final w = windowFor(s);
+    if (w == null) return;
+    w.isDragging = true;
+    notifyListeners();
+  }
+
   /// Moves [s] by [delta]. [pointer] (window-area coordinates) drives
   /// edge snapping: near screen edges and corners, a preview shows
   /// where the window will land on [endMove].
   void move(AxSection s, Offset delta, {Offset? pointer, bool? altPressed}) {
     final w = windowFor(s);
     if (w == null) return;
+    w.isDragging = true;
     if (w.maximized) {
       // Dragging a maximized or snapped window restores its size under the pointer.
       final restore = w.restoreRect!;
@@ -315,11 +368,14 @@ class DesktopWindows extends ChangeNotifier {
   /// Ends a title-bar drag, snapping [s] if it was let go at an edge.
   void endMove(AxSection s) {
     final w = windowFor(s);
-    final target = snapRect(_snap);
-    if (w != null && target != null) {
-      w.restoreRect = w.rect;
-      w.snapped = _snap;
-      w.rect = target;
+    if (w != null) {
+      w.isDragging = false;
+      final target = snapRect(_snap);
+      if (target != null) {
+        w.restoreRect = w.rect;
+        w.snapped = _snap;
+        w.rect = target;
+      }
     }
     _snap = DeskSnap.none;
     notifyListeners();
@@ -338,15 +394,31 @@ class DesktopWindows extends ChangeNotifier {
       final c = i % cols;
       final r = i ~/ cols;
       shown[i]
+        ..isDragging = false
         ..restoreRect = null
         ..rect = _clamp(Rect.fromLTWH(g + c * (cw + g), g + r * (rh + g), cw, rh));
     }
     notifyListeners();
   }
 
+  void startResize(AxSection s) {
+    final w = windowFor(s);
+    if (w == null) return;
+    w.isDragging = true;
+    notifyListeners();
+  }
+
+  void endResize(AxSection s) {
+    final w = windowFor(s);
+    if (w == null) return;
+    w.isDragging = false;
+    notifyListeners();
+  }
+
   void resize(AxSection s, Offset delta) {
     final w = windowFor(s);
     if (w == null) return;
+    w.isDragging = true;
     w.restoreRect = null;
     final r = w.rect;
     w.rect = Rect.fromLTWH(
@@ -389,7 +461,7 @@ class DesktopWindows extends ChangeNotifier {
 /// Desktop mode: a wallpaper, a top bar, freely arranged windows hosting
 /// the destinations, a dock and a launcher, all arranged the way the person
 /// likes ([DesktopPrefs]). The main experience on tablets and computers.
-class DesktopModeView extends StatelessWidget {
+class DesktopModeView extends StatefulWidget {
   const DesktopModeView({
     super.key,
     required this.windows,
@@ -407,9 +479,151 @@ class DesktopModeView extends StatelessWidget {
   final void Function(AxSection) onFocus;
   final VoidCallback onSimpleLayout;
 
+  @override
+  State<DesktopModeView> createState() => _DesktopModeViewState();
+}
+
+class _DesktopModeViewState extends State<DesktopModeView> {
+  bool _switcherOpen = false;
+  List<AxSection> _switcherApps = [];
+  int _switcherIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyEvent);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyEvent);
+    super.dispose();
+  }
+
+  bool _handleKeyEvent(KeyEvent event) {
+    if (!mounted) return false;
+
+    // Handle Switcher KeyUp (release modifier to commit switch)
+    if (_switcherOpen && event is KeyUpEvent) {
+      final key = event.logicalKey;
+      final isModifierKey =
+          key == LogicalKeyboardKey.metaLeft ||
+          key == LogicalKeyboardKey.metaRight ||
+          key == LogicalKeyboardKey.altLeft ||
+          key == LogicalKeyboardKey.altRight ||
+          key == LogicalKeyboardKey.controlLeft ||
+          key == LogicalKeyboardKey.controlRight;
+      if (isModifierKey) {
+        final anyModifierHeld =
+            HardwareKeyboard.instance.isMetaPressed || HardwareKeyboard.instance.isAltPressed || HardwareKeyboard.instance.isControlPressed;
+        if (!anyModifierHeld) {
+          _commitSwitcher();
+          return true;
+        }
+      }
+    }
+
+    if (event is! KeyDownEvent) return false;
+
+    final isAlt = HardwareKeyboard.instance.isAltPressed;
+    final isMeta = HardwareKeyboard.instance.isMetaPressed;
+    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+    final isShift = HardwareKeyboard.instance.isShiftPressed;
+
+    // 1. App Switcher Navigation while open
+    if (_switcherOpen) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        setState(() => _switcherOpen = false);
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.tab || event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        setState(() {
+          if (isShift && event.logicalKey == LogicalKeyboardKey.tab) {
+            _switcherIndex = (_switcherIndex - 1 + _switcherApps.length) % _switcherApps.length;
+          } else {
+            _switcherIndex = (_switcherIndex + 1) % _switcherApps.length;
+          }
+        });
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        setState(() {
+          _switcherIndex = (_switcherIndex - 1 + _switcherApps.length) % _switcherApps.length;
+        });
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space) {
+        _commitSwitcher();
+        return true;
+      }
+    }
+
+    // 2. Trigger App Switcher HUD (Cmd+Tab, Alt+Tab, Ctrl+Tab)
+    if (event.logicalKey == LogicalKeyboardKey.tab && (isMeta || isAlt || isCtrl)) {
+      final openWindows = widget.windows.stacked.reversed.toList();
+      if (openWindows.isEmpty) return false;
+
+      setState(() {
+        _switcherOpen = true;
+        _switcherApps = openWindows.map((w) => w.section).toList();
+        if (isShift) {
+          _switcherIndex = (_switcherApps.length - 1) % _switcherApps.length;
+        } else {
+          _switcherIndex = _switcherApps.length > 1 ? 1 : 0;
+        }
+      });
+      return true;
+    }
+
+    // 3. Window Snapping via Keyboard
+    final isSnapModifier = (isAlt && (isMeta || isCtrl));
+    final isPlainAltSnap = isAlt && !isMeta && !isCtrl;
+    final front = widget.windows.front;
+
+    if (front != null && (isSnapModifier || isPlainAltSnap)) {
+      if (isPlainAltSnap) {
+        final focusedWidget = FocusManager.instance.primaryFocus?.context?.widget;
+        if (focusedWidget is EditableText) return false;
+      }
+
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        widget.windows.snapWindow(front, isShift ? DeskSnap.thirdLeft : DeskSnap.left);
+        widget.onFocus(front);
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        widget.windows.snapWindow(front, isShift ? DeskSnap.thirdRight : DeskSnap.right);
+        widget.onFocus(front);
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        widget.windows.snapWindow(front, DeskSnap.maximize);
+        widget.onFocus(front);
+        return true;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        widget.windows.restoreOrMinimize(front);
+        final nextFront = widget.windows.front;
+        if (nextFront != null) widget.onFocus(nextFront);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  void _commitSwitcher() {
+    if (!_switcherOpen) return;
+    setState(() => _switcherOpen = false);
+    if (_switcherApps.isNotEmpty && _switcherIndex < _switcherApps.length) {
+      final target = _switcherApps[_switcherIndex];
+      _open(target);
+    }
+  }
+
   void _open(AxSection s) {
-    windows.open(s);
-    onFocus(s);
+    widget.windows.open(s);
+    widget.onFocus(s);
   }
 
   Future<void> _desktopMenu(BuildContext context, Offset at) async {
@@ -432,9 +646,9 @@ class DesktopModeView extends StatelessWidget {
       case 'widget':
         prefs.showWidget = !prefs.showWidget;
       case 'tidy':
-        windows.tidy();
+        widget.windows.tidy();
       case 'apps':
-        windows.toggleLauncher(true);
+        widget.windows.toggleLauncher(true);
     }
   }
 
@@ -445,7 +659,12 @@ class DesktopModeView extends StatelessWidget {
     final ax = context.ax;
     return Column(
       children: [
-        _TopBar(windows: windows, onOpen: _open, onSimpleLayout: onSimpleLayout, onCustomize: () => showDesktopCustomize(context)),
+        _TopBar(
+          windows: widget.windows,
+          onOpen: _open,
+          onSimpleLayout: widget.onSimpleLayout,
+          onCustomize: () => showDesktopCustomize(context),
+        ),
         Expanded(
           child: Stack(
             children: [
@@ -472,13 +691,13 @@ class DesktopModeView extends StatelessWidget {
                 bottom: reserve.bottom,
                 child: LayoutBuilder(
                   builder: (context, box) {
-                    windows.fitTo(box.biggest);
-                    final front = windows.front;
-                    final ghost = windows.snapPreview;
+                    widget.windows.fitTo(box.biggest);
+                    final front = widget.windows.front;
+                    final ghost = widget.windows.snapPreview;
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Positioned.fill(child: IgnorePointer(child: _EmptyDesk(hasWindows: windows.visible.isNotEmpty))),
+                        Positioned.fill(child: IgnorePointer(child: _EmptyDesk(hasWindows: widget.windows.visible.isNotEmpty))),
                         if (ghost != null)
                           Positioned.fromRect(
                             key: const ValueKey('snap-preview'),
@@ -493,7 +712,7 @@ class DesktopModeView extends StatelessWidget {
                               ),
                             ),
                           ),
-                        for (final w in windows.stacked)
+                        for (final w in widget.windows.stacked)
                           w.minimized
                               // Minimized windows stay mounted (offstage) so a
                               // terminal session or half-typed form survives.
@@ -501,18 +720,23 @@ class DesktopModeView extends StatelessWidget {
                                 key: ValueKey('win-${w.section.name}'),
                                 child: TickerMode(
                                   enabled: false,
-                                  child: SizedBox(width: w.rect.width, height: w.rect.height, child: buildContent(w.section)),
+                                  child: SizedBox(width: w.rect.width, height: w.rect.height, child: widget.buildContent(w.section)),
                                 ),
                               )
-                              : Positioned.fromRect(
+                              : AnimatedPositioned(
                                 key: ValueKey('win-${w.section.name}'),
-                                rect: w.rect,
+                                duration: w.isDragging ? Duration.zero : const Duration(milliseconds: 200),
+                                curve: Curves.easeOutCubic,
+                                left: w.rect.left,
+                                top: w.rect.top,
+                                width: w.rect.width,
+                                height: w.rect.height,
                                 child: _Window(
                                   window: w,
                                   focused: w.section == front,
-                                  windows: windows,
-                                  onFocus: onFocus,
-                                  child: buildContent(w.section),
+                                  windows: widget.windows,
+                                  onFocus: widget.onFocus,
+                                  child: widget.buildContent(w.section),
                                 ),
                               ),
                       ],
@@ -520,12 +744,174 @@ class DesktopModeView extends StatelessWidget {
                   },
                 ),
               ),
-              Positioned.fill(child: _DockHost(prefs: prefs, windows: windows, onOpen: _open)),
-              if (windows.launcherOpen) Positioned.fill(child: _Launcher(onClose: () => windows.toggleLauncher(false), onOpen: _open)),
+              Positioned.fill(child: _DockHost(prefs: prefs, windows: widget.windows, onOpen: _open)),
+              if (widget.windows.launcherOpen)
+                Positioned.fill(child: _Launcher(onClose: () => widget.windows.toggleLauncher(false), onOpen: _open)),
+              if (_switcherOpen && _switcherApps.isNotEmpty)
+                Positioned.fill(
+                  child: _AppSwitcherHud(
+                    apps: _switcherApps,
+                    selectedIndex: _switcherIndex,
+                    onSelect: (s) => _commitSwitcherTarget(s),
+                    onDismiss: () => setState(() => _switcherOpen = false),
+                  ),
+                ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  void _commitSwitcherTarget(AxSection s) {
+    setState(() => _switcherOpen = false);
+    _open(s);
+  }
+}
+
+/// Floating keyboard application switcher (Cmd+Tab / Alt+Tab / Ctrl+Tab HUD).
+class _AppSwitcherHud extends StatelessWidget {
+  const _AppSwitcherHud({required this.apps, required this.selectedIndex, required this.onSelect, required this.onDismiss});
+
+  final List<AxSection> apps;
+  final int selectedIndex;
+  final ValueChanged<AxSection> onSelect;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final selectedApp = (selectedIndex >= 0 && selectedIndex < apps.length) ? apps[selectedIndex] : null;
+
+    return Semantics(
+      container: true,
+      label: 'Application Switcher',
+      child: GestureDetector(
+        key: const ValueKey('app-switcher-scrim'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onDismiss,
+        child: ColoredBox(
+          color: Colors.black.withValues(alpha: 0.32),
+          child: Center(
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 680),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 40, offset: const Offset(0, 16)),
+                    BoxShadow(color: c.accent.withValues(alpha: 0.22), blurRadius: 22, spreadRadius: 1),
+                  ],
+                ),
+                child: AxGlass(
+                  strong: true,
+                  blur: true,
+                  shadow: false,
+                  radius: 22,
+                  borderColor: c.accent.withValues(alpha: 0.45),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (int i = 0; i < apps.length; i++) ...[
+                                if (i > 0) const SizedBox(width: 12),
+                                _AppSwitcherTile(section: apps[i], isSelected: i == selectedIndex, onTap: () => onSelect(apps[i])),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (selectedApp != null) ...[
+                          const SizedBox(height: 16),
+                          Text(
+                            axSectionLabels[selectedApp] ?? '',
+                            style: ax.typo.title.copyWith(color: c.text, fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tab to cycle · Shift+Tab to reverse · Release to switch · Esc to cancel',
+                            style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 11),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppSwitcherTile extends StatelessWidget {
+  const _AppSwitcherTile({required this.section, required this.isSelected, required this.onTap});
+
+  final AxSection section;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final label = axSectionLabels[section] ?? '';
+    final icon = axSectionIcons[section] ?? Icons.apps;
+
+    return Semantics(
+      button: true,
+      label: label,
+      selected: isSelected,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            width: 80,
+            height: 84,
+            decoration: BoxDecoration(
+              color: isSelected ? c.accent.withValues(alpha: 0.18) : c.text.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? c.accent.withValues(alpha: 0.75) : c.glassBorder.withValues(alpha: 0.6),
+                width: isSelected ? 2 : 1,
+              ),
+              boxShadow:
+                  isSelected ? [BoxShadow(color: c.accent.withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 4))] : null,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 30, color: isSelected ? c.accent : c.text),
+                const SizedBox(height: 8),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ax.typo.caption.copyWith(
+                    color: isSelected ? c.text : c.textMuted,
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1057,82 +1443,109 @@ class _Window extends StatelessWidget {
       child: Semantics(
         container: true,
         label: '$label window',
-        child: AxGlass(
-          strong: true,
-          blur: true,
-          shadow: true,
-          radius: 16,
-          borderColor: focused ? c.outline.withValues(alpha: 0.45) : null,
-          child: ClipRRect(
+        child: Container(
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    GestureDetector(
-                      onPanUpdate:
-                          (d) => windows.move(
-                            s,
-                            d.delta,
-                            pointer: window.rect.topLeft + d.localPosition,
-                            altPressed: HardwareKeyboard.instance.isAltPressed,
-                          ),
-                      onPanEnd: (_) => windows.endMove(s),
-                      onPanCancel: () => windows.endMove(s),
-                      onDoubleTap: () => windows.toggleMaximize(s),
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.move,
-                        child: Container(
-                          height: 44,
-                          padding: EdgeInsets.only(left: ax.space.md + 2, right: ax.space.xs),
-                          decoration: BoxDecoration(
-                            color: focused ? c.text.withValues(alpha: 0.04) : Colors.transparent,
-                            border: Border(bottom: BorderSide(color: c.border)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(axSectionIcons[s], size: 16, color: focused ? c.accent : c.textMuted),
-                              SizedBox(width: ax.space.sm),
-                              Expanded(
-                                child: Text(
-                                  label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: ax.typo.label.copyWith(color: c.text, fontSize: 13),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: focused ? 0.38 : 0.16),
+                blurRadius: focused ? 32 : 14,
+                offset: Offset(0, focused ? 12 : 5),
+              ),
+              if (focused) BoxShadow(color: c.accent.withValues(alpha: 0.18), blurRadius: 16, spreadRadius: 1),
+            ],
+          ),
+          child: AxGlass(
+            strong: true,
+            blur: true,
+            shadow: false,
+            radius: 16,
+            borderColor: focused ? c.accent.withValues(alpha: 0.50) : c.glassBorder.withValues(alpha: 0.60),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Stack(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      GestureDetector(
+                        onPanStart: (_) {
+                          focus();
+                          windows.startMove(s);
+                        },
+                        onPanUpdate:
+                            (d) => windows.move(
+                              s,
+                              d.delta,
+                              pointer: window.rect.topLeft + d.localPosition,
+                              altPressed: HardwareKeyboard.instance.isAltPressed,
+                            ),
+                        onPanEnd: (_) => windows.endMove(s),
+                        onPanCancel: () => windows.endMove(s),
+                        onDoubleTap: () => windows.toggleMaximize(s),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.move,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 140),
+                            height: 44,
+                            padding: EdgeInsets.only(left: ax.space.md + 2, right: ax.space.xs),
+                            decoration: BoxDecoration(
+                              color: focused ? c.accent.withValues(alpha: 0.06) : Colors.transparent,
+                              border: Border(bottom: BorderSide(color: focused ? c.accent.withValues(alpha: 0.20) : c.border)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(axSectionIcons[s], size: 16, color: focused ? c.accent : c.textMuted),
+                                SizedBox(width: ax.space.sm),
+                                Expanded(
+                                  child: Text(
+                                    label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: ax.typo.label.copyWith(
+                                      color: focused ? c.text : c.textMuted,
+                                      fontSize: 13,
+                                      fontWeight: focused ? FontWeight.w600 : FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              _WinButton(icon: Icons.remove, tooltip: 'Minimise $label', onTap: () => windows.minimize(s)),
-                              _WinButton(
-                                icon: window.maximized ? Icons.filter_none : Icons.crop_square,
-                                tooltip: window.maximized ? 'Restore $label' : 'Maximise $label',
-                                onTap: () => windows.toggleMaximize(s),
-                              ),
-                              _WinButton(icon: Icons.close, tooltip: 'Close $label', onTap: () => windows.close(s)),
-                            ],
+                                _WinButton(icon: Icons.remove, tooltip: 'Minimise $label', onTap: () => windows.minimize(s)),
+                                _WinButton(
+                                  icon: window.maximized ? Icons.filter_none : Icons.crop_square,
+                                  tooltip: window.maximized ? 'Restore $label' : 'Maximise $label',
+                                  onTap: () => windows.toggleMaximize(s),
+                                ),
+                                _WinButton(icon: Icons.close, tooltip: 'Close $label', onTap: () => windows.close(s)),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    Expanded(child: child),
-                  ],
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                    onPanUpdate: (d) => windows.resize(s, d.delta),
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.resizeDownRight,
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: Icon(Icons.south_east, size: 12, color: c.textSubtle.withValues(alpha: 0.6)),
+                      Expanded(
+                        child: AnimatedOpacity(duration: const Duration(milliseconds: 140), opacity: focused ? 1.0 : 0.90, child: child),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onPanStart: (_) => windows.startResize(s),
+                      onPanUpdate: (d) => windows.resize(s, d.delta),
+                      onPanEnd: (_) => windows.endResize(s),
+                      onPanCancel: () => windows.endResize(s),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.resizeDownRight,
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: Icon(Icons.south_east, size: 12, color: c.textSubtle.withValues(alpha: 0.6)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

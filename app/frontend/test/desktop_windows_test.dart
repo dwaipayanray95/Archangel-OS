@@ -266,4 +266,47 @@ void main() {
       expect(w.rect.right, lessThanOrEqualTo(1200 - 272 + 1));
     }
   });
+
+  test('snapWindow snaps to halves and maximize, and restoreOrMinimize toggles', () {
+    final d = desk()..open(AxSection.home);
+    final initial = d.windowFor(AxSection.home)!.rect;
+
+    // Snap left
+    d.snapWindow(AxSection.home, DeskSnap.left);
+    expect(d.windowFor(AxSection.home)!.snapped, DeskSnap.left);
+    expect(d.windowFor(AxSection.home)!.rect.left, 4);
+    expect(d.windowFor(AxSection.home)!.rect.width, closeTo((1200 - 12) / 2, 0.01));
+
+    // Restore via restoreOrMinimize
+    d.restoreOrMinimize(AxSection.home);
+    expect(d.windowFor(AxSection.home)!.snapped, DeskSnap.none);
+    expect(d.windowFor(AxSection.home)!.rect.size, initial.size);
+
+    // Minimize via restoreOrMinimize when already normal
+    d.restoreOrMinimize(AxSection.home);
+    expect(d.windowFor(AxSection.home)!.minimized, isTrue);
+
+    // Snap maximize un-minimizes and maximizes
+    d.snapWindow(AxSection.home, DeskSnap.maximize);
+    expect(d.windowFor(AxSection.home)!.minimized, isFalse);
+    expect(d.windowFor(AxSection.home)!.maximized, isTrue);
+  });
+
+  test('drag and resize operations toggle isDragging state', () {
+    final d = desk()..open(AxSection.terminal);
+    final w = d.windowFor(AxSection.terminal)!;
+    expect(w.isDragging, isFalse);
+
+    d.startMove(AxSection.terminal);
+    expect(w.isDragging, isTrue);
+
+    d.endMove(AxSection.terminal);
+    expect(w.isDragging, isFalse);
+
+    d.startResize(AxSection.terminal);
+    expect(w.isDragging, isTrue);
+
+    d.endResize(AxSection.terminal);
+    expect(w.isDragging, isFalse);
+  });
 }

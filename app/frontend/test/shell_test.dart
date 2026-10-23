@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -382,6 +383,68 @@ void main() {
       await _settle(tester);
       expect(find.byType(DesktopModeView), findsNothing);
       expect(find.byType(NavigationBar), findsOneWidget);
+    });
+
+    testWidgets('app switcher HUD cycles and switches open windows on Alt+Tab', (tester) async {
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+
+      // Trigger App Switcher by holding Alt and pressing Tab
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('app-switcher-scrim')), findsOneWidget);
+      expect(find.bySemanticsLabel('Application Switcher'), findsOneWidget);
+
+      // Release Alt to commit and switch
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('app-switcher-scrim')), findsNothing);
+    });
+
+    testWidgets('keyboard shortcuts snap active window to halves and maximize', (tester) async {
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+
+      final windows = tester.widget<DesktopModeView>(find.byType(DesktopModeView)).windows;
+      final initialRect = windows.windowFor(AxSection.home)!.rect;
+
+      // Snap left with Alt + Meta + ArrowLeft
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await _settle(tester);
+
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.left);
+      expect(windows.windowFor(AxSection.home)!.rect.left, 4);
+
+      // Maximize with Alt + Meta + ArrowUp
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await _settle(tester);
+
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.maximize);
+      expect(windows.windowFor(AxSection.home)!.maximized, isTrue);
+      expect(windows.windowFor(AxSection.home)!.rect.top, 4);
+
+      // Restore with Alt + Meta + ArrowDown
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await _settle(tester);
+
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
+      expect(windows.windowFor(AxSection.home)!.maximized, isFalse);
+      expect(windows.windowFor(AxSection.home)!.rect.size, initialRect.size);
     });
   });
 
