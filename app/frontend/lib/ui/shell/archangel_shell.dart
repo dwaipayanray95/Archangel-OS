@@ -9,6 +9,7 @@ import '../../services/containers_service.dart';
 import '../../services/devices_service.dart';
 import '../../services/devops_service.dart';
 import '../../services/files_service.dart';
+import '../../services/hotkey_service.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
 import '../../services/window_service.dart';
@@ -98,6 +99,21 @@ class _ArchangelShellState extends State<ArchangelShell> {
     _backend.addListener(_onBackendChanged);
     _desk.addListener(_onDeskChanged);
     WindowService.onCloseRequested = _handleWindowClose;
+    HotkeyService.onSummon = () {
+      if (mounted) context.read<AppState>().openPalette();
+    };
+    HotkeyService.onQuickTerminal = () {
+      if (!mounted) return;
+      final app = context.read<AppState>();
+      if (app.layout == AxLayout.desktop) {
+        _desk.open(AxSection.terminal);
+      } else {
+        app.go(AxSection.terminal);
+      }
+    };
+    HotkeyService.onSwitchServer = () {
+      if (mounted) showServerSheet(context);
+    };
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WindowService.setFullScreen(true);
     });
@@ -105,6 +121,9 @@ class _ArchangelShellState extends State<ArchangelShell> {
 
   @override
   void dispose() {
+    HotkeyService.onSummon = null;
+    HotkeyService.onQuickTerminal = null;
+    HotkeyService.onSwitchServer = null;
     WindowService.onCloseRequested = null;
     _backend.removeListener(_onBackendChanged);
     _desk.removeListener(_onDeskChanged);

@@ -804,7 +804,7 @@ class _AppSwitcherHud extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onDismiss,
         child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.32),
+          color: Colors.black.withValues(alpha: 0.38),
           child: Center(
             child: GestureDetector(
               onTap: () {},
@@ -812,20 +812,20 @@ class _AppSwitcherHud extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 680),
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(24),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 40, offset: const Offset(0, 16)),
-                    BoxShadow(color: c.accent.withValues(alpha: 0.22), blurRadius: 22, spreadRadius: 1),
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.60), blurRadius: 44, offset: const Offset(0, 18)),
+                    BoxShadow(color: c.accent.withValues(alpha: 0.16), blurRadius: 24, spreadRadius: 1),
                   ],
                 ),
                 child: AxGlass(
                   strong: true,
                   blur: true,
                   shadow: false,
-                  radius: 22,
-                  borderColor: c.accent.withValues(alpha: 0.45),
+                  radius: 24,
+                  borderColor: c.accent.withValues(alpha: 0.35),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 22),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -835,22 +835,17 @@ class _AppSwitcherHud extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               for (int i = 0; i < apps.length; i++) ...[
-                                if (i > 0) const SizedBox(width: 12),
+                                if (i > 0) const SizedBox(width: 14),
                                 _AppSwitcherTile(section: apps[i], isSelected: i == selectedIndex, onTap: () => onSelect(apps[i])),
                               ],
                             ],
                           ),
                         ),
                         if (selectedApp != null) ...[
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 18),
                           Text(
                             axSectionLabels[selectedApp] ?? '',
-                            style: ax.typo.title.copyWith(color: c.text, fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Tab to cycle · Shift+Tab to reverse · Release to switch · Esc to cancel',
-                            style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 11),
+                            style: ax.typo.title.copyWith(color: c.text, fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.3),
                           ),
                         ],
                       ],
@@ -891,36 +886,20 @@ class _AppSwitcherTile extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 140),
             curve: Curves.easeOutCubic,
-            width: 80,
-            height: 84,
+            width: 70,
+            height: 70,
             decoration: BoxDecoration(
-              color: isSelected ? c.accent.withValues(alpha: 0.18) : c.text.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(16),
+              color: isSelected ? c.accent.withValues(alpha: 0.20) : c.surfaceAlt.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: isSelected ? c.accent.withValues(alpha: 0.75) : c.glassBorder.withValues(alpha: 0.6),
-                width: isSelected ? 2 : 1,
+                color: isSelected ? c.accent.withValues(alpha: 0.90) : c.glassBorder.withValues(alpha: 0.5),
+                width: isSelected ? 1.8 : 1,
               ),
               boxShadow:
-                  isSelected ? [BoxShadow(color: c.accent.withValues(alpha: 0.28), blurRadius: 14, offset: const Offset(0, 4))] : null,
+                  isSelected ? [BoxShadow(color: c.accent.withValues(alpha: 0.32), blurRadius: 16, offset: const Offset(0, 4))] : null,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 30, color: isSelected ? c.accent : c.text),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ax.typo.caption.copyWith(
-                    color: isSelected ? c.text : c.textMuted,
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: isSelected ? 36 : 33, color: isSelected ? c.accent : c.textMuted),
           ),
         ),
       ),
