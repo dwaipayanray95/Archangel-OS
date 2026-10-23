@@ -1,62 +1,45 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/devops_model.dart';
-import '../../ui.dart';
+import '../../components/status_badge.dart';
 
-/// The four tabs of the Services screen, with their plain-language labels.
+/// The four tabs of the Services screen.
 enum ServicesTab {
-  services('Background services'),
-  timers('Scheduled tasks'),
-  web('Web addresses'),
-  scripts('Scripts');
+  background('Background', 'background services'),
+  scheduled('Scheduled', 'scheduled tasks'),
+  web('Web addresses', 'web addresses'),
+  deployments('Deployments', 'deployments');
 
-  const ServicesTab(this.label);
+  const ServicesTab(this.label, this.groupNameLower);
   final String label;
+  final String groupNameLower;
+
+  String get intro => switch (this) {
+    ServicesTab.background => 'Programs that run all the time to keep things working, like your web server or database.',
+    ServicesTab.scheduled => 'Jobs that run by themselves at set times, like nightly backups.',
+    ServicesTab.web => 'The web addresses that point to your apps, and the secure (HTTPS) setup behind them.',
+    ServicesTab.deployments => 'Saved setups that describe how an app is installed. You can look inside one or remove it.',
+  };
+
+  String get emptyText => switch (this) {
+    ServicesTab.background => 'No background services found.',
+    ServicesTab.scheduled => 'No scheduled tasks yet.',
+    ServicesTab.web => 'No web addresses yet. Make an app public in Apps to get one.',
+    ServicesTab.deployments => 'No saved deployments.',
+  };
 }
 
-/// A script name must end in .sh and use only letters, digits, dot, dash and
-/// underscore. Returns an explanation of what is wrong, or null when valid.
-String? validateScriptName(String raw) {
-  final name = raw.trim();
-  if (name.isEmpty) return 'Give the script a name, for example deploy.sh.';
-  if (!name.endsWith('.sh')) return 'The name must end with .sh, for example deploy.sh.';
-  if (name.length > 64) return 'Use 64 characters or fewer.';
-  if (name == '.sh') return 'Add a name before .sh, for example deploy.sh.';
-  if (name.startsWith('.') || name.startsWith('-')) return 'The name can’t start with a dot or a dash.';
-  if (name.contains('..')) return 'The name can’t contain two dots in a row.';
-  if (!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(name)) {
-    return 'Use only letters, numbers, dots, dashes and underscores (no spaces or slashes).';
+/// Status badge mapping per spec:
+/// - ok == true -> ok, check icon, text = server status (e.g. "Running", "Last run OK", "HTTPS on")
+/// - ok == false and status contains "fail" or "error" -> danger, error icon, server text (e.g. "Failed")
+/// - otherwise -> neutral, stop icon, server text (e.g. "Stopped")
+StatusBadge rowStatusBadge(DevRowModel row) {
+  if (row.ok) {
+    return StatusBadge.ok(row.status, icon: Icons.check_circle_outline);
   }
-  return null;
-}
-
-/// True when a refusal means Admin mode has to be switched on first.
-bool isAdminModeRefusal(String? message, int? status) => status == 403 || (message?.toLowerCase().contains('admin mode') ?? false);
-
-/// The status pill for a row: always icon + words.
-StatusBadge rowBadge(ServicesTab tab, DevRowModel row) {
-  final raw = row.status.toLowerCase();
-  final failed = raw.contains('fail') || raw.contains('error') || raw.contains('dead');
-  switch (tab) {
-    case ServicesTab.services:
-      if (row.ok) return const StatusBadge.ok('Running');
-      if (failed) return const StatusBadge.error('Failed');
-      return const StatusBadge.neutral('Stopped', icon: Icons.stop_circle_outlined);
-    case ServicesTab.timers:
-      if (row.ok) return const StatusBadge.ok('Scheduled');
-      return failed ? const StatusBadge.error('Failed') : const StatusBadge.warning('Not scheduled');
-    case ServicesTab.web:
-      if (row.ok) return const StatusBadge.ok('Online');
-      return failed ? const StatusBadge.error('Not working') : const StatusBadge.warning('Not checked');
-    case ServicesTab.scripts:
-      if (row.ok) return const StatusBadge.ok('Ready');
-      return failed ? const StatusBadge.error('Last run failed') : const StatusBadge.neutral('Not run yet');
+  final lower = row.status.toLowerCase();
+  if (lower.contains('fail') || lower.contains('error')) {
+    return StatusBadge.error(row.status, icon: Icons.error_outline);
   }
-}
-
-/// Second line of a row: details from the server, plus its raw status when
-/// something is not fine.
-String rowDetails(DevRowModel row) {
-  final parts = <String>[if (row.meta.isNotEmpty) row.meta, if (!row.ok && row.status.isNotEmpty && row.status != row.meta) row.status];
-  return parts.join(' - ');
+  return StatusBadge.neutral(row.status, icon: Icons.stop_circle_outlined);
 }

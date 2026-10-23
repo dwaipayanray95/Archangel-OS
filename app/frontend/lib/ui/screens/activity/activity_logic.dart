@@ -1,48 +1,115 @@
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
 
 import '../../../models/system_metrics.dart';
+import '../../components/status_badge.dart';
 
-/// Samples collected since the Activity screen was opened (not server
-/// history), capped so memory stays bounded.
-class LiveSamples {
-  LiveSamples({this.capacity = 120});
+/// The overall server status shown in the Hero status card.
+enum ServerActivityState { calm, busy, struggling }
 
-  final int capacity;
-  final List<double> cpu = [];
-  final List<double> memory = [];
-  final List<double> diskRead = [];
-  final List<double> diskWrite = [];
-  final List<double> netIn = [];
-  final List<double> netOut = [];
+class ServerStatusInfo {
+  final ServerActivityState state;
+  final String title;
+  final String line;
+  final IconData icon;
+  final AxStatus status;
 
-  int get length => cpu.length;
-
-  void add(SystemMetrics m) {
-    _push(cpu, m.cpu.usagePercent);
-    _push(memory, m.memory.usagePercent);
-    _push(diskRead, m.disk.readBytesPerSec);
-    _push(diskWrite, m.disk.writeBytesPerSec);
-    _push(netIn, m.network.rxBytesPerSec);
-    _push(netOut, m.network.txBytesPerSec);
-  }
-
-  void _push(List<double> list, double v) {
-    list.add(v.isFinite ? v : 0);
-    if (list.length > capacity) list.removeAt(0);
-  }
+  const ServerStatusInfo({required this.state, required this.title, required this.line, required this.icon, required this.status});
 }
 
-/// Rounds [value] up to a "nice" axis maximum (1, 2 or 5 times a power of
-/// ten) so a chart auto-scales without jumping on every sample. Never
-/// returns less than [minimum].
-double niceCeil(double value, {double minimum = 1024}) {
-  final v = math.max(value, minimum);
-  final exp = (math.log(v) / math.ln10).floor();
-  final base = math.pow(10, exp).toDouble();
-  for (final m in const [1.0, 2.0, 5.0, 10.0]) {
-    if (v <= m * base) return m * base;
+/// Computes the 10-second rolling average of CPU or memory from history.
+double calculate10sAverage(List<double> history, double fallback) {
+  if (history.isEmpty) return fallback;
+  // History points are collected every ~2 s, so 10 s is the last 5 readings.
+  final sampleCount = math.min(5, history.length);
+  final slice = history.sublist(history.length - sampleCount);
+  if (slice.isEmpty) return fallback;
+  final sum = slice.fold<double>(0.0, (prev, v) => prev + v);
+  return sum / slice.length;
+}
+
+/// Computes the server status card info based on 10s CPU and memory averages.
+///
+/// Cut-offs per spec:
+/// - calm: CPU < 60 and memory < 75
+/// - busy: otherwise
+/// - struggling: CPU >= 90 or memory >= 95
+ServerStatusInfo calculateServerStatus(double cpu, double memory) {
+  if (cpu >= 90 || memory >= 95) {
+    return const ServerStatusInfo(
+      state: ServerActivityState.struggling,
+      title: 'Your server is struggling',
+      line: "It's close to its limits, so things may feel slow. The busiest programs are below.",
+      icon: Icons.error_outline,
+      status: AxStatus.error,
+    );
   }
-  return 10 * base;
+  if (cpu < 60 && memory < 75) {
+    return const ServerStatusInfo(
+      state: ServerActivityState.calm,
+      title: 'Your server is calm',
+      line: 'Everything is running comfortably. Nothing needs your attention.',
+      icon: Icons.verified_user_outlined,
+      status: AxStatus.ok,
+    );
+  }
+  return const ServerStatusInfo(
+    state: ServerActivityState.busy,
+    title: 'Your server is busy',
+    line: "It's working hard right now. That's fine for a while. If it stays busy, check the programs below.",
+    icon: Icons.show_chart,
+    status: AxStatus.warning,
+  );
+}
+
+class MeaningInfo {
+  final String label;
+  final AxStatus status;
+  final IconData icon;
+
+  const MeaningInfo({required this.label, required this.status, required this.icon});
+}
+
+/// Meaning for CPU: < 50 "Plenty free" (ok) · 50–85 "Working hard" (warn) · >= 85 "Maxed out" (error)
+MeaningInfo cpuMeaning(double cpu) {
+  if (cpu < 50) {
+    return const MeaningInfo(label: 'Plenty free', status: AxStatus.ok, icon: Icons.check_circle_outline);
+  }
+  if (cpu < 85) {
+    return const MeaningInfo(label: 'Working hard', status: AxStatus.warning, icon: Icons.warning_amber_rounded);
+  }
+  return const MeaningInfo(label: 'Maxed out', status: AxStatus.error, icon: Icons.error_outline);
+}
+
+/// Meaning for Memory: < 75 "Comfortable" · 75–95 "Running low" (warn) · >= 95 "Almost full" (error)
+MeaningInfo memoryMeaning(double memPercent) {
+  if (memPercent < 75) {
+    return const MeaningInfo(label: 'Comfortable', status: AxStatus.ok, icon: Icons.check_circle_outline);
+  }
+  if (memPercent < 95) {
+    return const MeaningInfo(label: 'Running low', status: AxStatus.warning, icon: Icons.warning_amber_rounded);
+  }
+  return const MeaningInfo(label: 'Almost full', status: AxStatus.error, icon: Icons.error_outline);
+}
+
+/// Meaning for Disk: < 70 "Plenty of space" · 70–90 "Getting full" (warn) · >= 90 "Almost full" (error)
+MeaningInfo diskMeaning(double diskPercent) {
+  if (diskPercent < 70) {
+    return const MeaningInfo(label: 'Plenty of space', status: AxStatus.ok, icon: Icons.check_circle_outline);
+  }
+  if (diskPercent < 90) {
+    return const MeaningInfo(label: 'Getting full', status: AxStatus.warning, icon: Icons.warning_amber_rounded);
+  }
+  return const MeaningInfo(label: 'Almost full', status: AxStatus.error, icon: Icons.error_outline);
+}
+
+/// Meaning for Network: < 2 MB/s "Quiet" · else "Normal" (both ok)
+MeaningInfo networkMeaning(double bytesPerSec) {
+  final mbPerSec = bytesPerSec / (1024 * 1024);
+  if (mbPerSec < 2.0) {
+    return const MeaningInfo(label: 'Quiet', status: AxStatus.ok, icon: Icons.check_circle_outline);
+  }
+  return const MeaningInfo(label: 'Normal', status: AxStatus.ok, icon: Icons.check_circle_outline);
 }
 
 /// "1.5 MB/s", "320 KB/s", "0 B/s".
@@ -54,80 +121,48 @@ String formatRate(double bytesPerSec) {
   return '${v.round()} B/s';
 }
 
+/// "2.1 GB", "4 GB", "100 GB".
 String formatBytes(num bytes) {
   const gb = 1024 * 1024 * 1024;
-  if (bytes >= gb) return '${(bytes / gb).toStringAsFixed(bytes >= 10 * gb ? 0 : 1)} GB';
+  if (bytes >= gb) {
+    final val = bytes / gb;
+    return val >= 10 || val.truncateToDouble() == val ? '${val.toStringAsFixed(0)} GB' : '${val.toStringAsFixed(1)} GB';
+  }
   if (bytes >= 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(0)} MB';
   if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
   return '${bytes.round()} B';
 }
 
-// ---- Process priority ------------------------------------------------------
-
-/// The Linux "nice" range: 19 (politest, lowest priority) to -20 (highest).
-const kNiceLowest = 19;
-const kNiceHighest = -20;
-
-/// The slider runs 0..39: 0 is "Lower priority" (nice 19), 39 is "Higher
-/// priority" (nice -20), and 19 is "Normal" (nice 0).
-const kPrioritySteps = 39;
-
-/// Slider position (0 = lowest priority .. 39 = highest) to a nice value.
-int niceFromSlider(num position) {
-  final p = position.round().clamp(0, kPrioritySteps);
-  return kNiceLowest - p;
+/// Detailed long uptime formatted as "12 days, 3 hours" or "5 hours, 20 minutes".
+String formatUptimeLong(int seconds) {
+  if (seconds <= 0) return '—';
+  final days = seconds ~/ 86400;
+  final hours = (seconds % 86400) ~/ 3600;
+  final mins = (seconds % 3600) ~/ 60;
+  if (days > 0) {
+    final dStr = '$days ${days == 1 ? 'day' : 'days'}';
+    final hStr = '$hours ${hours == 1 ? 'hour' : 'hours'}';
+    return '$dStr, $hStr';
+  }
+  if (hours > 0) {
+    final hStr = '$hours ${hours == 1 ? 'hour' : 'hours'}';
+    final mStr = '$mins ${mins == 1 ? 'minute' : 'minutes'}';
+    return '$hStr, $mStr';
+  }
+  return '$mins ${mins == 1 ? 'minute' : 'minutes'}';
 }
 
-/// A nice value (19 .. -20) to its slider position.
-int sliderFromNice(int nice) => (kNiceLowest - nice.clamp(kNiceHighest, kNiceLowest)).clamp(0, kPrioritySteps);
-
-/// Plain-language description of a nice value.
-String priorityLabel(int nice) {
-  if (nice >= 10) return 'Much lower than normal';
-  if (nice > 0) return 'Lower than normal';
-  if (nice == 0) return 'Normal';
-  if (nice > -10) return 'Higher than normal';
-  return 'Much higher than normal';
-}
-
-// ---- Processes -------------------------------------------------------------
-
-enum ProcessSort { cpu, memory, name }
-
-/// Filters by name / user / PID and sorts (biggest first, or A-Z for name).
-List<LiveProcessInfo> filterAndSortProcesses(List<LiveProcessInfo> all, {String query = '', ProcessSort sort = ProcessSort.cpu}) {
+/// Filters by name / user in the server process list and sorts by CPU or Memory descending.
+List<LiveProcessInfo> filterAndSortPrograms(List<LiveProcessInfo> processes, {String query = '', required bool sortByMemory}) {
   final q = query.trim().toLowerCase();
-  final list =
+  final filtered =
       q.isEmpty
-          ? List<LiveProcessInfo>.of(all)
-          : all.where((p) => p.name.toLowerCase().contains(q) || p.user.toLowerCase().contains(q) || p.pid.toString() == q).toList();
-  switch (sort) {
-    case ProcessSort.cpu:
-      list.sort((a, b) => b.cpu.compareTo(a.cpu));
-    case ProcessSort.memory:
-      list.sort((a, b) => (b.rssBytes > 0 || a.rssBytes > 0) ? b.rssBytes.compareTo(a.rssBytes) : b.mem.compareTo(a.mem));
-    case ProcessSort.name:
-      list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          ? List<LiveProcessInfo>.of(processes)
+          : processes.where((p) => p.name.toLowerCase().contains(q) || p.user.toLowerCase().contains(q)).toList();
+  if (sortByMemory) {
+    filtered.sort((a, b) => (b.rssBytes > 0 || a.rssBytes > 0) ? b.rssBytes.compareTo(a.rssBytes) : b.mem.compareTo(a.mem));
+  } else {
+    filtered.sort((a, b) => b.cpu.compareTo(a.cpu));
   }
-  return list;
-}
-
-/// What the one-letter Linux process state means, in plain words.
-String processStateLabel(String state) {
-  switch (state.isEmpty ? '' : state[0].toUpperCase()) {
-    case 'R':
-      return 'Working';
-    case 'S':
-      return 'Waiting';
-    case 'D':
-      return 'Waiting for disk';
-    case 'T':
-      return 'Paused';
-    case 'Z':
-      return 'Finished (not cleaned up)';
-    case 'I':
-      return 'Idle';
-    default:
-      return 'Unknown';
-  }
+  return filtered;
 }

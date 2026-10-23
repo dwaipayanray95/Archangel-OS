@@ -25,6 +25,18 @@ class DevopsService extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
+  bool _servicesFailed = false;
+  bool get servicesFailed => _servicesFailed;
+
+  bool _scheduledFailed = false;
+  bool get scheduledFailed => _scheduledFailed;
+
+  bool _proxyFailed = false;
+  bool get proxyFailed => _proxyFailed;
+
+  bool _deploymentsFailed = false;
+  bool get deploymentsFailed => _deploymentsFailed;
+
   /// Why the last [triggerServiceAction] / [triggerScheduled] failed, in the
   /// server's own words when it gave any (e.g. "Admin mode is off - this
   /// action needs it"). Null after a success.
@@ -81,6 +93,10 @@ class DevopsService extends ChangeNotifier {
     _scheduled = [];
     _proxy = [];
     _deployments = [];
+    _servicesFailed = false;
+    _scheduledFailed = false;
+    _proxyFailed = false;
+    _deploymentsFailed = false;
     _loading = false;
     _loaded = false;
     _error = null;
@@ -102,6 +118,10 @@ class DevopsService extends ChangeNotifier {
       _scheduled = [];
       _proxy = [];
       _deployments = [];
+      _servicesFailed = false;
+      _scheduledFailed = false;
+      _proxyFailed = false;
+      _deploymentsFailed = false;
       _loading = false;
       _loaded = true;
       notifyListeners();
@@ -127,7 +147,9 @@ class DevopsService extends ChangeNotifier {
         if (decoded is List) {
           _services = decoded.map((e) => DevRowModel.fromJson(e as Map<String, dynamic>)).toList();
         }
+        _servicesFailed = false;
       } else {
+        _servicesFailed = true;
         anyFailed = true;
       }
 
@@ -137,7 +159,9 @@ class DevopsService extends ChangeNotifier {
         if (decoded is List) {
           _scheduled = decoded.map((e) => DevRowModel.fromJson(e as Map<String, dynamic>)).toList();
         }
+        _scheduledFailed = false;
       } else {
+        _scheduledFailed = true;
         anyFailed = true;
       }
 
@@ -147,7 +171,9 @@ class DevopsService extends ChangeNotifier {
         if (decoded is List) {
           _proxy = decoded.map((e) => DevRowModel.fromJson(e as Map<String, dynamic>)).toList();
         }
+        _proxyFailed = false;
       } else {
+        _proxyFailed = true;
         anyFailed = true;
       }
 
@@ -157,7 +183,9 @@ class DevopsService extends ChangeNotifier {
         if (decoded is List) {
           _deployments = decoded.map((e) => DevRowModel.fromJson(e as Map<String, dynamic>)).toList();
         }
+        _deploymentsFailed = false;
       } else {
+        _deploymentsFailed = true;
         anyFailed = true;
       }
 
@@ -169,6 +197,10 @@ class DevopsService extends ChangeNotifier {
       _error = anyFailed ? 'Failed to reach the backend for one or more DevOps sections.' : null;
     } catch (e) {
       debugPrint('Error fetching devops data: $e');
+      _servicesFailed = true;
+      _scheduledFailed = true;
+      _proxyFailed = true;
+      _deploymentsFailed = true;
       _error = e.toString();
     } finally {
       _loading = false;

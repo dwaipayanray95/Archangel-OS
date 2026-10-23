@@ -5,87 +5,85 @@ import '../data/app_state.dart';
 import '../models/devops_model.dart';
 import '../services/archangeld_connection.dart';
 import '../services/devops_service.dart';
-import '../ui/screens/services/script_editor_page.dart';
 import '../ui/screens/services/services_logic.dart';
 import '../ui/screens/services/services_widgets.dart';
 import '../ui/ui.dart';
 
-/// Services: background services, scheduled tasks, web addresses and scripts
-/// on the server, in plain words.
+/// Services: background services, scheduled tasks, web addresses and deployments
+/// in plain language, rebuilt in the Halo design.
 class DevopsScreen extends StatefulWidget {
   const DevopsScreen({super.key});
+
+  /// Resets the remembered tab to [ServicesTab.background] (useful for tests).
+  @visibleForTesting
+  static void resetTab() {
+    _DevopsScreenState._lastTab = ServicesTab.background;
+  }
 
   @override
   State<DevopsScreen> createState() => _DevopsScreenState();
 }
 
 class _DevopsScreenState extends State<DevopsScreen> {
-  ServicesTab _tab = ServicesTab.services;
+  // Remember the last tab for the session
+  static ServicesTab _lastTab = ServicesTab.background;
 
-  // Server refusal being shown prominently (null = none).
-  String? _refusal;
-  bool _refusalIsAdmin = false;
-
-  // Names of rows with an action in flight, and web-address test results.
-  final _busy = <String>{};
-  final _testing = <String>{};
-  final _testResults = <String, String?>{};
+  late ServicesTab _tab;
+  DevopsService? _svc;
+  final Set<String> _busyRows = {};
+  final Set<String> _runningScheduled = {};
+  final Set<String> _testingWeb = {};
+  final Map<String, (bool ok, String message)> _webResults = {};
 
   @override
   void initState() {
     super.initState();
+    _tab = _lastTab;
+    _svc = context.read<DevopsService>();
+    _svc?.setActive(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<DevopsService>().init(context.read<ArchangeldConnection>());
+      _svc?.init(context.read<ArchangeldConnection>());
     });
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  @override
+  void dispose() {
+    _svc?.setActive(false);
+    super.dispose();
   }
 
-  void _showRefusal(DevopsService svc, String fallback) {
-    final msg = svc.lastActionMessage ?? fallback;
-    setState(() {
-      _refusal = msg;
-      _refusalIsAdmin = isAdminModeRefusal(msg, svc.lastActionStatus);
-    });
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _guard(String key, Future<void> Function() job) async {
-    if (_busy.contains(key)) return;
-    setState(() => _busy.add(key));
-    try {
-      await job();
-    } finally {
-      if (mounted) setState(() => _busy.remove(key));
-    }
-  }
-
-  Future<void> _serviceAction(DevRowModel row, String action) async {
+  Future<void> _handleServiceAction(DevRowModel row, String action) async {
     final svc = context.read<DevopsService>();
     if (action == 'Stop') {
       final yes = await showConfirmDialog(
         context,
         title: 'Stop ${row.name}?',
-        message: 'Anything that depends on this service stops working until you start it again.',
-        confirmLabel: 'Stop service',
+        message: 'Anything that needs it stops working until you start it again.',
+        confirmLabel: 'Stop',
+        danger: true,
       );
       if (!yes || !mounted) return;
     } else if (action == 'Restart') {
       final yes = await showConfirmDialog(
         context,
         title: 'Restart ${row.name}?',
-        message: 'The service is briefly unavailable while it restarts.',
-        confirmLabel: 'Restart service',
+        message: 'It goes offline for a few seconds, then comes back on its own.',
+        confirmLabel: 'Restart',
+        danger: false,
       );
       if (!yes || !mounted) return;
     }
-    await _guard('svc:${row.name}', () async {
+
+    setState(() => _busyRows.add(row.name));
+    try {
       final ok = await svc.triggerServiceAction(row.name, action);
       if (!mounted) return;
       if (ok) {
-        setState(() => _refusal = null);
         final past = switch (action) {
           'Start' => 'started',
           'Stop' => 'stopped',
@@ -93,331 +91,321 @@ class _DevopsScreenState extends State<DevopsScreen> {
         };
         _toast('${row.name} $past.');
       } else {
-        _showRefusal(svc, 'Could not ${action.toLowerCase()} ${row.name}.');
+        _toast(svc.lastActionMessage ?? 'Could not ${action.toLowerCase()} ${row.name}.');
       }
-    });
+    } finally {
+      if (mounted) setState(() => _busyRows.remove(row.name));
+    }
   }
 
-  Future<void> _runTimer(DevRowModel row) async {
+  Future<void> _runScheduled(DevRowModel row) async {
     final svc = context.read<DevopsService>();
-    await _guard('timer:${row.name}', () async {
+    setState(() => _runningScheduled.add(row.name));
+    try {
       final ok = await svc.triggerScheduled(row.name);
       if (!mounted) return;
       if (ok) {
-        setState(() => _refusal = null);
-        _toast('${row.name} is running now.');
+        _toast('${row.name} started');
       } else {
-        _showRefusal(svc, 'Could not run ${row.name}.');
+        _toast(svc.lastActionMessage ?? 'Could not run ${row.name}.');
       }
-    });
+    } finally {
+      if (mounted) setState(() => _runningScheduled.remove(row.name));
+    }
   }
 
   Future<void> _testAddress(DevRowModel row) async {
     final svc = context.read<DevopsService>();
-    setState(() {
-      _testing.add(row.name);
-      _testResults.remove(row.name);
-    });
-    final res = await svc.testProxy(row.name);
-    if (!mounted) return;
-    setState(() {
-      _testing.remove(row.name);
-      _testResults[row.name] = res;
-    });
-  }
-
-  Future<void> _runScript(DevRowModel row) async {
-    final svc = context.read<DevopsService>();
-    final yes = await showConfirmDialog(
-      context,
-      title: 'Run ${row.name}?',
-      message: 'This runs the script on your server as the archangel user.',
-      confirmLabel: 'Run script',
-    );
-    if (!yes || !mounted) return;
-    Map<String, String>? res;
-    await _guard('script:${row.name}', () async {
-      res = await svc.runDeployment(row.name);
-    });
-    final result = res;
-    if (!mounted || result == null) return;
-    final ok = result['ok'] == 'true';
-    final message = result['message'] ?? '';
-    if (!ok && (result['output'] ?? '').isEmpty && isAdminModeRefusal(message, null)) {
-      setState(() {
-        _refusal = message;
-        _refusalIsAdmin = true;
-      });
-      return;
-    }
-    setState(() => _refusal = null);
-    await showRunOutputSheet(context, scriptName: row.name, ok: ok, message: message, output: result['output'] ?? '');
-  }
-
-  Future<void> _editScript(DevRowModel row) async {
-    final svc = context.read<DevopsService>();
-    await _guard('script:${row.name}', () async {
-      final content = await svc.getDeploymentContent(row.name);
+    setState(() => _testingWeb.add(row.name));
+    try {
+      final result = await svc.testProxy(row.name);
       if (!mounted) return;
-      if (content == null) {
-        _toast('Could not open ${row.name}. Check your connection and try again.');
-        return;
-      }
-      final saved = await ScriptEditorPage.open(context, svc, scriptName: row.name, initialContent: content);
-      if (saved && mounted) _toast('${row.name} saved.');
-    });
-  }
-
-  Future<void> _newScript() async {
-    final svc = context.read<DevopsService>();
-    final saved = await ScriptEditorPage.open(context, svc);
-    if (saved && mounted) _toast('Script saved.');
-  }
-
-  Future<void> _deleteScript(DevRowModel row) async {
-    final svc = context.read<DevopsService>();
-    final yes = await showConfirmDialog(
-      context,
-      title: 'Delete ${row.name}?',
-      message: 'The script is removed from your server. This can’t be undone.',
-      confirmLabel: 'Delete script',
-      danger: true,
-    );
-    if (!yes || !mounted) return;
-    await _guard('script:${row.name}', () async {
-      final ok = await svc.deleteDeployment(row.name);
-      if (!mounted) return;
-      if (ok) {
-        setState(() => _refusal = null);
-        _toast('${row.name} was deleted.');
+      final isFailure =
+          result != null &&
+          (result.toLowerCase().contains('error') || result.toLowerCase().contains('failed') || result.toLowerCase().contains('refused'));
+      if (isFailure) {
+        _webResults[row.name] = (false, "Didn't work: $result");
       } else {
-        _showRefusal(svc, 'Could not delete ${row.name}.');
+        _webResults[row.name] = (true, 'Works. The address answered with a secure connection.');
       }
-    });
-  }
-
-  void _openLogs(DevRowModel row) {
-    context.read<AppState>().openTerminalWithCommand('journalctl -u ${row.name} -n 50 --no-pager');
-  }
-
-  List<DevRowModel> _rowsFor(DevopsService svc) => switch (_tab) {
-    ServicesTab.services => svc.services,
-    ServicesTab.timers => svc.scheduled,
-    ServicesTab.web => svc.proxy,
-    ServicesTab.scripts => svc.deployments,
-  };
-
-  List<RowAction> _actionsFor(DevRowModel row) {
-    switch (_tab) {
-      case ServicesTab.services:
-        final busy = _busy.contains('svc:${row.name}');
-        return [
-          if (!row.ok)
-            RowAction(
-              label: 'Start',
-              icon: Icons.play_arrow_rounded,
-              kind: AxButtonKind.primary,
-              loading: busy,
-              onPressed: () => _serviceAction(row, 'Start'),
-            ),
-          RowAction(label: 'Restart', icon: Icons.restart_alt_rounded, onPressed: busy ? null : () => _serviceAction(row, 'Restart')),
-          if (row.ok) RowAction(label: 'Stop', icon: Icons.stop_rounded, onPressed: busy ? null : () => _serviceAction(row, 'Stop')),
-          RowAction(label: 'Logs', icon: Icons.notes_rounded, onPressed: () => _openLogs(row)),
-        ];
-      case ServicesTab.timers:
-        return [
-          RowAction(
-            label: 'Run now',
-            icon: Icons.play_arrow_rounded,
-            loading: _busy.contains('timer:${row.name}'),
-            onPressed: () => _runTimer(row),
-          ),
-        ];
-      case ServicesTab.web:
-        return [
-          RowAction(
-            label: 'Test',
-            icon: Icons.network_check_rounded,
-            loading: _testing.contains(row.name),
-            onPressed: () => _testAddress(row),
-          ),
-        ];
-      case ServicesTab.scripts:
-        final busy = _busy.contains('script:${row.name}');
-        return [
-          RowAction(
-            label: 'Run',
-            icon: Icons.play_arrow_rounded,
-            kind: AxButtonKind.primary,
-            loading: busy,
-            onPressed: busy ? null : () => _runScript(row),
-          ),
-          RowAction(label: 'Edit', icon: Icons.edit_outlined, onPressed: busy ? null : () => _editScript(row)),
-          RowAction(label: 'Delete', icon: Icons.delete_outline_rounded, onPressed: busy ? null : () => _deleteScript(row)),
-        ];
+    } finally {
+      if (mounted) setState(() => _testingWeb.remove(row.name));
     }
   }
 
-  Widget _intro() {
-    switch (_tab) {
-      case ServicesTab.services:
-        return const TabIntro(
-          text: 'Programs that keep running on your server, like your web server.',
-          helpTitle: 'Background services',
-          helpText:
-              'A background service is a program that starts with your server and keeps running without anyone '
-              'logged in. Linux calls them “systemd services”. Stopping one switches that program off until you start it again.',
-        );
-      case ServicesTab.timers:
-        return const TabIntro(
-          text: 'Jobs your server runs on a schedule, like a nightly backup.',
-          helpTitle: 'Scheduled tasks',
-          helpText:
-              'A scheduled task runs by itself at set times, for example every night. Linux calls these “systemd timers”. '
-              '“Run now” starts the job straight away without changing its schedule.',
-        );
-      case ServicesTab.web:
-        return const TabIntro(
-          text: 'Website names that point to apps on your server.',
-          helpTitle: 'Web addresses',
-          helpText:
-              'A web address (like notes.example.com) is sent to the right app on your server by a helper called Caddy, '
-              'a “reverse proxy”. “Test” checks that the address answers.',
-        );
-      case ServicesTab.scripts:
-        return const TabIntro(
-          text: 'Saved sets of commands you can run on your server with one tap.',
-          helpTitle: 'Scripts',
-          helpText:
-              'A script is a text file of commands, for example to update an app. Scripts run on your server as the '
-              '“archangel” user, so only run ones you trust.',
-        );
-    }
+  Future<void> _viewDeployment(DevRowModel row, bool isWide) async {
+    final svc = context.read<DevopsService>();
+    final content = await svc.getDeploymentContent(row.name);
+    if (!mounted) return;
+    showDeploymentContent(context, name: row.name, content: content ?? '', isWide: isWide);
   }
 
-  ({IconData icon, String title, String message}) _emptyText() => switch (_tab) {
-    ServicesTab.services => (
-      icon: Icons.settings_suggest_outlined,
-      title: 'No background services found',
-      message: 'Programs that run in the background on your server will show up here.',
-    ),
-    ServicesTab.timers => (
-      icon: Icons.schedule_rounded,
-      title: 'No scheduled tasks',
-      message: 'Jobs that run on a schedule on your server will show up here.',
-    ),
-    ServicesTab.web => (
-      icon: Icons.language_rounded,
-      title: 'No web addresses yet',
-      message: 'When an app on your server is given a website name, it will show up here.',
-    ),
-    ServicesTab.scripts => (
-      icon: Icons.terminal_rounded,
-      title: 'No scripts yet',
-      message: 'Save a set of commands as a script and run it whenever you like.',
-    ),
-  };
+  Future<void> _removeDeployment(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    final yes = await showConfirmDialog(
+      context,
+      title: 'Remove ${row.name}?',
+      message: "This deletes the saved setup from your server. It can't be undone. Type ${row.name} to confirm.",
+      confirmLabel: 'Remove',
+      danger: true,
+      typeToConfirm: row.name,
+    );
+    if (!yes || !mounted) return;
+
+    final ok = await svc.deleteDeployment(row.name);
+    if (!mounted) return;
+    if (ok) {
+      _toast('${row.name} removed');
+      svc.fetchAll();
+    } else {
+      _toast(svc.lastActionMessage ?? 'Could not remove ${row.name}.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final backend = context.watch<ArchangeldConnection>();
     final svc = context.watch<DevopsService>();
-    final conn = context.watch<ArchangeldConnection>();
-    final wide = MediaQuery.sizeOf(context).width >= 900;
-    final ax = context.ax;
-
-    final actions = [
-      if (_tab == ServicesTab.scripts && conn.isPaired) AxButton(label: 'New script', icon: Icons.add_rounded, onPressed: _newScript),
-    ];
-
-    final Widget body;
-    var scroll = true;
-    final rows = _rowsFor(svc);
-    if (!conn.isPaired) {
-      scroll = false;
-      body = EmptyState(
-        icon: Icons.link_off_rounded,
-        title: 'Not connected to a server',
-        message: 'Connect this device to your server to see and manage its services.',
-        actionLabel: 'Open Settings',
-        onAction: () => context.read<AppState>().go(AxSection.settings),
-      );
-    } else if (!svc.hasLoaded) {
-      scroll = false;
-      body = LoadingState(message: 'Loading your services...', onRetry: svc.fetchAll);
-    } else {
-      final children = <Widget>[
-        ServicesTabBar(selected: _tab, onSelected: (t) => setState(() => _tab = t)),
-        SizedBox(height: ax.space.md),
-        _intro(),
-        SizedBox(height: ax.space.md),
-        if (_refusal != null) ...[
-          RefusalBanner(
-            title: _refusalIsAdmin ? 'Admin mode is off' : 'That wasn’t allowed',
-            message: _refusal!,
-            onDismiss: () => setState(() => _refusal = null),
-            onOpenSettings: _refusalIsAdmin ? () => context.read<AppState>().go(AxSection.settings) : null,
-          ),
-          SizedBox(height: ax.space.md),
-        ],
-        if (svc.error != null && rows.isNotEmpty) ...[
-          InfoBanner(message: 'Could not refresh everything. What you see may be out of date.'),
-          SizedBox(height: ax.space.md),
-        ],
-      ];
-      if (rows.isEmpty && svc.error != null) {
-        children.add(
-          ErrorState(
-            title: 'Could not load this list',
-            message: 'Your server did not answer. Check that the secure connection is on, then try again.',
-            onRetry: svc.fetchAll,
-          ),
-        );
-      } else if (rows.isEmpty) {
-        final e = _emptyText();
-        children.add(
-          EmptyState(
-            icon: e.icon,
-            title: e.title,
-            message: e.message,
-            actionLabel: _tab == ServicesTab.scripts ? 'New script' : null,
-            onAction: _tab == ServicesTab.scripts ? _newScript : null,
-          ),
-        );
-      } else {
-        children.add(_list(rows, wide));
-      }
-      body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
-    }
-
-    return AxPage(title: 'Services', subtitle: 'What is running on your server', scrollable: scroll, actions: actions, child: body);
-  }
-
-  Widget _list(List<DevRowModel> rows, bool wide) {
+    final app = context.read<AppState>();
     final ax = context.ax;
     final c = ax.colors;
-    Widget row(DevRowModel r) => ServiceRow(
-      key: ValueKey('${_tab.name}:${r.name}'),
-      name: r.name,
-      details: rowDetails(r),
-      badge: rowBadge(_tab, r),
-      actions: _actionsFor(r),
-      wide: wide,
-      footer:
-          _tab == ServicesTab.web && (_testing.contains(r.name) || _testResults.containsKey(r.name))
-              ? TestResultLine(testing: _testing.contains(r.name), result: _testResults[r.name])
-              : null,
+
+    if (!backend.isPaired) {
+      return AxPage(
+        title: 'Services',
+        child: EmptyState(
+          icon: Icons.miscellaneous_services_outlined,
+          title: 'No server connected yet',
+          message: 'Connect a server to view and manage background services.',
+          actionLabel: 'Open Settings',
+          onAction: () => app.go(AxSection.settings),
+        ),
+      );
+    }
+
+    final counts = {
+      ServicesTab.background: svc.services.length,
+      ServicesTab.scheduled: svc.scheduled.length,
+      ServicesTab.web: svc.proxy.length,
+      ServicesTab.deployments: svc.deployments.length,
+    };
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 720;
+
+        Widget content = SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.all(isWide ? ax.space.xl : ax.space.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              _buildHeader(ax, c, svc, isWide),
+              SizedBox(height: ax.space.lg),
+
+              // Pill Tabs
+              ServicesPillTabs(
+                currentTab: _tab,
+                counts: counts,
+                onSelect:
+                    (t) => setState(() {
+                      _tab = t;
+                      _lastTab = t;
+                    }),
+              ),
+              SizedBox(height: ax.space.lg),
+
+              // Tab Content
+              _buildTabBody(ax, c, svc, isWide),
+            ],
+          ),
+        );
+
+        if (!isWide) {
+          content = RefreshIndicator(onRefresh: () => svc.fetchAll(), child: content);
+        }
+
+        return content;
+      },
     );
-    if (wide) {
+  }
+
+  Widget _buildHeader(ArchangelTheme ax, AxPalette c, DevopsService svc, bool isWide) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Services', style: ax.typo.headline.copyWith(color: c.text)),
+              SizedBox(height: 2),
+              Text('The helpers that keep your server running in the background.', style: ax.typo.body.copyWith(color: c.textMuted)),
+            ],
+          ),
+        ),
+        if (isWide)
+          AxButton.secondary(label: 'Refresh', icon: Icons.refresh_rounded, loading: svc.loading, onPressed: () => svc.fetchAll()),
+      ],
+    );
+  }
+
+  Widget _buildTabBody(ArchangelTheme ax, AxPalette c, DevopsService svc, bool isWide) {
+    // 1. Group Error State
+    final failed = switch (_tab) {
+      ServicesTab.background => svc.servicesFailed,
+      ServicesTab.scheduled => svc.scheduledFailed,
+      ServicesTab.web => svc.proxyFailed,
+      ServicesTab.deployments => svc.deploymentsFailed,
+    };
+
+    if (failed) {
+      return GroupErrorView(groupNameLower: _tab.groupNameLower, onRetry: () => svc.fetchAll());
+    }
+
+    // 2. Initial Loading State (4 skeleton rows)
+    if (svc.loading && !svc.hasLoaded) {
+      return const ServicesLoadingSkeleton();
+    }
+
+    // 3. Data Rows
+    final rows = switch (_tab) {
+      ServicesTab.background => svc.services,
+      ServicesTab.scheduled => svc.scheduled,
+      ServicesTab.web => svc.proxy,
+      ServicesTab.deployments => svc.deployments,
+    };
+
+    final introWidget =
+        isWide
+            ? Padding(
+              padding: EdgeInsets.all(ax.space.md),
+              child: Row(
+                children: [
+                  Icon(Icons.tune_outlined, size: 20, color: c.accent),
+                  SizedBox(width: ax.space.sm),
+                  Expanded(child: Text(_tab.intro, style: ax.typo.body.copyWith(color: c.text))),
+                ],
+              ),
+            )
+            : null;
+
+    final listContent =
+        rows.isEmpty
+            ? Padding(
+              padding: EdgeInsets.symmetric(vertical: ax.space.xxl, horizontal: ax.space.lg),
+              child: Center(child: Text(_tab.emptyText, style: ax.typo.body.copyWith(color: c.textMuted))),
+            )
+            : Column(children: [for (final row in rows) _buildRow(ax, c, row, isWide)]);
+
+    if (isWide) {
       return AxCard(
         padding: EdgeInsets.zero,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ServiceTableHeader(detailsLabel: _tab == ServicesTab.web ? 'Goes to' : 'Details'),
-            for (final r in rows) ...[Divider(height: 1, color: c.border), row(r)],
+            if (introWidget != null) ...[introWidget, Divider(height: 1, color: c.border.withValues(alpha: 0.5))],
+            listContent,
           ],
         ),
       );
     }
-    return Column(children: [for (final r in rows) Padding(padding: EdgeInsets.only(bottom: ax.space.md), child: row(r))]);
+
+    // Compact layout: intro text above the card
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: ax.space.xs, vertical: ax.space.xs),
+          child: Text(_tab.intro, style: ax.typo.body.copyWith(color: c.textMuted)),
+        ),
+        SizedBox(height: ax.space.sm),
+        AxCard(padding: EdgeInsets.zero, child: listContent),
+      ],
+    );
+  }
+
+  Widget _buildRow(ArchangelTheme ax, AxPalette c, DevRowModel row, bool isWide) {
+    final actions = _buildActionsForRow(ax, c, row, isWide);
+    final inlineResult = _buildInlineResult(ax, c, row.name);
+
+    if (isWide) {
+      return WideServiceRow(row: row, actions: actions, inlineResult: inlineResult);
+    }
+    return CompactServiceRow(row: row, actions: actions, inlineResult: inlineResult);
+  }
+
+  Widget? _buildInlineResult(ArchangelTheme ax, AxPalette c, String name) {
+    if (_tab != ServicesTab.web) return null;
+    final res = _webResults[name];
+    if (res == null) return null;
+
+    final (ok, message) = res;
+    final color = ok ? c.success : c.danger;
+    final icon = ok ? Icons.check_circle_outline : Icons.error_outline;
+
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: color),
+          SizedBox(width: ax.space.xs + 2),
+          Expanded(child: Text(message, style: ax.typo.caption.copyWith(color: color, fontWeight: FontWeight.w600))),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildActionsForRow(ArchangelTheme ax, AxPalette c, DevRowModel row, bool isWide) {
+    final isRowBusy = _busyRows.contains(row.name);
+
+    switch (_tab) {
+      case ServicesTab.background:
+        final btns = <Widget>[];
+        final actions = row.actions;
+
+        if (row.ok) {
+          // Running: ghost Restart + Stop
+          if (actions.contains('Restart')) {
+            btns.add(
+              AxButton.ghost(
+                label: 'Restart',
+                loading: isRowBusy,
+                onPressed: isRowBusy ? null : () => _handleServiceAction(row, 'Restart'),
+              ),
+            );
+          }
+          if (actions.contains('Stop')) {
+            if (btns.isNotEmpty) btns.add(SizedBox(width: ax.space.xs));
+            btns.add(AxButton(label: 'Stop', loading: isRowBusy, onPressed: isRowBusy ? null : () => _handleServiceAction(row, 'Stop')));
+          }
+        } else {
+          // Stopped / Failed: primary Start
+          if (actions.contains('Start')) {
+            btns.add(AxButton(label: 'Start', loading: isRowBusy, onPressed: isRowBusy ? null : () => _handleServiceAction(row, 'Start')));
+          }
+        }
+        return btns;
+
+      case ServicesTab.scheduled:
+        final isRunning = _runningScheduled.contains(row.name);
+        return [
+          AxButton(label: isRunning ? 'Running…' : 'Run now', loading: isRunning, onPressed: isRunning ? null : () => _runScheduled(row)),
+        ];
+
+      case ServicesTab.web:
+        final isTesting = _testingWeb.contains(row.name);
+        final tested = _webResults.containsKey(row.name);
+        return [AxButton(label: tested ? 'Test again' : 'Test', loading: isTesting, onPressed: isTesting ? null : () => _testAddress(row))];
+
+      case ServicesTab.deployments:
+        return [
+          AxButton.secondary(label: 'View', onPressed: () => _viewDeployment(row, isWide)),
+          SizedBox(width: ax.space.xs),
+          AxButton.danger(label: 'Remove', onPressed: () => _removeDeployment(row)),
+        ];
+    }
   }
 }
