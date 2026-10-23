@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../theme.dart';
@@ -89,7 +92,7 @@ class ChartSeries {
 
 /// A line chart with a y-axis from 0 to [maxY]. Colours come from the theme
 /// (passed in by the caller). Series are told apart by the legend text, not
-/// by colour alone.
+/// by colour alone. Powered by fl_chart with interactive tooltips and smooth curves.
 class LiveChart extends StatelessWidget {
   const LiveChart({
     super.key,
@@ -111,6 +114,9 @@ class LiveChart extends StatelessWidget {
     final ax = context.ax;
     final c = ax.colors;
     final hasData = series.any((s) => s.values.length >= 2);
+    final top = maxY <= 0 ? 1.0 : maxY;
+    final maxPoints = series.fold<int>(0, (prev, s) => math.max(prev, s.values.length));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -119,30 +125,98 @@ class LiveChart extends StatelessWidget {
           image: true,
           child: SizedBox(
             height: height,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 64,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(formatY(maxY), style: ax.typo.caption.copyWith(color: c.textMuted)),
-                      Text(formatY(maxY / 2), style: ax.typo.caption.copyWith(color: c.textMuted)),
-                      Text(formatY(0), style: ax.typo.caption.copyWith(color: c.textMuted)),
-                    ],
-                  ),
-                ),
-                SizedBox(width: ax.space.sm),
-                Expanded(
-                  child:
-                      hasData
-                          ? CustomPaint(painter: _ChartPainter(series: series, maxY: maxY, grid: c.border, axis: c.outline))
-                          : Center(child: Text('Collecting readings...', style: ax.typo.body.copyWith(color: c.textMuted))),
-                ),
-              ],
-            ),
+            child:
+                hasData
+                    ? Padding(
+                      padding: const EdgeInsets.only(right: 12, top: 4),
+                      child: LineChart(
+                        LineChartData(
+                          minY: 0,
+                          maxY: top,
+                          minX: 0,
+                          maxX: math.max(1, (maxPoints - 1)).toDouble(),
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval: top / 2,
+                            getDrawingHorizontalLine:
+                                (val) => FlLine(color: c.border.withValues(alpha: 0.5), strokeWidth: 1, dashArray: [4, 4]),
+                          ),
+                          titlesData: FlTitlesData(
+                            show: true,
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 64,
+                                interval: top / 2,
+                                getTitlesWidget: (value, meta) {
+                                  if (value > top * 1.02 || value < -0.02) return const SizedBox.shrink();
+                                  return SideTitleWidget(
+                                    meta: meta,
+                                    child: Text(formatY(value), style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 11)),
+                                  );
+                                },
+                              ),
+                            ),
+                            bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          ),
+                          borderData: FlBorderData(
+                            show: true,
+                            border: Border(bottom: BorderSide(color: c.outline.withValues(alpha: 0.5), width: 1)),
+                          ),
+                          lineBarsData: [
+                            for (final s in series)
+                              if (s.values.length >= 2)
+                                LineChartBarData(
+                                  spots: [
+                                    for (int i = 0; i < s.values.length; i++) FlSpot(i.toDouble(), s.values[i].clamp(0.0, top * 1.5)),
+                                  ],
+                                  isCurved: true,
+                                  curveSmoothness: 0.28,
+                                  preventCurveOverShooting: true,
+                                  color: s.color,
+                                  barWidth: 2.2,
+                                  isStrokeCapRound: true,
+                                  dotData: const FlDotData(show: false),
+                                  belowBarData: BarAreaData(
+                                    show: true,
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [s.color.withValues(alpha: 0.22), s.color.withValues(alpha: 0.01)],
+                                    ),
+                                  ),
+                                ),
+                          ],
+                          lineTouchData: LineTouchData(
+                            enabled: true,
+                            touchTooltipData: LineTouchTooltipData(
+                              getTooltipColor: (_) => c.glassStrong,
+                              tooltipBorder: BorderSide(color: c.glassBorder),
+                              tooltipBorderRadius: BorderRadius.circular(8),
+                              fitInsideHorizontally: true,
+                              fitInsideVertically: true,
+                              getTooltipItems: (touchedSpots) {
+                                final validSeries = series.where((s) => s.values.length >= 2).toList();
+                                return touchedSpots.map((spot) {
+                                  if (spot.barIndex >= validSeries.length) return null;
+                                  final s = validSeries[spot.barIndex];
+                                  return LineTooltipItem(
+                                    '${s.label}: ${formatY(spot.y)}',
+                                    ax.typo.caption.copyWith(color: s.color, fontWeight: FontWeight.w600, fontSize: 11.5),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                          ),
+                        ),
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOutCubic,
+                      ),
+                    )
+                    : Center(child: Text('Collecting readings...', style: ax.typo.body.copyWith(color: c.textMuted))),
           ),
         ),
         SizedBox(height: ax.space.sm),
@@ -166,71 +240,6 @@ class LiveChart extends StatelessWidget {
       ],
     );
   }
-}
-
-class _ChartPainter extends CustomPainter {
-  _ChartPainter({required this.series, required this.maxY, required this.grid, required this.axis});
-  final List<ChartSeries> series;
-  final double maxY;
-  final Color grid;
-  final Color axis;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final gridPaint =
-        Paint()
-          ..color = grid
-          ..strokeWidth = 1;
-    for (final f in const [0.0, 0.5, 1.0]) {
-      final y = size.height * (1 - f);
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        f == 0
-            ? (Paint()
-              ..color = axis
-              ..strokeWidth = 1)
-            : gridPaint,
-      );
-    }
-    final top = maxY <= 0 ? 1.0 : maxY;
-    for (final s in series) {
-      final n = s.values.length;
-      if (n < 2) continue;
-      final dx = size.width / (n - 1);
-      final path = Path();
-      for (var i = 0; i < n; i++) {
-        final y = size.height * (1 - (s.values[i] / top).clamp(0.0, 1.0));
-        i == 0 ? path.moveTo(0, y) : path.lineTo(i * dx, y);
-      }
-      final fill =
-          Path.from(path)
-            ..lineTo(size.width, size.height)
-            ..lineTo(0, size.height)
-            ..close();
-      canvas.drawPath(
-        fill,
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [s.color.withValues(alpha: 0.20), s.color.withValues(alpha: 0.0)],
-          ).createShader(Offset.zero & size),
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = s.color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..strokeJoin = StrokeJoin.round
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_ChartPainter old) => true;
 }
 
 /// A labelled horizontal usage bar with its percentage as text.

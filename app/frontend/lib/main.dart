@@ -13,16 +13,18 @@ import 'services/monitoring_service.dart';
 import 'services/update_check_service.dart';
 import 'services/wireguard_controller.dart';
 import 'services/server_registry.dart';
+import 'services/window_service.dart';
 import 'ui/boot/boot_splash.dart';
 import 'ui/components/ax_scaled_canvas.dart';
 import 'ui/shell/archangel_shell.dart';
 import 'ui/shell/desktop_prefs.dart';
 import 'ui/theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Launch in fullscreen mode like a game (immersive sticky on mobile/tablets)
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  await WindowService.init(fullScreen: true);
   runApp(const ArchangelApp());
 }
 

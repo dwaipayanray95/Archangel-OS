@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +12,7 @@ import '../../main.dart' show ArchangelApp;
 import '../../services/archangeld_connection.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
+import '../../services/window_service.dart';
 import '../screens/home/home_logic.dart';
 import '../components/ax_glass.dart';
 import '../components/status_badge.dart';
@@ -609,6 +611,16 @@ class _DesktopModeViewState extends State<DesktopModeView> {
       }
     }
 
+    // 4. Fullscreen toggle shortcut (F11 or Cmd+Ctrl+F)
+    final isFullscreenKey =
+        event.logicalKey == LogicalKeyboardKey.f11 || ((isMeta && isCtrl) && event.logicalKey == LogicalKeyboardKey.keyF);
+    if (isFullscreenKey) {
+      if (mounted) {
+        context.read<AppState>().toggleFullScreen();
+      }
+      return true;
+    }
+
     return false;
   }
 
@@ -1003,10 +1015,60 @@ class _HealthWidget extends StatelessWidget {
                 _WidgetMeter(label: 'CPU', percent: m.cpu.usagePercent),
                 _WidgetMeter(label: 'Memory', percent: m.memory.usagePercent),
                 _WidgetMeter(label: 'Disk', percent: worstDiskPercent(m.disk)),
+                if (mon.cpuHistory.length >= 2) ...[SizedBox(height: ax.space.sm), _MiniSparkline(values: mon.cpuHistory, color: tone)],
               ],
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _MiniSparkline extends StatelessWidget {
+  const _MiniSparkline({required this.values, required this.color});
+
+  final List<double> values;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    if (values.length < 2) return const SizedBox.shrink();
+    return SizedBox(
+      height: 28,
+      child: LineChart(
+        LineChartData(
+          minY: 0,
+          maxY: 100,
+          minX: 0,
+          maxX: (values.length - 1).toDouble(),
+          titlesData: const FlTitlesData(show: false),
+          gridData: const FlGridData(show: false),
+          borderData: FlBorderData(show: false),
+          lineTouchData: const LineTouchData(enabled: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: [for (int i = 0; i < values.length; i++) FlSpot(i.toDouble(), values[i])],
+              isCurved: true,
+              curveSmoothness: 0.3,
+              preventCurveOverShooting: true,
+              color: color,
+              barWidth: 1.8,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [color.withValues(alpha: 0.25), color.withValues(alpha: 0.02)],
+                ),
+              ),
+            ),
+          ],
+        ),
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
       ),
     );
   }
@@ -1177,18 +1239,22 @@ class _TopBar extends StatelessWidget {
       borderColor: Colors.transparent,
       child: SafeArea(
         bottom: false,
-        child: SizedBox(
-          height: kDeskTopBarHeight,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: ax.space.md),
-            child: Row(
-              children: [
-                _ArchangelSystemMenu(windows: windows, onOpen: onOpen, onSimpleLayout: onSimpleLayout, onCustomize: onCustomize),
-                SizedBox(width: ax.space.md),
-                const Expanded(child: StatusStrip(showServerName: false, compact: true)),
-                SizedBox(width: ax.space.sm),
-                const _Clock(),
-              ],
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onPanStart: (_) => WindowService.startDragging(),
+          child: SizedBox(
+            height: kDeskTopBarHeight,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: ax.space.md),
+              child: Row(
+                children: [
+                  _ArchangelSystemMenu(windows: windows, onOpen: onOpen, onSimpleLayout: onSimpleLayout, onCustomize: onCustomize),
+                  SizedBox(width: ax.space.md),
+                  const Expanded(child: StatusStrip(showServerName: false, compact: true)),
+                  SizedBox(width: ax.space.sm),
+                  const _Clock(),
+                ],
+              ),
             ),
           ),
         ),
@@ -1228,6 +1294,7 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
     final isPaired = context.read<ArchangeldConnection>().isPaired;
 
     final isMac = Platform.isMacOS;
+    final isFullScreen = context.read<AppState>().fullScreen;
     final choice = await showDeskMenu(context, pos, [
       const DeskMenuItem('about', 'About Archangel OS', Icons.auto_awesome_rounded),
       const DeskMenuItem('settings', 'System Settings…', Icons.settings_outlined),
@@ -1235,6 +1302,12 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
       const DeskMenuItem('launcher', 'App Launcher', Icons.apps_rounded),
       const DeskMenuItem('customize', 'Customize Desktop…', Icons.tune_rounded),
       const DeskMenuItem('tidy', 'Tidy Windows', Icons.grid_view_outlined),
+      DeskMenuItem(
+        'fullscreen',
+        isFullScreen ? 'Exit Full Screen' : 'Enter Full Screen',
+        Icons.fullscreen_rounded,
+        trailing: isMac ? '⌃⌘F' : 'F11',
+      ),
       const DeskMenuItem.divider(),
       const DeskMenuItem('simple', 'Switch to Simple Layout', Icons.view_sidebar_outlined),
       const DeskMenuItem.divider(),
@@ -1260,6 +1333,8 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
         widget.onCustomize();
       case 'tidy':
         widget.windows.tidy();
+      case 'fullscreen':
+        context.read<AppState>().toggleFullScreen();
       case 'simple':
         widget.onSimpleLayout();
       case 'switch_server':
@@ -1325,9 +1400,7 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
       await SystemNavigator.pop();
     } catch (_) {}
     if (!Platform.environment.containsKey('FLUTTER_TEST')) {
-      if (Platform.isMacOS || Platform.isLinux || Platform.isWindows) {
-        exit(0);
-      }
+      await WindowService.destroy();
     }
   }
 

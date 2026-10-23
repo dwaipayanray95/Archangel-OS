@@ -17,6 +17,7 @@ import '../../widgets/notif_panel.dart';
 import '../components/ax_glass.dart';
 import '../components/ax_icon_button.dart';
 import '../components/ax_wordmark.dart';
+import '../components/confirm_dialog.dart';
 import '../theme.dart';
 import 'desktop_mode.dart';
 import 'desktop_prefs.dart';
@@ -96,6 +97,7 @@ class _ArchangelShellState extends State<ArchangelShell> {
     _lastPairing = _backend.pairingGeneration;
     _backend.addListener(_onBackendChanged);
     _desk.addListener(_onDeskChanged);
+    WindowService.onCloseRequested = _handleWindowClose;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WindowService.setFullScreen(true);
     });
@@ -103,10 +105,25 @@ class _ArchangelShellState extends State<ArchangelShell> {
 
   @override
   void dispose() {
+    WindowService.onCloseRequested = null;
     _backend.removeListener(_onBackendChanged);
     _desk.removeListener(_onDeskChanged);
     _desk.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleWindowClose() async {
+    if (!mounted) return;
+    final ok = await showConfirmDialog(
+      context,
+      title: 'Quit Archangel OS?',
+      message: 'Are you sure you want to exit the application?',
+      confirmLabel: 'Quit',
+      danger: true,
+    );
+    if (ok) {
+      await WindowService.destroy();
+    }
   }
 
   void _onDeskChanged() {

@@ -25,6 +25,12 @@ class MonitoringService extends ChangeNotifier {
   SystemMetrics? _metrics;
   SystemMetrics? get metrics => _metrics;
 
+  final List<double> _cpuHistory = [];
+  List<double> get cpuHistory => List.unmodifiable(_cpuHistory);
+
+  final List<double> _ramHistory = [];
+  List<double> get ramHistory => List.unmodifiable(_ramHistory);
+
   List<LiveProcessInfo> _processes = [];
   List<LiveProcessInfo> get processes => _processes;
 
@@ -111,11 +117,20 @@ class MonitoringService extends ChangeNotifier {
   void reset() {
     stop();
     _metrics = null;
+    _cpuHistory.clear();
+    _ramHistory.clear();
     _processes = [];
     _totalProcesses = 0;
     _error = null;
     _lastPolled = null;
     notifyListeners();
+  }
+
+  void _recordSample(SystemMetrics m) {
+    _cpuHistory.add(m.cpu.usagePercent.clamp(0.0, 100.0));
+    if (_cpuHistory.length > 30) _cpuHistory.removeAt(0);
+    _ramHistory.add(m.memory.usagePercent.clamp(0.0, 100.0));
+    if (_ramHistory.length > 30) _ramHistory.removeAt(0);
   }
 
   void _closeSocket() {
@@ -223,7 +238,9 @@ class MonitoringService extends ChangeNotifier {
   void _onWsMessage(dynamic raw) {
     try {
       final data = jsonDecode(raw.toString()) as Map<String, dynamic>;
-      _metrics = SystemMetrics.fromJson(data);
+      final m = SystemMetrics.fromJson(data);
+      _metrics = m;
+      _recordSample(m);
       _lastPolled = DateTime.now();
       if (_status != MonitoringStatus.connected) {
         _status = MonitoringStatus.connected;
@@ -248,7 +265,9 @@ class MonitoringService extends ChangeNotifier {
       final res = await http.get(backend.metricsHttpUri(), headers: {'X-Archangel-Token': token});
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
-        _metrics = SystemMetrics.fromJson(data);
+        final m = SystemMetrics.fromJson(data);
+        _metrics = m;
+        _recordSample(m);
         _lastPolled = DateTime.now();
         if (_status != MonitoringStatus.connected) {
           _status = MonitoringStatus.connected;
