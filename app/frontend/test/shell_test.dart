@@ -503,6 +503,13 @@ void main() {
       expect(find.byKey(const ValueKey('app-switcher-scrim')), findsNothing);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
 
+      // F11 belongs to the terminal too (htop, mc) and must not resize the window.
+      final app = tester.element(find.byType(DesktopModeView)).read<AppState>();
+      final wasFull = app.fullScreen;
+      await tester.sendKeyEvent(LogicalKeyboardKey.f11);
+      await tester.pump();
+      expect(app.fullScreen, wasFull);
+
       // Once focus leaves the terminal the shortcut works again.
       node.unfocus();
       await tester.pump();

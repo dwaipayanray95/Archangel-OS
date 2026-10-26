@@ -19,8 +19,8 @@ in the Halo look, under `lib/ui/screens/services/`.
   error for all four groups. Add per-group failure flags
   (`servicesFailed`, `scheduledFailed`, `proxyFailed`, `deploymentsFailed`)
   so each tab can show its own error. Keep `error` as it is.
-- Not in v1 even though the engine has them: `runDeployment`,
-  `saveDeployment`.
+- Also used (added 2026-10-26, Ray's decision): `runDeployment`,
+  `saveDeployment`, plus `lastActionMessage` / `lastActionStatus` for refusals.
 
 ## Layout
 
@@ -39,7 +39,7 @@ in the Halo look, under `lib/ui/screens/services/`.
   - Web addresses: "The web addresses that point to your apps, and the secure
     (HTTPS) setup behind them."
   - Deployments: "Saved setups that describe how an app is installed. You can
-    look inside one or remove it."
+    run one, change it, or add a new one."
 - Rows: name (mono), meta (muted), status badge (icon + text), actions.
   Wide (≥ 720): one line, actions on the right, wrap below when tight (reuse
   `AxListTile`). Compact (< 720, phones and windows down to 340): name + badge
@@ -67,6 +67,16 @@ in the Halo look, under `lib/ui/screens/services/`.
 - **Deployments**: "View" opens the content read-only (wide: dialog; compact:
   full-height sheet) with the name (mono), "Read only", the content in a dark
   mono block, buttons "Copy" and close. "Remove" → confirm below.
+  - "Run" → confirm "Run <name>?" / "This runs the script on your server as the
+    archangel user." → output in a sheet with a "Finished" / "Did not finish"
+    badge and "Copy".
+  - "Edit" → full-screen editor (mono, Save, "Discard your changes?" on back
+    with unsaved edits). "New script" (header when wide, above the list when
+    compact) → same editor with a name field: ends in `.sh`, letters, digits,
+    `.`, `-`, `_`, at most 64 characters, not starting with `.` or `-`.
+- **Admin mode refusals** (403 or a message about Admin mode) show a
+  dismissible banner with the server's message and "Open Settings"; inside the
+  editor the banner has no button (leaving would lose the text).
 
 ### Confirmations
 
@@ -107,7 +117,6 @@ in the Halo look, under `lib/ui/screens/services/`.
 
 ## Left out of v1
 
-- Run a deployment again, create or edit a deployment.
 - Clear stopped-vs-failed from the server (v1 reads the status text).
 - Last-run time and output for scheduled tasks.
 - Adding or editing web addresses, scheduled tasks or services.

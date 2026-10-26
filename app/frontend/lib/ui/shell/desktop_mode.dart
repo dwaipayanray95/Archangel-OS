@@ -565,7 +565,7 @@ class _DesktopModeViewState extends State<DesktopModeView> {
     }
 
     // Leave Tab and Alt/Ctrl+arrow shortcuts alone while a terminal has focus
-    // (word jumps, tmux, vim) or a dialog is on top. F11 below still works.
+    // (word jumps, tmux, vim) or a dialog is on top.
     final yieldsKeys = TerminalFocusMarker.isFocusInside() || (ModalRoute.of(context)?.isCurrent == false);
 
     // 2. Trigger App Switcher HUD (Cmd+Tab, Alt+Tab, Ctrl+Tab)
@@ -615,10 +615,12 @@ class _DesktopModeViewState extends State<DesktopModeView> {
       }
     }
 
-    // 4. Fullscreen toggle shortcut (F11 or Cmd+Ctrl+F)
+    // 4. Fullscreen toggle shortcut (F11 or Cmd+Ctrl+F). Not while typing in
+    // a terminal: a stray key must not resize the window, and terminal
+    // programs (htop, mc) use the F-keys themselves.
     final isFullscreenKey =
         event.logicalKey == LogicalKeyboardKey.f11 || ((isMeta && isCtrl) && event.logicalKey == LogicalKeyboardKey.keyF);
-    if (isFullscreenKey) {
+    if (isFullscreenKey && !TerminalFocusMarker.isFocusInside()) {
       if (mounted) {
         context.read<AppState>().toggleFullScreen();
       }

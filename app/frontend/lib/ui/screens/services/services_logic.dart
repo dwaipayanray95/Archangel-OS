@@ -18,7 +18,7 @@ enum ServicesTab {
     ServicesTab.background => 'Programs that run all the time to keep things working, like your web server or database.',
     ServicesTab.scheduled => 'Jobs that run by themselves at set times, like nightly backups.',
     ServicesTab.web => 'The web addresses that point to your apps, and the secure (HTTPS) setup behind them.',
-    ServicesTab.deployments => 'Saved setups that describe how an app is installed. You can look inside one or remove it.',
+    ServicesTab.deployments => 'Saved setups that describe how an app is installed. You can run one, change it, or add a new one.',
   };
 
   String get emptyText => switch (this) {
