@@ -26,5 +26,5 @@ class AppVersion {
   // Used when no --dart-define is given (local `flutter run`, tests).
   // Kept in step with pubspec.yaml by scripts/bump_version.sh.
   static const String fallbackVersion = '0.8.0';
-  static const int fallbackBuild = 3;
+  static const int fallbackBuild = 4;
 }

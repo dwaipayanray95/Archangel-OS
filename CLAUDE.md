@@ -82,7 +82,11 @@ bump the version in the same commit:
 1. Pick the part from what changed for the user:
    - `patch`: bug fixes, small polish, wording, performance.
    - `minor`: a new feature, setting, screen or server endpoint.
-   - `major`: only when Ray asks for it (e.g. 1.0).
+   - `major`: never on your own. When a change looks major-worthy (e.g.
+     the app or server stops working with older versions, setup or data
+     must be redone, or a big milestone like 1.0 is reached), do the
+     smaller bump, then suggest a major bump to Ray with a one-line reason
+     and let him decide.
    - `build`: changes users can't see (docs, tests, CI, refactors).
 2. Check whether the current version has been released yet:
    `git ls-remote --tags origin "v$(grep '^version:' app/frontend/pubspec.yaml | sed -E 's/version: ([0-9.]+)\+.*/\1/')"`.
