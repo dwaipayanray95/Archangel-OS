@@ -6,9 +6,20 @@ import '../../ui.dart';
 /// separated by hairlines, then an optional footnote. Rows are [AxListTile]s
 /// with `controls`, or one of the plain message widgets below.
 class SettingsCard extends StatelessWidget {
-  const SettingsCard({super.key, this.title, this.actions = const [], required this.children, this.footnote, this.danger = false});
+  const SettingsCard({
+    super.key,
+    this.title,
+    this.intro,
+    this.actions = const [],
+    required this.children,
+    this.footnote,
+    this.danger = false,
+  });
 
   final String? title;
+
+  /// One plain line under the title saying what this card is for.
+  final String? intro;
   final List<Widget> actions;
   final List<Widget> children;
 
@@ -25,7 +36,8 @@ class SettingsCard extends StatelessWidget {
     final divider = Divider(height: 1, thickness: 1, color: c.border);
     final rows = <Widget>[];
     for (var i = 0; i < children.length; i++) {
-      if (i > 0 || title != null) rows.add(divider);
+      final afterLabel = i > 0 && children[i - 1] is SettingsGroupLabel;
+      if ((i > 0 || title != null) && !afterLabel) rows.add(divider);
       rows.add(children[i]);
     }
     return AxCard(
@@ -37,25 +49,79 @@ class SettingsCard extends StatelessWidget {
           if (title != null)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.md),
-              child: Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: ax.space.md,
-                runSpacing: ax.space.sm,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Semantics(header: true, child: Text(title!, style: ax.typo.title.copyWith(color: c.text))),
-                  if (actions.isNotEmpty)
-                    Wrap(spacing: ax.space.sm, runSpacing: ax.space.sm, crossAxisAlignment: WrapCrossAlignment.center, children: actions),
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: ax.space.md,
+                    runSpacing: ax.space.sm,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(title!, style: ax.typo.title.copyWith(color: c.text)),
+                      ),
+                      if (actions.isNotEmpty)
+                        Wrap(
+                          spacing: ax.space.sm,
+                          runSpacing: ax.space.sm,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: actions,
+                        ),
+                    ],
+                  ),
+                  if (intro != null) ...[SizedBox(height: ax.space.xs), Text(intro!, style: ax.typo.caption.copyWith(color: c.textMuted))],
                 ],
               ),
             ),
           ...rows,
           if (footnote != null) ...[
             divider,
-            Padding(padding: EdgeInsets.all(ax.space.lg), child: Text(footnote!, style: ax.typo.caption.copyWith(color: c.textMuted))),
+            Padding(
+              padding: EdgeInsets.all(ax.space.lg),
+              child: Text(footnote!, style: ax.typo.caption.copyWith(color: c.textMuted)),
+            ),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// A small sub-heading that splits a long card into groups.
+class SettingsGroupLabel extends StatelessWidget {
+  const SettingsGroupLabel(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(ax.space.lg, ax.space.md, ax.space.lg, ax.space.xs),
+      child: Semantics(
+        header: true,
+        child: Text(text, style: ax.typo.label.copyWith(color: ax.colors.textMuted)),
+      ),
+    );
+  }
+}
+
+/// Cards of one Settings section, one under the other.
+class SettingsStack extends StatelessWidget {
+  const SettingsStack({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final gap = SizedBox(height: context.ax.space.lg);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[if (i > 0) gap, children[i]],
+      ],
     );
   }
 }
@@ -69,7 +135,10 @@ class SettingsMessage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
-    return Padding(padding: EdgeInsets.all(ax.space.lg), child: Text(text, style: ax.typo.body.copyWith(color: ax.colors.textMuted)));
+    return Padding(
+      padding: EdgeInsets.all(ax.space.lg),
+      child: Text(text, style: ax.typo.body.copyWith(color: ax.colors.textMuted)),
+    );
   }
 }
 
@@ -94,7 +163,9 @@ class SettingsError extends StatelessWidget {
             children: [
               Icon(Icons.error_outline, size: 18, color: c.danger),
               SizedBox(width: ax.space.sm),
-              Expanded(child: Text(text, style: ax.typo.body.copyWith(color: c.danger))),
+              Expanded(
+                child: Text(text, style: ax.typo.body.copyWith(color: c.danger)),
+              ),
             ],
           ),
           if (onRetry != null) ...[SizedBox(height: ax.space.sm), AxButton.secondary(label: 'Retry', small: true, onPressed: onRetry)],

@@ -1,247 +1,158 @@
 # Spec: Settings
 
-Status: **signed off** by Ray. Ready to build.
+Status: **signed off** by Ray. Built.
 
-Goal: rebuild Settings to match the prototype. Keep everything the current
-Settings can do, put it into clear sections, and use the Halo look.
+Updated per Ray's decision 2026-10-26: keep current sections. This replaces the
+earlier structure (Servers, Devices, Admin mode, Security, Appearance, Updates,
+Danger zone). The sections below are what the app does now.
+
+Goal: keep every section Settings already has, but arrange it better, explain
+each card in one plain line, and replace jargon with useful information.
+
+## Rules for every card
+
+- A card has a **title** (sentence case) and **one plain line** under it saying
+  what it is for (`SettingsCard.intro`).
+- Long cards are split into groups with small sub-headings
+  (`SettingsGroupLabel`), or into several cards, not one long list.
+- Plain words: "secure connection", not "WireGuard tunnel"; "apps", not
+  "containers". Technical values only appear inside "Technical details".
+- Status is icon + text (`StatusBadge`). Risky actions ask first.
 
 ## Structure
 
-The sections, in this order:
+Sections, in this order:
 
 | id | Label | Icon |
 |---|---|---|
+| about | About | auto_awesome_rounded |
 | servers | Servers | dns_outlined |
 | devices | Devices | devices_outlined |
 | admin | Admin mode | key_outlined |
 | security | Security | shield_outlined |
 | appearance | Appearance | light_mode_outlined |
-| updates | Updates | download_outlined |
-| danger | Danger zone | warning_amber_rounded (in danger colour) |
+| system | System | tune_rounded |
 
-Hide Devices and Admin mode while no server is paired, as the app does today.
+Hide Devices and Admin mode while no server is paired.
 
-### Wide (given width ≥ 720)
+- **Wide** (given width at least 720): a section list on the left (220 wide,
+  three glass groups: About / Servers to Security / Appearance and System) and
+  the chosen section on the right. It opens on About.
+- **Narrow** (under 720, including 340-wide Desktop windows): the list as
+  full-width rows with a chevron; tapping one opens it with an "All settings"
+  ghost button at the top. Decided with `LayoutBuilder`.
 
-- Page title "Settings", with the subtitle "Archangel v<version>".
-- Two columns: a **section list** on the left (glass card, 220 wide) and the
-  **chosen section** on the right.
-- In the list, each row is 42 tall with radius 12, an icon and a label. The
-  selected row gets an `accentWash` background, accent text and
-  `aria-current`. The Danger zone row uses danger text.
-- It opens on Servers.
+## About
 
-### Narrow (given width < 720, which includes phones and narrow windows)
+A useful overview of this server. Cards, in order:
 
-- Title "Settings", then the section list as full-width rows with a chevron on
-  the right.
-- Tapping a row shows that section: a ghost button "‹ All settings", then the
-  section name as the title, then its content. Back (system back or the button)
-  returns to the list.
+1. **Header**: the wordmark, "Your private cloud, guarded 24/7.", an
+   `App <version>` chip (and "No server yet" when unpaired).
+2. **This server** (paired only): "A quick look at the server you are using."
+   - Server name (mono) with the health sentence (`evaluateHealth`) and a
+     health chip (Healthy / Needs attention / Offline / Connecting).
+   - Running for ("3 days 4 hours").
+   - Operating system in plain words ("Ubuntu 24.04").
+   - Size ("4 CPU cores · 8 GB memory · 80 GB disk").
+   - Until the server answers: "Details appear once your server answers."
+3. **Secure connection** (paired only): "Everything between this device and your
+   server is encrypted."
+   - Connection: the shell's words (`connectionText`) and a chip (Encrypted,
+     Connecting…, Not answering, Not connected).
+   - Private address (mono, for example 10.10.0.7).
+   - "Last checked 7s ago" (from the live server readings).
+   - **Technical details**: collapsed toggle. Open, it lists computer name,
+     kernel, architecture, full OS name, server address, server program
+     version, connection endpoint, tunnel address, allowed addresses,
+     interface name and both ports. Each value has a copy button (tooltip
+     "Copy <label>"). Empty values are left out. The private key is never shown.
+4. **Updates**: "Keep the app and your server on the latest version."
+   - Archangel OS app: "Version x", chip "Up to date", or "<v> ready" and
+     **Download**.
+   - Server program (paired only): "Version x", "Up to date", or "<v> ready"
+     and **Update** (the existing update dialog). Version unknown: "Can't check
+     right now" and a neutral "Not answering" chip.
+   - A result line in words ("You're up to date.", "An update is ready.",
+     "Checking for updates…", or "No check yet. Press "Check now".") with
+     "Last checked <date>" and the **Check now** button.
+   - Footnote: "Every update is checked before it installs, and rolls itself
+     back if anything goes wrong."
 
-Decide wide or narrow with `LayoutBuilder` on the width the screen is given,
-because inside a Desktop-mode window it can be narrow on a big screen.
+## Servers
 
-### Rows
+- **Active server**: "The server you are using right now, and whether you are
+  connected to it." Rows: the server (name and address, "In use: <name>"),
+  Connection (state in words, with Connect, Reconnect, Disconnect and Test
+  connection), Secure connection (Encrypted / Connecting… / Off in this app) and
+  Archangel on your server (version and Running / Can't be reached).
+- **Servers**: "The servers saved on this device. Switch between them or add
+  another." One row per server: name, address (and computer name for the active
+  one), "In use" chip or **Switch to it**, and a menu with Rename and Remove.
+  **Add a server** in the header.
 
-Most sections are one glass card holding a list of rows. Each row has:
+## Devices (paired only)
 
-- a **title** (body, text colour)
-- a **subtitle** (caption, muted) below it
-- **controls on the right**: a small button, a switch, a segmented control or
-  a status chip
+"Phones and computers that are allowed to reach your server." Rows, refresh,
+**Add a device** (QR), per-device **Remove** with the existing confirmations,
+and the footnote "Only devices listed here can reach your server. Removing one
+cuts it off straight away." Loading, error (Retry) and empty states unchanged.
 
-If the controls don't fit, they wrap below the text (min text width 200).
-Use or extend `AxListTile`. Don't make a new row widget per section.
+## Admin mode (paired only)
 
-## Sections
+One card: title and switch, the line "Lets the app and the terminal make bigger
+changes on your server.", the status chip and the two explaining paragraphs.
+Turning it off asks first.
 
-The wording is final. Copy it exactly.
+## Security
 
-### Servers
+One card, "Security", with the line "The key and the secure connection that keep
+your server private." Three groups:
 
-Card header: **Servers**, with a small **Add a server** button (`+` icon) on
-the right. It does what the current Add a server does.
+- **Your key**: SSH key (Manage menu: Change passphrase, Replace key, Forget
+  key; or **Add a key**).
+- **Connection**: Secure connection (state in words, private address, Encrypted
+  or Not connected chip, Connect / Disconnect, Details) and, on a Mac without
+  the helper, Allow seamless connection.
+- **Repairs** (paired only): Repair server permissions.
 
-One row per saved server:
-- a tile icon `dns_outlined`
-- the name in mono
-- a subtitle with the host address (mono)
-- on the right: for the active server, a chip "✓ In use" (ok). Otherwise a
-  small **Switch to it** button.
-- a `⋯` icon button (tooltip "More for <name>") with a menu: **Rename**,
-  **Remove**. Keep the current Rename dialog and the Remove confirmation.
+## Appearance
 
-If there are no servers: "No servers yet." and the Add button.
+Four cards:
 
-### Devices (only when paired)
+- **Look**: Theme, Accent colour, UI scale.
+- **Windows and layout** (only when the screen allows Desktop mode, by screen
+  width): Layout, Window mode.
+- **Desktop** (only in Desktop mode): wallpaper, dock position and size, hide
+  the dock automatically, health widget, wallpaper wordmark, and **Customize**.
+- **Start-up animation**: Replay first launch, Replay later launch.
 
-Card header: **Devices**, with a primary small button **Add a device** (QR
-icon). It opens the existing `showAddDeviceDialog`.
+## System
 
-One row per device (from `DevicesService`):
-- a tile icon (phone or computer, depending on the device type if known)
-- the name
-- a subtitle with the last-seen or added text the service already gives
-- on the right: for this device, the chip "✓ This device" (accent). For others,
-  a ghost **Remove** button. It keeps the existing revoke confirmation, but the
-  wording changes to: title "Remove <name>?", body "It won't be able to reach
-  your server any more.", button "Remove".
+- **This device**: "Tidy up the app on this device. Your server is not
+  changed."
+  - **Free up space**: clears saved image previews and Archangel's own
+    temporary folder only. Button "Clear now".
+  - **Reset app settings**: asks first.
+- **Help & diagnostics**: "Something not working? Send us the details and we
+  can help."
+  - **Diagnostics**: **View report** and **Copy diagnostics for support**. The
+    report holds versions, systems, connection state, health and recent errors.
+    It is redacted: the token, keys, pairing bundle, SSH key and passphrase, and
+    addresses are never in it, and error text is scrubbed too.
+  - **Found a bug?** with **Report a problem**, which opens
+    `https://github.com/<kGithubRepoSlug>/issues`.
+- **Danger zone** (danger border): Restart server (asks first), Forget this
+  server, Remove Archangel from this server (type the server name).
 
-Footnote under the list (caption): "Only devices listed here can reach your
-server. Removing one cuts it off straight away."
+## What went away
 
-Keep the current loading, error ("Retry") and empty states.
-
-### Admin mode (only when paired)
-
-One card with padding 18:
-- a row with the title **Admin mode** and a switch on the right (semantics
-  label "Admin mode")
-- a chip: on → warning "Administrator commands allowed" (key icon). Off →
-  neutral "Administrator commands blocked" (lock icon).
-- paragraph 1: "When this is on, the app and the terminal can run administrator
-  commands (sudo). You need it to install software or change system settings."
-- paragraph 2: "Turn it off if you want a safety net against accidental
-  changes. Your apps keep running either way."
-
-Keep the current confirmation when turning it off, and the loading and error
-states.
-
-### Security
-
-One card of rows:
-1. **SSH key**: "Stored on this device, protected by your passphrase. It never
-   leaves this device." Right: a small **Manage** button that opens a menu
-   with Change passphrase, Replace key (the existing manage-key dialog) and
-   Forget key (the existing confirmation). If no key is saved, the subtitle is
-   "No key saved yet." and the button is **Add a key**.
-2. **Secure connection**: subtitle "Server address <endpoint, mono>". Right:
-   the chip "🔒 Encrypted" (ok) when connected, otherwise "Not connected"
-   (error), plus a small **Details** button that opens the existing Connection
-   details dialog.
-3. **Repair server permissions**: "Fixes Archangel's own files on the server
-   if something stops working." Right: a small **Repair** button. It does what
-   the current one in This server does.
-
-Left out of v1 (shown in the prototype, but the engine can't do them yet):
-the Firewall row, Lock the app, and Rotate tunnel keys. Do not build them.
-
-### Appearance
-
-One card of rows:
-1. **Theme**: "Pearl is light, Dawn is dark. Auto follows your device."
-   Segmented control: Auto / Pearl / Dawn (the system / light / dark theme mode).
-2. **Accent colour**: "The highlight colour." Swatch chips as now, with Halo
-   first.
-3. **Layout** (only when the given width or the device allows Desktop mode, the
-   same rule as now): "Desktop mode (the default) gives you windows and a dock.
-   Simple keeps one screen at a time." Segmented: Desktop mode / Simple.
-4. **Desktop** (only in Desktop mode): "Wallpaper, dock position and size,
-   what's in the dock, the health widget." Right: small **Customize** button.
-   It calls `showDesktopCustomize`.
-5. **Start-up animation**: "Plays every time on tablets and Macs. On phones,
-   the long version plays the first time only." Right: two small buttons,
-   **Replay first launch** and **Replay later launch**
-   (`AppState.replayBoot`).
-
-Left out of v1: the Reduce motion switch. The app follows the device's own
-setting.
-
-### Updates
-
-One card of rows:
-1. **Archangel OS app**: "Version <AppVersion.current>". Right: "✓ Up to
-   date" (ok), or when newer: info "<version> ready" plus a small primary
-   **Download** button (it opens the release URL, as now).
-2. **Server program**: "Version <server version>". Right: "✓ Up to date", or
-   info "<version> ready" plus a small primary **Update** button (the existing
-   server update action). While it updates, show info "⟳ Updating…".
-
-Under the card: a ghost **Check now** button and "Last checked <date>"
-(caption). Then the footnote: "Every update is checked before it installs, and
-rolls itself back if anything goes wrong."
-
-### Danger zone
-
-A card with a danger-colour border. Its rows:
-1. **Restart server**: "Your apps stop for about a minute, then start again."
-   Small **Restart** button, with the same confirmation as Home's Reboot
-   server.
-2. **Forget this server**: "Removes it from this device only. Nothing on the
-   server changes." Small danger **Forget** button (the current Unpair
-   behaviour and confirmation).
-3. **Remove Archangel from this server**: "Uninstalls Archangel and its
-   secure connection. Your apps and files stay." Solid danger **Remove**
-   button. It opens the existing uninstall dialog, which must ask the user to
-   type the server name.
-
-## What goes away
-
-- The long single-column page of cards.
-- The separate "This server" card. Its parts move to Security (secure
-  connection, repair) and Updates (server program).
+"System Information", "Active Server Node", "Developer Options & Diagnostics",
+the UI scale reset button (Reset app settings covers it), and the raw
+WireGuard, daemon and kernel lines on the main surface (now in Technical
+details).
 
 ## Tests
 
-- Update `test/settings_services_test.dart` and any settings tests to the new
-  structure. Keep every behaviour test: switching servers, rename/remove,
-  revoke, Admin mode confirmation, passphrase change, unpair, uninstall and
-  update.
-- Add:
-  - wide: the section list shows, clicking Security shows its rows, and
-    Servers is chosen by default
-  - narrow (390 wide): the list shows, tapping Appearance opens it, and
-    "All settings" goes back
-  - Devices and Admin mode are hidden when unpaired
-  - no overflow at 340 wide (Desktop window), 390 and 1400
-
-## Done when
-
-- `flutter analyze` is clean and `flutter test` passes.
-- Ray has checked it against the prototype in Pearl and Dawn, on a phone, in
-  Simple and in a Desktop window.
-
-## Clarifications (these override the sections above)
-
-1. **Restart server.** There is no existing dialog, so make one with
-   `ConfirmDialog`:
-   - Title "Restart your server?"
-   - Body "Your apps stop for about a minute, then start again. This app
-     reconnects by itself."
-   - Button "Restart" (not the solid danger style, since this isn't destructive).
-
-   On confirm, call `MonitoringService.rebootHost()`.
-   - Success: snackbar "Restarting. Your server will be back in about a minute."
-   - Failure: snackbar "Couldn't restart: <message>".
-
-   Add tests for both paths.
-2. **Removing this device.** Keep it. The current device's row shows the
-   "✓ This device" chip **and** a ghost **Remove** button. That button keeps
-   the existing type-the-name confirmation and wording for revoking yourself.
-   Other devices use the simpler confirmation from the spec. Keep every revoke
-   test.
-3. **Device icon and text.** Use one generic icon, `devices_outlined`, for
-   every device. The subtitle is the current text: "Paired <date>", then
-   " · " and the tunnel IP in mono.
-4. **Server program update.**
-   - Drop the "Updating…" chip. The **Update** button opens the existing update
-     dialog, which already shows progress.
-   - Version unknown or server not answering: the subtitle is "Can't check
-     right now". The right side has a neutral chip "Not answering" (cloud_off
-     icon) and no button.
-   - Not paired: hide this row.
-5. **Layout row.** Keep the current rule exactly:
-   `MediaQuery.sizeOf(context).width >= kDesktopModeMinWidth`. The layout is a
-   per-device choice, so it follows the screen, not the window. Only the
-   wide/narrow Settings layout follows the given width.
-6. **Items not placed above.** Keep all of them:
-   - **Connect / Disconnect:** a small button in the Security → Secure
-     connection row, between the status chip and **Details**.
-   - **"Allow seamless connection" (macOS):** its own row right under Secure
-     connection, shown under the same conditions and with the same wording as
-     now.
-   - **Devices refresh:** an icon button (tooltip "Refresh") in the Devices
-     card header, left of **Add a device**.
-   - **Computer name:** in the active server's row in Servers, the subtitle
-     becomes "<host> · <computer name>" (both mono) when the name is known.
+`test/screens/settings_screen_test.dart` (behaviour, layout, overflow at 340,
+390 and 1400 in both themes) and `test/screens/settings_about_test.dart`
+(overview, Technical details, no jargon, sentence case, diagnostics redaction).

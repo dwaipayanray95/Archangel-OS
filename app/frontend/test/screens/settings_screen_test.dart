@@ -182,7 +182,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('layout', () {
-    testWidgets('wide: the section list shows and Archangel OS is chosen by default', (tester) async {
+    testWidgets('wide: the section list shows and About is chosen by default', (tester) async {
       await _pumpSettings(tester);
       for (final id in SettingsSectionId.values) {
         expect(find.byKey(ValueKey('settings-nav-${id.name}')), findsOneWidget, reason: id.name);
@@ -190,8 +190,8 @@ void main() {
       expect(find.text('Settings'), findsNothing);
       expect(find.text('Archangel v${AppVersion.archangel}'), findsNothing);
       expect(find.byType(AxWordmark), findsWidgets);
-      expect(find.text('System Information'), findsOneWidget);
-      expect(find.text('Developer Options & Diagnostics'), findsOneWidget);
+      expect(find.text('This server'), findsOneWidget);
+      expect(find.text('Updates'), findsOneWidget);
 
       await _open(tester, SettingsSectionId.servers);
       expect(find.text('Add a server'), findsOneWidget);
@@ -302,10 +302,9 @@ void main() {
     testWidgets('Active connection card displays active server details and connection controls', (tester) async {
       await _pumpSettings(tester);
       await _open(tester, SettingsSectionId.servers);
-      expect(find.text('Active Connection'), findsOneWidget);
-      expect(find.text('Active: Server a'), findsOneWidget);
-      expect(find.text('WireGuard tunnel'), findsOneWidget);
-      expect(find.text('Daemon API (archangeld)'), findsOneWidget);
+      expect(find.text('Active server'), findsOneWidget);
+      expect(find.text('Secure connection'), findsOneWidget);
+      expect(find.text('Archangel on your server'), findsOneWidget);
       expect(find.byKey(const ValueKey('active-conn-reconnect-btn')), findsOneWidget);
       expect(find.byKey(const ValueKey('active-conn-test-btn')), findsOneWidget);
     });
@@ -509,6 +508,17 @@ void main() {
       expect(find.text('Customize'), findsNothing);
     });
 
+    testWidgets('Replay buttons play the chosen start-up animation', (tester) async {
+      final h = await _pumpSettings(tester);
+      await _open(tester, SettingsSectionId.appearance);
+      final before = h.app.bootReplay;
+      await _tapText(tester, 'Replay first launch');
+      expect(h.app.bootReplay, before + 1);
+      expect(h.app.bootReplayKind, BootKind.first);
+      await _tapText(tester, 'Replay later launch');
+      expect(h.app.bootReplayKind, BootKind.short);
+    });
+
     testWidgets('Window mode toggle updates AppState and persists', (tester) async {
       final h = await _pumpSettings(tester, size: const Size(1400, 900));
       await _open(tester, SettingsSectionId.appearance);
@@ -565,45 +575,6 @@ void main() {
     });
   });
 
-  group('archangel os', () {
-    testWidgets('displays wordmark, system info, and developer diagnostics', (tester) async {
-      await _pumpSettings(tester);
-      expect(find.byType(AxWordmark), findsWidgets);
-      expect(find.text('Sovereign personal cloud system'), findsOneWidget);
-      expect(find.text('System Information'), findsOneWidget);
-      expect(find.text('Archangel OS'), findsWidgets);
-      expect(find.text('Host platform'), findsOneWidget);
-      expect(find.text('Active Server Node'), findsOneWidget);
-      expect(find.text('Developer Options & Diagnostics'), findsOneWidget);
-      expect(find.text('System diagnostic report'), findsOneWidget);
-    });
-
-    testWidgets('View report button opens diagnostic dialog and can be closed', (tester) async {
-      await _pumpSettings(tester);
-      await _tapText(tester, 'View report');
-      expect(find.text('System Diagnostic Report'), findsOneWidget);
-      expect(find.textContaining('Archangel OS Unified Diagnostic Snapshot'), findsOneWidget);
-      await _tapText(tester, 'Close');
-      expect(find.text('System Diagnostic Report'), findsNothing);
-    });
-
-    testWidgets('Copy report button copies diagnostics to clipboard and shows snackbar', (tester) async {
-      await _pumpSettings(tester);
-      await _tapText(tester, 'Copy report');
-      expect(find.text('Diagnostic report copied to clipboard'), findsOneWidget);
-    });
-
-    testWidgets('Replay buttons play the chosen start-up animation', (tester) async {
-      final h = await _pumpSettings(tester);
-      final before = h.app.bootReplay;
-      await _tapText(tester, 'Replay first launch');
-      expect(h.app.bootReplay, before + 1);
-      expect(h.app.bootReplayKind, BootKind.first);
-      await _tapText(tester, 'Replay later launch');
-      expect(h.app.bootReplayKind, BootKind.short);
-    });
-  });
-
   group('updates', () {
     testWidgets('shows both versions, Check now and the footnote', (tester) async {
       await _pumpSettings(tester);
@@ -629,10 +600,10 @@ void main() {
     testWidgets('Clear cache and Reset app settings work', (tester) async {
       final h = await _pumpSettings(tester);
       await _open(tester, SettingsSectionId.system);
-      expect(find.text('Clear application cache'), findsOneWidget);
+      expect(find.text('Free up space'), findsOneWidget);
       expect(find.text('Reset app settings'), findsOneWidget);
 
-      await _tapText(tester, 'Clear cache');
+      await _tapText(tester, 'Clear now');
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pumpAndSettle();
       expect(find.text('Application cache cleared'), findsOneWidget);
@@ -694,6 +665,7 @@ void main() {
       expect(find.text('Restart server'), findsOneWidget);
       expect(find.text('Forget this server'), findsOneWidget);
       expect(find.text('Remove Archangel from this server'), findsOneWidget);
+      expect(find.text('Danger zone'), findsOneWidget);
     });
   });
 

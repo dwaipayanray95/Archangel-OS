@@ -8,15 +8,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/app_state.dart';
 import '../../../services/admin_mode_service.dart';
-import '../../../services/app_version.dart';
 import '../../../services/archangeld_connection.dart';
 import '../../../services/monitoring_service.dart';
-import '../../../services/semver.dart';
 import '../../../services/server_registry.dart';
 import '../../../services/ssh_credentials.dart';
-import '../../../services/update_check_service.dart';
+import '../../../services/build_config.dart';
 import '../../../services/wireguard_controller.dart';
-import '../../../widgets/backend_update_dialog.dart';
 import '../../../widgets/manage_ssh_key_dialog.dart';
 import '../../../widgets/passphrase_prompt_dialog.dart';
 import '../../../widgets/sync_server_config_dialog.dart';
@@ -26,6 +23,8 @@ import '../../shell/connection_state.dart';
 import '../../shell/desktop_customize.dart';
 import '../../shell/desktop_prefs.dart';
 import '../../ui.dart';
+import '../home/home_logic.dart';
+import 'diagnostics_report.dart';
 import 'settings_parts.dart';
 
 /// The saved SSH key and the secure connection to the server, plus repairs.
@@ -113,13 +112,12 @@ class _SecuritySectionState extends State<SecuritySection> {
         MenuItemButton(onPressed: _manageKey, child: const Text('Replace key')),
         MenuItemButton(onPressed: _forget, child: const Text('Forget key')),
       ],
-      builder:
-          (context, controller, _) => AxButton.secondary(
-            label: 'Manage',
-            icon: Icons.arrow_drop_down,
-            small: true,
-            onPressed: () => controller.isOpen ? controller.close() : controller.open(),
-          ),
+      builder: (context, controller, _) => AxButton.secondary(
+        label: 'Manage',
+        icon: Icons.arrow_drop_down,
+        small: true,
+        onPressed: () => controller.isOpen ? controller.close() : controller.open(),
+      ),
     );
   }
 
@@ -142,40 +140,42 @@ class _SecuritySectionState extends State<SecuritySection> {
     final muted = ax.typo.caption.copyWith(color: c.textMuted);
 
     return SettingsCard(
+      title: 'Security',
+      intro: 'The key and the secure connection that keep your server private.',
       children: [
+        const SettingsGroupLabel('Your key'),
         AxListTile(
           leading: const AxTileIcon(Icons.vpn_key_outlined),
           title: 'SSH key',
-          subtitle:
-              _keySaved == null
-                  ? null
-                  : (_keySaved!
-                      ? 'Stored on this device, protected by your passphrase. It never leaves this device.'
-                      : 'No key saved yet.'),
+          subtitle: _keySaved == null
+              ? null
+              : (_keySaved! ? 'Stored on this device, protected by your passphrase. It never leaves this device.' : 'No key saved yet.'),
           controls: [_keyControl()],
         ),
+        const SettingsGroupLabel('Connection'),
         AxListTile(
           leading: const AxTileIcon(Icons.shield_outlined),
           title: 'Secure connection',
-          subtitleWidget:
-              cfg == null && wg.lastError == null
-                  ? null
-                  : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          subtitleWidget: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(connectionText(phase, serverName: context.watch<ServerRegistry>().active?.name), style: muted),
+              if (cfg != null)
+                Text.rich(
+                  TextSpan(
+                    style: muted,
                     children: [
-                      if (cfg != null)
-                        Text.rich(
-                          TextSpan(
-                            style: muted,
-                            children: [
-                              const TextSpan(text: 'Server address '),
-                              TextSpan(text: cfg.peerEndpoint, style: ax.typo.mono.copyWith(color: c.textMuted)),
-                            ],
-                          ),
-                        ),
-                      if (wg.lastError != null) Text(wg.lastError!, style: ax.typo.caption.copyWith(color: c.danger)),
+                      const TextSpan(text: 'Private address '),
+                      TextSpan(
+                        text: cfg.interfaceAddress.split('/').first,
+                        style: ax.typo.mono.copyWith(color: c.textMuted),
+                      ),
                     ],
                   ),
+                ),
+              if (wg.lastError != null) Text(wg.lastError!, style: ax.typo.caption.copyWith(color: c.danger)),
+            ],
+          ),
           controls: [
             phase == ConnectionPhase.connected
                 ? const StatusBadge.ok('Encrypted', icon: Icons.lock_outline)
@@ -209,6 +209,7 @@ class _SecuritySectionState extends State<SecuritySection> {
               ),
             ],
           ),
+        if (backend.isPaired) const SettingsGroupLabel('Repairs'),
         if (backend.isPaired)
           AxListTile(
             leading: const AxTileIcon(Icons.build_outlined),
@@ -259,465 +260,195 @@ class AppearanceSection extends StatelessWidget {
       prefs = null;
     }
     final p = prefs;
-    return SettingsCard(
+    return SettingsStack(
       children: [
-        AxListTile(
-          title: 'Theme',
-          subtitle: 'Pearl is light, Dawn is dark. Auto follows your device.',
-          controls: [
-            SegmentedButton<ThemeMode>(
-              key: const ValueKey('theme-choice'),
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
-                ButtonSegment(value: ThemeMode.light, label: Text('Pearl')),
-                ButtonSegment(value: ThemeMode.dark, label: Text('Dawn')),
-              ],
-              selected: {app.themeMode},
-              onSelectionChanged: (s) => app.themeMode = s.first,
-            ),
-          ],
-        ),
-        AxListTile(
-          title: 'Accent colour',
-          subtitle: 'The highlight colour.',
-          controls: [
-            for (final a in AxAccent.values)
-              ChoiceChip(
-                key: ValueKey('accent-${a.name}'),
-                label: Text(a.label),
-                avatar: CircleAvatar(backgroundColor: dark ? a.dark : a.light, radius: 8),
-                selected: app.accentChoice == a,
-                onSelected: (_) => app.accentChoice = a,
-              ),
-          ],
-        ),
-        AxListTile(
-          title: 'UI scale',
-          subtitle: 'Make interface elements more compact and elegant, or standard size.',
-          controls: [
-            SegmentedButton<AxUiScale>(
-              key: const ValueKey('ui-scale-choice'),
-              showSelectedIcon: false,
-              segments: [for (final s in AxUiScale.values) ButtonSegment(value: s, label: Text(s.label))],
-              selected: {app.uiScale},
-              onSelectionChanged: (s) => app.uiScale = s.first,
-            ),
-          ],
-        ),
-        if (desktopPossible)
-          AxListTile(
-            title: 'Layout',
-            subtitle: 'Desktop mode (the default) gives you windows and a dock. Simple keeps one screen at a time.',
-            controls: [
-              SegmentedButton<AxLayout>(
-                key: const ValueKey('layout-choice'),
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: AxLayout.desktop, label: Text('Desktop mode')),
-                  ButtonSegment(value: AxLayout.simple, label: Text('Simple')),
-                ],
-                selected: {app.layout},
-                onSelectionChanged: (s) => app.layout = s.first,
-              ),
-            ],
-          ),
-        if (desktopPossible)
-          AxListTile(
-            title: 'Window mode',
-            subtitle: 'Run Archangel full screen like a game, or inside a standard window (F11 to toggle anytime).',
-            controls: [
-              SegmentedButton<bool>(
-                key: const ValueKey('fullscreen-choice'),
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Full screen')),
-                  ButtonSegment(value: false, label: Text('Windowed')),
-                ],
-                selected: {app.fullScreen},
-                onSelectionChanged: (s) => app.fullScreen = s.first,
-              ),
-            ],
-          ),
-        if (desktopPossible && app.layout == AxLayout.desktop) ...[
-          if (p != null) ...[
-            AxListTile(
-              title: 'Wallpaper',
-              subtitle: 'Desktop backdrop. Halo dynamically follows Pearl and Dawn.',
-              subtitleWidget: Padding(
-                padding: EdgeInsets.only(top: ax.space.sm),
-                child: Wrap(
-                  spacing: ax.space.sm,
-                  runSpacing: ax.space.sm,
-                  children: [
-                    for (final w in DeskWallpaper.values)
-                      DeskWallpaperSwatch(wallpaper: w, selected: p.wallpaper == w, onTap: () => p.wallpaper = w),
-                  ],
-                ),
-              ),
-            ),
-            AxListTile(
-              title: 'Dock position',
-              subtitle: 'Position of the application dock on your screen.',
-              controls: [
-                SegmentedButton<DockPosition>(
-                  key: const ValueKey('settings-dock-position'),
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: DockPosition.left, label: Text('Left')),
-                    ButtonSegment(value: DockPosition.bottom, label: Text('Bottom')),
-                    ButtonSegment(value: DockPosition.right, label: Text('Right')),
-                  ],
-                  selected: {p.dockPosition},
-                  onSelectionChanged: (v) => p.dockPosition = v.first,
-                ),
-              ],
-            ),
-            AxListTile(
-              title: 'Dock size',
-              subtitle: 'Icon dimensions and button padding of the dock.',
-              controls: [
-                SegmentedButton<DockSize>(
-                  key: const ValueKey('settings-dock-size'),
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: DockSize.small, label: Text('Small')),
-                    ButtonSegment(value: DockSize.medium, label: Text('Medium')),
-                    ButtonSegment(value: DockSize.large, label: Text('Large')),
-                  ],
-                  selected: {p.dockSize},
-                  onSelectionChanged: (v) => p.dockSize = v.first,
-                ),
-              ],
-            ),
-            AxListTile(
-              title: 'Hide dock automatically',
-              subtitle: 'The dock hides out of view and reappears when pointing at the edge.',
-              controls: [Switch(key: const ValueKey('settings-dock-autohide'), value: p.autoHide, onChanged: (v) => p.autoHide = v)],
-            ),
-            AxListTile(
-              title: 'Health widget',
-              subtitle: 'Show real-time CPU, RAM and disk usage stats on the desktop.',
-              controls: [
-                Switch(key: const ValueKey('settings-show-health-widget'), value: p.showWidget, onChanged: (v) => p.showWidget = v),
-              ],
-            ),
-            AxListTile(
-              title: 'Wallpaper wordmark',
-              subtitle: 'Display the Archangel OS wordmark in the center of the desktop.',
-              controls: [
-                Switch(
-                  key: const ValueKey('settings-wallpaper-wordmark'),
-                  value: p.showWallpaperWordmark,
-                  onChanged: (v) => p.showWallpaperWordmark = v,
-                ),
-              ],
-            ),
-          ],
-          AxListTile(
-            title: 'Desktop',
-            subtitle: "Wallpaper, dock position and size, what's in the dock, the health widget.",
-            controls: [AxButton.secondary(label: 'Customize', small: true, onPressed: () => showDesktopCustomize(context))],
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-String _formatUptime(int seconds) {
-  if (seconds <= 0) return 'Just started';
-  final days = seconds ~/ 86400;
-  final hours = (seconds % 86400) ~/ 3600;
-  final minutes = (seconds % 3600) ~/ 60;
-  final parts = <String>[];
-  if (days > 0) parts.add('${days}d');
-  if (hours > 0 || days > 0) parts.add('${hours}h');
-  parts.add('${minutes}m');
-  return parts.join(' ');
-}
-
-String _generateDiagnosticReport(BuildContext context) {
-  final app = context.read<AppState>();
-  final backend = context.read<ArchangeldConnection>();
-  final registry = context.read<ServerRegistry>();
-  final monitoring = context.read<MonitoringService>();
-  final wireguard = context.read<WireGuardController>();
-  final admin = context.read<AdminModeService>();
-
-  final buf = StringBuffer();
-  buf.writeln('=== Archangel OS Unified Diagnostic Snapshot ===');
-  buf.writeln('Generated: ${DateTime.now().toUtc().toIso8601String()}');
-  buf.writeln();
-
-  buf.writeln('--- Client & OS Platform ---');
-  buf.writeln('Archangel OS Version: ${AppVersion.current}');
-  buf.writeln('Build Protocol Target: ${AppVersion.archangel}');
-  buf.writeln('Operating System: ${Platform.operatingSystem} (${Platform.operatingSystemVersion})');
-  buf.writeln('Dart Runtime: ${Platform.version.split(' ').first}');
-  buf.writeln('Display Scaling: ${app.uiScale.label}');
-  buf.writeln('Window Layout: ${app.layout.name}');
-  buf.writeln('Window Mode: ${app.fullScreen ? "Full screen" : "Windowed"}');
-  buf.writeln();
-
-  buf.writeln('--- Server Node Connection ---');
-  buf.writeln('Paired: ${backend.isPaired}');
-  buf.writeln('Active Server Name: ${registry.active?.name ?? "None"}');
-  buf.writeln('Active Host Address: ${backend.host ?? "None"}');
-  buf.writeln('Server Engine Version: ${backend.backendVersion ?? "Unavailable"}');
-  buf.writeln('Pairing Generation: ${backend.pairingGeneration}');
-  buf.writeln('Session Admin Mode: ${admin.enabled == true}');
-  buf.writeln();
-
-  buf.writeln('--- Host Hardware & Engine Metrics ---');
-  final m = monitoring.metrics;
-  if (m != null) {
-    buf.writeln('Server Hostname: ${m.host.hostname}');
-    buf.writeln('Server OS: ${m.host.os} (${m.host.kernel}) [${m.host.arch}]');
-    buf.writeln('Server Uptime: ${_formatUptime(m.uptimeSeconds)} (${m.uptimeSeconds}s)');
-    buf.writeln('CPU Cores: ${m.cpu.cores.length} cores');
-    buf.writeln('CPU Utilization: ${m.cpu.usagePercent.toStringAsFixed(1)}%');
-    buf.writeln(
-      'Memory Utilization: ${m.memory.usedGb.toStringAsFixed(2)} GB / ${m.memory.totalGb.toStringAsFixed(2)} GB (${m.memory.usagePercent.toStringAsFixed(1)}%)',
-    );
-    buf.writeln(
-      'Disk Space: ${m.disk.usedGb.toStringAsFixed(2)} GB / ${m.disk.totalGb.toStringAsFixed(2)} GB (${m.disk.usagePercent.toStringAsFixed(1)}%)',
-    );
-    buf.writeln('Network Bandwidth: ${m.network.totalMbPerSec.toStringAsFixed(2)} MB/s');
-  } else {
-    buf.writeln('Metrics Status: ${monitoring.status.name}');
-    if (monitoring.error != null) buf.writeln('Metrics Error: ${monitoring.error}');
-  }
-  buf.writeln();
-
-  buf.writeln('--- WireGuard Mesh Network ---');
-  buf.writeln('Tunnel Configured: ${wireguard.isPaired}');
-  buf.writeln('Tunnel Status: ${wireguard.status.name}');
-  if (wireguard.config != null) {
-    buf.writeln('Device Tunnel IP: ${wireguard.config!.interfaceAddress}');
-    buf.writeln('Peer Endpoint: ${wireguard.config!.peerEndpoint}');
-  }
-  if (wireguard.lastError != null) {
-    buf.writeln('Tunnel Error: ${wireguard.lastError}');
-  }
-  buf.writeln();
-
-  buf.writeln('=== End of Diagnostic Snapshot ===');
-  return buf.toString();
-}
-
-void _copyDiagnostics(BuildContext context, String report) {
-  Clipboard.setData(ClipboardData(text: report));
-  showSnack(ScaffoldMessenger.maybeOf(context), 'Diagnostic report copied to clipboard');
-}
-
-void _showDiagnosticDialog(BuildContext context, String report) {
-  final ax = context.ax;
-  final c = ax.colors;
-  showDialog<void>(
-    context: context,
-    builder:
-        (ctx) => AlertDialog(
-          backgroundColor: c.surface,
-          title: Text('System Diagnostic Report', style: ax.typo.title.copyWith(color: c.text)),
-          content: SizedBox(
-            width: 640,
-            height: 400,
-            child: SingleChildScrollView(
-              child: Container(
-                padding: EdgeInsets.all(ax.space.md),
-                decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(8), border: Border.all(color: c.border)),
-                child: SelectableText(report, style: ax.typo.mono.copyWith(fontSize: 12, color: c.text, height: 1.4)),
-              ),
-            ),
-          ),
-          actions: [
-            AxButton.secondary(label: 'Close', small: true, onPressed: () => Navigator.of(ctx).pop()),
-            AxButton(
-              label: 'Copy to clipboard',
-              small: true,
-              icon: Icons.copy_rounded,
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: report));
-                Navigator.of(ctx).pop();
-                showSnack(ScaffoldMessenger.maybeOf(context), 'Diagnostic report copied to clipboard');
-              },
-            ),
-          ],
-        ),
-  );
-}
-
-/// System information about the OS, host, server engine, updates, and developer diagnostics.
-class ArchangelOsSection extends StatelessWidget {
-  const ArchangelOsSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
-    final app = context.watch<AppState>();
-    final backend = context.watch<ArchangeldConnection>();
-    final registry = context.watch<ServerRegistry>();
-    final monitoring = context.watch<MonitoringService>();
-    final wireguard = context.watch<WireGuardController>();
-    final admin = context.watch<AdminModeService>();
-
-    final metrics = monitoring.metrics;
-    final isPaired = backend.isPaired;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Hero Wordmark & Branding Banner
-        AxCard(
-          padding: EdgeInsets.symmetric(horizontal: ax.space.xl, vertical: ax.space.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AxWordmark(size: 32),
-              SizedBox(height: ax.space.xs),
-              Text('Sovereign personal cloud system', style: ax.typo.caption.copyWith(color: c.textMuted)),
-              SizedBox(height: ax.space.md),
-              Wrap(
-                spacing: ax.space.sm,
-                runSpacing: ax.space.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  StatusBadge.ok('v${AppVersion.current}', icon: Icons.verified_outlined),
-                  if (isPaired)
-                    StatusBadge.info(registry.active?.name ?? 'Server node connected', icon: Icons.cloud_done_outlined)
-                  else
-                    const StatusBadge.neutral('No server paired', icon: Icons.cloud_off_outlined),
-                  if (wireguard.status == TunnelStatus.connected) const StatusBadge.ok('Mesh active', icon: Icons.hub_outlined),
-                ],
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: ax.space.lg),
-
-        // System & Platform Details
         SettingsCard(
-          title: 'System Information',
+          title: 'Look',
+          intro: 'Colours and size of the app on this device.',
           children: [
             AxListTile(
-              title: 'Archangel OS',
-              subtitle: 'Version ${AppVersion.current} • Build protocol v${AppVersion.archangel}',
-              controls: const [StatusBadge.info('Release', icon: Icons.tag_rounded)],
-            ),
-            AxListTile(
-              title: 'Host platform',
-              subtitle: '${Platform.operatingSystem} (${Platform.operatingSystemVersion})',
-              subtitleMono: true,
+              title: 'Theme',
+              subtitle: 'Pearl is light, Dawn is dark. Auto follows your device.',
               controls: [
-                Text(Platform.isMacOS ? 'macOS App' : Platform.operatingSystem, style: ax.typo.caption.copyWith(color: c.textMuted)),
+                SegmentedButton<ThemeMode>(
+                  key: const ValueKey('theme-choice'),
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
+                    ButtonSegment(value: ThemeMode.light, label: Text('Pearl')),
+                    ButtonSegment(value: ThemeMode.dark, label: Text('Dawn')),
+                  ],
+                  selected: {app.themeMode},
+                  onSelectionChanged: (s) => app.themeMode = s.first,
+                ),
               ],
             ),
             AxListTile(
-              title: 'Display & window configuration',
-              subtitle:
-                  'Scale: ${app.uiScale.label} • Layout: ${app.layout == AxLayout.desktop ? "Desktop mode" : "Simple"} • Mode: ${app.fullScreen ? "Full screen" : "Windowed"}',
+              title: 'Accent colour',
+              subtitle: 'The highlight colour.',
+              controls: [
+                for (final a in AxAccent.values)
+                  ChoiceChip(
+                    key: ValueKey('accent-${a.name}'),
+                    label: Text(a.label),
+                    avatar: CircleAvatar(backgroundColor: dark ? a.dark : a.light, radius: 8),
+                    selected: app.accentChoice == a,
+                    onSelected: (_) => app.accentChoice = a,
+                  ),
+              ],
+            ),
+            AxListTile(
+              title: 'UI scale',
+              subtitle: 'Make everything a little smaller or larger.',
+              controls: [
+                SegmentedButton<AxUiScale>(
+                  key: const ValueKey('ui-scale-choice'),
+                  showSelectedIcon: false,
+                  segments: [for (final s in AxUiScale.values) ButtonSegment(value: s, label: Text(s.label))],
+                  selected: {app.uiScale},
+                  onSelectionChanged: (s) => app.uiScale = s.first,
+                ),
+              ],
             ),
           ],
         ),
-        SizedBox(height: ax.space.lg),
-
-        // Active Server Node & Cloud Infrastructure
-        if (isPaired) ...[
+        if (desktopPossible)
           SettingsCard(
-            title: 'Active Server Node',
+            title: 'Windows and layout',
+            intro: 'How Archangel arranges its screens on this device.',
             children: [
               AxListTile(
-                title: registry.active?.name ?? 'Server',
-                subtitle: backend.host ?? 'No active host',
-                subtitleMono: true,
-                controls: [if (admin.enabled == true) const StatusBadge.accent('Admin mode') else const StatusBadge.ok('Paired')],
-              ),
-              AxListTile(
-                title: 'Server engine (archangeld)',
-                subtitle: backend.backendVersion != null ? 'archangeld v${backend.backendVersion}' : 'Checking version…',
+                title: 'Layout',
+                subtitle: 'Desktop mode (the default) gives you windows and a dock. Simple keeps one screen at a time.',
                 controls: [
-                  if (backend.backendVersion != null)
-                    const StatusBadge.ok('Healthy', icon: Icons.check)
-                  else
-                    const StatusBadge.neutral('Connecting', icon: Icons.sync),
+                  SegmentedButton<AxLayout>(
+                    key: const ValueKey('layout-choice'),
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: AxLayout.desktop, label: Text('Desktop mode')),
+                      ButtonSegment(value: AxLayout.simple, label: Text('Simple')),
+                    ],
+                    selected: {app.layout},
+                    onSelectionChanged: (s) => app.layout = s.first,
+                  ),
                 ],
               ),
-              if (metrics != null) ...[
-                AxListTile(
-                  title: 'Server OS & kernel',
-                  subtitle: '${metrics.host.os} • ${metrics.host.kernel} (${metrics.host.arch})',
-                  subtitleMono: true,
-                ),
-                AxListTile(title: 'Server uptime', subtitle: _formatUptime(metrics.uptimeSeconds), subtitleMono: true),
-                AxListTile(
-                  title: 'Host hardware & load',
-                  subtitle:
-                      'CPU: ${metrics.cpu.usagePercent.toStringAsFixed(1)}% (${metrics.cpu.cores.length} cores) • RAM: ${metrics.memory.usedGb.toStringAsFixed(1)} / ${metrics.memory.totalGb.toStringAsFixed(1)} GB (${metrics.memory.usagePercent.toStringAsFixed(0)}%) • Disk: ${metrics.disk.usedGb.toStringAsFixed(1)} / ${metrics.disk.totalGb.toStringAsFixed(1)} GB',
-                ),
-              ],
               AxListTile(
-                title: 'WireGuard mesh tunnel',
-                subtitle:
-                    wireguard.isPaired
-                        ? 'Device IP: ${wireguard.config?.interfaceAddress ?? "Configured"} • Endpoint: ${wireguard.config?.peerEndpoint ?? "Connected"}'
-                        : 'Tunnel inactive',
-                subtitleMono: true,
+                title: 'Window mode',
+                subtitle: 'Fill the whole screen, or use a normal window. Press F11 to switch any time.',
                 controls: [
-                  if (wireguard.status == TunnelStatus.connected)
-                    const StatusBadge.ok('Connected')
-                  else if (wireguard.isPaired)
-                    StatusBadge.info(wireguard.status.name)
-                  else
-                    const StatusBadge.neutral('Disabled'),
+                  SegmentedButton<bool>(
+                    key: const ValueKey('fullscreen-choice'),
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('Full screen')),
+                      ButtonSegment(value: false, label: Text('Windowed')),
+                    ],
+                    selected: {app.fullScreen},
+                    onSelectionChanged: (s) => app.fullScreen = s.first,
+                  ),
                 ],
               ),
             ],
           ),
-          SizedBox(height: ax.space.lg),
-        ],
-
-        // Software Updates
-        const UpdatesSection(),
-        SizedBox(height: ax.space.lg),
-
-        // Developer Options & Diagnostics
-        SettingsCard(
-          title: 'Developer Options & Diagnostics',
-          footnote:
-              'Unified diagnostic reports include local runtime metrics and connectivity metadata without secret keys or credentials.',
-          children: [
-            AxListTile(
-              title: 'System diagnostic report',
-              subtitle: 'Unified snapshot of host OS, engine versions, server metrics, and tunnel state.',
-              controls: [
-                AxButton.secondary(
-                  label: 'View report',
-                  small: true,
-                  onPressed: () => _showDiagnosticDialog(context, _generateDiagnosticReport(context)),
+        if (desktopPossible && app.layout == AxLayout.desktop)
+          SettingsCard(
+            title: 'Desktop',
+            intro: 'What you see on the desktop and in the dock.',
+            children: [
+              if (p != null) ...[
+                AxListTile(
+                  title: 'Wallpaper',
+                  subtitle: 'The picture behind your windows. Halo follows Pearl and Dawn.',
+                  subtitleWidget: Padding(
+                    padding: EdgeInsets.only(top: ax.space.sm),
+                    child: Wrap(
+                      spacing: ax.space.sm,
+                      runSpacing: ax.space.sm,
+                      children: [
+                        for (final w in DeskWallpaper.values)
+                          DeskWallpaperSwatch(wallpaper: w, selected: p.wallpaper == w, onTap: () => p.wallpaper = w),
+                      ],
+                    ),
+                  ),
                 ),
-                AxButton(
-                  label: 'Copy report',
-                  small: true,
-                  icon: Icons.copy_rounded,
-                  onPressed: () => _copyDiagnostics(context, _generateDiagnosticReport(context)),
+                AxListTile(
+                  title: 'Dock position',
+                  subtitle: 'Where the dock of apps sits on your screen.',
+                  controls: [
+                    SegmentedButton<DockPosition>(
+                      key: const ValueKey('settings-dock-position'),
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: DockPosition.left, label: Text('Left')),
+                        ButtonSegment(value: DockPosition.bottom, label: Text('Bottom')),
+                        ButtonSegment(value: DockPosition.right, label: Text('Right')),
+                      ],
+                      selected: {p.dockPosition},
+                      onSelectionChanged: (v) => p.dockPosition = v.first,
+                    ),
+                  ],
+                ),
+                AxListTile(
+                  title: 'Dock size',
+                  subtitle: 'How big the dock icons are.',
+                  controls: [
+                    SegmentedButton<DockSize>(
+                      key: const ValueKey('settings-dock-size'),
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: DockSize.small, label: Text('Small')),
+                        ButtonSegment(value: DockSize.medium, label: Text('Medium')),
+                        ButtonSegment(value: DockSize.large, label: Text('Large')),
+                      ],
+                      selected: {p.dockSize},
+                      onSelectionChanged: (v) => p.dockSize = v.first,
+                    ),
+                  ],
+                ),
+                AxListTile(
+                  title: 'Hide the dock automatically',
+                  subtitle: 'The dock slides away and comes back when you point at the edge.',
+                  controls: [Switch(key: const ValueKey('settings-dock-autohide'), value: p.autoHide, onChanged: (v) => p.autoHide = v)],
+                ),
+                AxListTile(
+                  title: 'Health widget',
+                  subtitle: 'Shows how busy your server is (processor, memory and disk) on the desktop.',
+                  controls: [
+                    Switch(key: const ValueKey('settings-show-health-widget'), value: p.showWidget, onChanged: (v) => p.showWidget = v),
+                  ],
+                ),
+                AxListTile(
+                  title: 'Wallpaper wordmark',
+                  subtitle: 'Shows the Archangel OS name in the middle of the desktop.',
+                  controls: [
+                    Switch(
+                      key: const ValueKey('settings-wallpaper-wordmark'),
+                      value: p.showWallpaperWordmark,
+                      onChanged: (v) => p.showWallpaperWordmark = v,
+                    ),
+                  ],
                 ),
               ],
-            ),
+              AxListTile(
+                title: 'Desktop',
+                subtitle: "Wallpaper, dock position and size, what's in the dock, the health widget.",
+                controls: [AxButton.secondary(label: 'Customize', small: true, onPressed: () => showDesktopCustomize(context))],
+              ),
+            ],
+          ),
+        SettingsCard(
+          title: 'Start-up animation',
+          intro: 'The short animation that plays when Archangel opens.',
+          children: [
             AxListTile(
-              title: 'Start-up boot animation',
-              subtitle: 'Test and replay the Archangel OS start-up experience.',
+              title: 'Replay it',
+              subtitle: 'Plays every time on tablets and Macs. On phones, the long version plays the first time only.',
               controls: [
                 AxButton.secondary(label: 'Replay first launch', small: true, onPressed: () => app.replayBoot(BootKind.first)),
                 AxButton.secondary(label: 'Replay later launch', small: true, onPressed: () => app.replayBoot(BootKind.short)),
               ],
             ),
-            AxListTile(
-              title: 'UI display scaling reset',
-              subtitle: 'Current scale: ${app.uiScale.label} (default: 80%)',
-              controls: [AxButton.secondary(label: 'Reset to 80%', small: true, onPressed: () => app.uiScale = AxUiScale.default80)],
-            ),
           ],
         ),
       ],
@@ -725,138 +456,70 @@ class ArchangelOsSection extends StatelessWidget {
   }
 }
 
-/// The app and server-program versions, and checking for newer ones.
-class UpdatesSection extends StatelessWidget {
-  const UpdatesSection({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final ax = context.ax;
-    final c = ax.colors;
-    final updates = context.watch<UpdateCheckService>();
-    final backend = context.watch<ArchangeldConnection>();
-    final appUpdate = isUpdateAvailable(current: AppVersion.current, latest: updates.latestFrontend) ? updates.latestFrontend : null;
-    final url = updates.releaseUrl;
-    final serverVersion = backend.backendVersion;
-    final serverUpdate =
-        backend.isPaired && isUpdateAvailable(current: serverVersion, latest: updates.latestBackend) ? updates.latestBackend : null;
-    final checked = updates.lastChecked;
-
-    final String? serverSubtitle;
-    final List<Widget> serverControls;
-    if (serverVersion == null) {
-      if (backend.backendChecking) {
-        serverSubtitle = null;
-        serverControls = const [StatusBadge.info('Checking…', icon: Icons.sync)];
-      } else {
-        serverSubtitle = "Can't check right now";
-        serverControls = const [StatusBadge.neutral('Not answering', icon: Icons.cloud_off_outlined)];
-      }
-    } else {
-      serverSubtitle = 'Version $serverVersion';
-      serverControls = [
-        if (serverUpdate == null)
-          const StatusBadge.ok('Up to date', icon: Icons.check)
-        else ...[
-          StatusBadge.info('$serverUpdate ready'),
-          if (updates.backendTag != null)
-            AxButton(
-              label: 'Update',
-              small: true,
-              onPressed: () => showBackendUpdateDialog(context, targetVersion: serverUpdate, releaseTag: updates.backendTag!),
-            ),
-        ],
-      ];
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SettingsCard(
-          title: 'Software Updates',
-          children: [
-            AxListTile(
-              leading: const AxTileIcon(Icons.download_outlined),
-              title: 'Archangel OS app',
-              subtitle: 'Version ${AppVersion.current}',
-              controls: [
-                if (appUpdate == null)
-                  const StatusBadge.ok('Up to date', icon: Icons.check)
-                else ...[
-                  StatusBadge.info('$appUpdate ready'),
-                  if (url != null)
-                    AxButton(
-                      label: 'Download',
-                      small: true,
-                      onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-                    ),
-                ],
-              ],
-            ),
-            if (backend.isPaired)
-              AxListTile(
-                leading: const AxTileIcon(Icons.dns_outlined),
-                title: 'Server program',
-                subtitle: serverSubtitle,
-                controls: serverControls,
-              ),
-          ],
-        ),
-        SizedBox(height: ax.space.md),
-        Wrap(
-          spacing: ax.space.md,
-          runSpacing: ax.space.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            AxButton.ghost(
-              label: 'Check now',
-              small: true,
-              loading: updates.checking,
-              onPressed: () => updates.checkForUpdates(force: true),
-            ),
-            if (checked != null) Text('Last checked ${formatSettingsDate(checked)}', style: ax.typo.caption.copyWith(color: c.textMuted)),
-          ],
-        ),
-        SizedBox(height: ax.space.sm),
-        Text(
-          'Every update is checked before it installs, and rolls itself back if anything goes wrong.',
-          style: ax.typo.caption.copyWith(color: c.textMuted),
-        ),
-      ],
-    );
-  }
-}
-
-/// System maintenance, local cache & data reset, and danger zone actions.
+/// Housekeeping for this device, help for when something is wrong, and the
+/// risky actions at the bottom.
 class SystemSection extends StatelessWidget {
   const SystemSection({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final ax = context.ax;
     final backend = context.watch<ArchangeldConnection>();
     final paired = backend.isPaired;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingsStack(
       children: [
         SettingsCard(
-          title: 'Storage & Cache',
+          title: 'This device',
+          intro: 'Tidy up the app on this device. Your server is not changed.',
           children: [
             AxListTile(
-              title: 'Clear application cache',
-              subtitle: 'Purge local image cache, preview caches, and temporary files on this device.',
-              controls: [AxButton.secondary(label: 'Clear cache', small: true, onPressed: () => _clearCache(context))],
+              title: 'Free up space',
+              subtitle:
+                  'Clears saved image previews and the temporary files Archangel made on this device. '
+                  'Your files and your server are not touched.',
+              controls: [AxButton.secondary(label: 'Clear now', small: true, onPressed: () => _clearCache(context))],
             ),
             AxListTile(
               title: 'Reset app settings',
-              subtitle: 'Restore display scaling, theme mode, and desktop layout to defaults.',
+              subtitle: 'Puts the theme, colour, size and layout back to how they were at the start.',
               controls: [AxButton.secondary(label: 'Reset settings', small: true, onPressed: () => _resetAppSettings(context))],
             ),
           ],
         ),
-        SizedBox(height: ax.space.lg),
         SettingsCard(
-          title: 'Danger Zone',
+          title: 'Help & diagnostics',
+          intro: 'Something not working? Send us the details and we can help.',
+          footnote: 'The report holds versions and status only. It never includes passwords, keys or your pairing code.',
+          children: [
+            AxListTile(
+              title: 'Diagnostics',
+              subtitle: 'A short report with versions, your server and the connection.',
+              controls: [
+                AxButton.ghost(label: 'View report', small: true, onPressed: () => _viewDiagnostics(context)),
+                AxButton(
+                  label: 'Copy diagnostics for support',
+                  icon: Icons.copy_rounded,
+                  small: true,
+                  onPressed: () => _copyDiagnostics(context),
+                ),
+              ],
+            ),
+            AxListTile(
+              title: 'Found a bug?',
+              subtitle: 'Tell us what happened on GitHub. Paste the diagnostics in your message.',
+              controls: [
+                AxButton.secondary(
+                  label: 'Report a problem',
+                  icon: Icons.open_in_new,
+                  small: true,
+                  onPressed: () => launchUrl(Uri.parse('https://github.com/$kGithubRepoSlug/issues'), mode: LaunchMode.externalApplication),
+                ),
+              ],
+            ),
+          ],
+        ),
+        SettingsCard(
+          title: 'Danger zone',
+          intro: 'Serious actions. Each one asks you first.',
           danger: true,
           children: [
             AxListTile(
@@ -877,6 +540,62 @@ class SystemSection extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  /// The redacted report: versions, systems, connection, health, recent errors.
+  String _report(BuildContext context) {
+    final backend = context.read<ArchangeldConnection>();
+    final monitoring = context.read<MonitoringService>();
+    final wireguard = context.read<WireGuardController>();
+    final admin = context.read<AdminModeService>();
+    final phase = deriveConnectionPhase(
+      paired: backend.isPaired,
+      tunnel: wireguard.status,
+      reachable: backend.reachable,
+      healthFailures: backend.healthFailures,
+    );
+    return buildDiagnosticsReport(
+      now: DateTime.now(),
+      phase: phase,
+      health: evaluateHealth(connected: monitoring.isConnected, metrics: monitoring.metrics),
+      serverVersion: backend.backendVersion,
+      metrics: monitoring.metrics,
+      adminMode: admin.enabled,
+      recentErrors: [?monitoring.error, ?wireguard.lastError, ?backend.backendVersionError],
+      secrets: [backend.token, wireguard.config?.interfacePrivateKey, wireguard.config?.peerPublicKey],
+    );
+  }
+
+  void _copyDiagnostics(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: _report(context)));
+    showSnack(ScaffoldMessenger.maybeOf(context), 'Diagnostics copied. Paste them into your message to support.');
+  }
+
+  void _viewDiagnostics(BuildContext context) {
+    final report = _report(context);
+    final ax = context.ax;
+    final c = ax.colors;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: c.surface,
+        scrollable: true,
+        title: Text('Diagnostics report', style: ax.typo.title.copyWith(color: c.text)),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Container(
+            padding: EdgeInsets.all(ax.space.md),
+            decoration: BoxDecoration(
+              color: c.surfaceAlt,
+              borderRadius: BorderRadius.circular(ax.radii.sm),
+              border: Border.all(color: c.border),
+            ),
+            child: SelectableText(report, style: ax.typo.mono.copyWith(color: c.text)),
+          ),
+        ),
+        actions: [AxButton.ghost(label: 'Close', onPressed: () => Navigator.of(ctx).pop())],
+      ),
     );
   }
 

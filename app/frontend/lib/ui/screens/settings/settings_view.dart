@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../ui.dart';
+import 'about_section.dart';
 import 'devices_admin_sections.dart';
 import 'other_sections.dart';
 import 'servers_section.dart';
 
 /// The Settings sections, in the order they are listed.
 enum SettingsSectionId {
-  about('Archangel OS', Icons.auto_awesome_rounded),
+  about('About', Icons.auto_awesome_rounded),
   servers('Servers', Icons.dns_outlined),
   devices('Devices', Icons.devices_outlined),
   admin('Admin mode', Icons.key_outlined),
