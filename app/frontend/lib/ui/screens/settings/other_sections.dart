@@ -885,14 +885,11 @@ class SystemSection extends StatelessWidget {
     PaintingBinding.instance.imageCache.clear();
     PaintingBinding.instance.imageCache.clearLiveImages();
     try {
-      final tempDir = await getTemporaryDirectory();
-      if (await tempDir.exists()) {
-        await for (final entity in tempDir.list(followLinks: false)) {
-          try {
-            await entity.delete(recursive: true);
-          } catch (_) {}
-        }
-      }
+      // Only Archangel's own subfolder. The temp directory itself is shared
+      // with every other app on Linux (/tmp) and Windows (%TEMP%), so it must
+      // never be emptied wholesale.
+      final appTemp = Directory('${(await getTemporaryDirectory()).path}${Platform.pathSeparator}archangel');
+      if (await appTemp.exists()) await appTemp.delete(recursive: true);
     } catch (_) {}
     showSnack(messenger, 'Application cache cleared');
   }
