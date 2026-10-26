@@ -113,7 +113,13 @@ class _FakeFiles extends FilesService {
   }
 
   @override
-  Future<UploadResult> upload(String dir, List<UploadFileItem> files, {void Function(UploadProgress progress)? onProgress}) async {
+  Future<UploadResult> upload(
+    String dir,
+    List<UploadFileItem> files, {
+    void Function(UploadProgress progress)? onProgress,
+    UploadCancelToken? cancel,
+    Future<UploadConflictChoice> Function(String name)? onConflict,
+  }) async {
     if (onProgress != null) {
       onProgress(
         UploadProgress(fileIndex: 0, totalFiles: files.length, currentFileName: files.first.name, bytesSent: 512, totalBytes: 1024),
@@ -616,7 +622,7 @@ void main() {
   });
 
   group('Upload and Private Link', () {
-    testWidgets('Upload is present; shows unsupported snackbar when service reports unsupported', (tester) async {
+    testWidgets('Upload and private link are hidden when the service reports unsupported', (tester) async {
       final svc = _FakeFiles(
         fakeListing: _listing(),
         fakeSupportsUpload: false,
@@ -635,11 +641,9 @@ void main() {
 
       await _pump(tester, svc, const Size(1400, 900));
 
-      // Upload button is present next to terminal
-      expect(find.byTooltip('Upload'), findsOneWidget);
-      await tester.tap(find.byTooltip('Upload'));
-      await tester.pump();
-      expect(find.text('Upload is not supported yet'), findsOneWidget);
+      // No Upload button; Open terminal here stays
+      expect(find.byTooltip('Upload'), findsNothing);
+      expect(find.byTooltip('Open terminal here'), findsOneWidget);
 
       await tester.tap(find.text('notes.txt'));
       await tester.pump();
@@ -647,16 +651,12 @@ void main() {
       expect(find.widgetWithText(AxButton, 'Copy private link'), findsNothing);
     });
 
-    testWidgets('progress card and done snackbar with a fake service', (tester) async {
+    // Progress, cancel, retry and the done snackbar are in files_upload_test.dart
+    // (they need the picker seam on FilesWorkspace).
+    testWidgets('Upload is shown when the service supports it', (tester) async {
       final svc = _FakeFiles(fakeListing: _listing(), fakeSupportsUpload: true);
-
       await _pump(tester, svc, const Size(1400, 900));
-
       expect(find.byTooltip('Upload'), findsOneWidget);
-      await tester.tap(find.byTooltip('Upload'));
-      await tester.pump();
-
-      expect(find.text('Uploaded 1 file'), findsOneWidget);
     });
   });
 

@@ -31,6 +31,9 @@ type Config struct {
 	// FilesRoot is the directory the file browser is jailed to (Milestone 2).
 	FilesRoot string `yaml:"files_root"`
 
+	// UploadMaxBytes caps a single Files upload. 0 means the default (2 GiB).
+	UploadMaxBytes int64 `yaml:"upload_max_bytes"`
+
 	// WgDir is where WireGuard's config lives (wg0.conf, peer keys) -
 	// matches infra/scripts/wireguard_setup.sh's WG_DIR.
 	WgDir string `yaml:"wg_dir"`

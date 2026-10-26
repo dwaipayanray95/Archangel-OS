@@ -54,6 +54,7 @@ func NewRouter(verify auth.Verifier) http.Handler {
 	mux.Handle("GET /api/v1/files/list", auth.Middleware(verify, http.HandlerFunc(files.ListHandler)))
 	mux.Handle("GET /api/v1/files/read", auth.Middleware(verify, http.HandlerFunc(files.ReadHandler)))
 	mux.Handle("GET /api/v1/files/download", auth.Middleware(verify, http.HandlerFunc(files.DownloadHandler)))
+	mux.Handle("POST /api/v1/files/upload", auth.Middleware(verify, http.HandlerFunc(files.UploadHandler)))
 
 	// Docker / Containers Cockpit
 	mux.Handle("GET /api/v1/docker/containers", auth.Middleware(verify, http.HandlerFunc(docker.ContainersHandler)))

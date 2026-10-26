@@ -78,6 +78,7 @@ func main() {
 		slog.Error("failed to set up file browser root", "err", err)
 		os.Exit(1)
 	}
+	files.SetUploadMax(cfg.UploadMaxBytes)
 	if filesRoot == "" {
 		slog.Warn("files_root is not set - the Files tab will reject every request until it is")
 	} else {
