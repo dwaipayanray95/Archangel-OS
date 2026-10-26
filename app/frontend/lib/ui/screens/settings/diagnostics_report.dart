@@ -96,7 +96,7 @@ String buildDiagnosticsReport({
   b.writeln('Created: ${now.toUtc().toIso8601String()}');
   b.writeln();
   b.writeln('Versions');
-  b.writeln('  App: ${AppVersion.current}');
+  b.writeln('  Archangel OS: ${AppVersion.full}');
   b.writeln('  Server program: ${serverVersion ?? 'unknown'}');
   b.writeln();
   b.writeln('Systems');

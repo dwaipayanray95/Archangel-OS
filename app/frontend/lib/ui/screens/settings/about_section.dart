@@ -6,7 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../services/app_version.dart';
 import '../../../services/archangeld_connection.dart';
 import '../../../services/monitoring_service.dart';
-import '../../../services/semver.dart';
 import '../../../services/server_registry.dart';
 import '../../../services/update_check_service.dart';
 import '../../../services/wireguard_controller.dart';
@@ -79,7 +78,7 @@ class ArchangelOsSection extends StatelessWidget {
                 runSpacing: ax.space.xs,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  StatusBadge.neutral('App ${AppVersion.current}', icon: Icons.tag_rounded),
+                  StatusBadge.neutral('Version ${AppVersion.current}', icon: Icons.tag_rounded),
                   if (!paired) const StatusBadge.neutral('No server yet', icon: Icons.cloud_off_outlined),
                 ],
               ),
@@ -240,55 +239,55 @@ class _TechRow extends StatelessWidget {
   }
 }
 
-/// The app and server-program versions, and checking for newer ones.
+/// The one Archangel OS version, and checking for a newer one.
+///
+/// There is a single version for the app and the server program. One
+/// "Update" button does whatever is needed: update the server first when it
+/// is behind, then open the download for the app when that is behind too.
 class UpdatesSection extends StatelessWidget {
   const UpdatesSection({super.key});
+
+  Future<void> _update(BuildContext context) async {
+    final updates = context.read<UpdateCheckService>();
+    final backend = context.read<ArchangeldConnection>();
+    final latest = updates.latestVersion;
+    if (latest == null) return;
+    final url = updates.releaseUrl;
+
+    if (backend.isPaired && updates.serverBehind(backend.backendVersion)) {
+      await showBackendUpdateDialog(context, targetVersion: latest, releaseTag: updates.releaseTag ?? 'v$latest');
+      // Only go on to the app once the server really is up to date (the
+      // dialog refreshes the server's version when it finishes).
+      if (updates.serverBehind(backend.backendVersion)) return;
+    }
+    if (updates.appBehind && url != null) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final updates = context.watch<UpdateCheckService>();
     final backend = context.watch<ArchangeldConnection>();
-    final appUpdate = isUpdateAvailable(current: AppVersion.current, latest: updates.latestFrontend) ? updates.latestFrontend : null;
-    final url = updates.releaseUrl;
     final serverVersion = backend.backendVersion;
-    final serverUpdate = backend.isPaired && isUpdateAvailable(current: serverVersion, latest: updates.latestBackend)
-        ? updates.latestBackend
-        : null;
+    final paired = backend.isPaired;
+    final latest = updates.latestVersion;
+    final appBehind = updates.appBehind;
+    final serverBehind = paired && updates.serverBehind(serverVersion);
+    final available = (appBehind || serverBehind) && latest != null;
     final checked = updates.lastChecked;
 
-    final String? serverSubtitle;
-    final List<Widget> serverControls;
-    if (serverVersion == null) {
-      if (backend.backendChecking) {
-        serverSubtitle = null;
-        serverControls = const [StatusBadge.info('Checking…', icon: Icons.sync)];
-      } else {
-        serverSubtitle = "Can't check right now";
-        serverControls = const [StatusBadge.neutral('Not answering', icon: Icons.cloud_off_outlined)];
-      }
-    } else {
-      serverSubtitle = 'Version $serverVersion';
-      serverControls = [
-        if (serverUpdate == null)
-          const StatusBadge.ok('Up to date', icon: Icons.check)
-        else ...[
-          StatusBadge.info('$serverUpdate ready'),
-          if (updates.backendTag != null)
-            AxButton(
-              label: 'Update',
-              small: true,
-              onPressed: () => showBackendUpdateDialog(context, targetVersion: serverUpdate, releaseTag: updates.backendTag!),
-            ),
-        ],
-      ];
-    }
+    // "App 0.8.0 · Server 0.7.0", only when they differ.
+    final String? differ = paired && serverVersion != null && serverVersion != AppVersion.current
+        ? 'App ${AppVersion.current} · Server $serverVersion'
+        : null;
 
     final String result;
     if (updates.checking) {
       result = 'Checking for updates…';
     } else if (checked == null) {
       result = 'No check yet. Press "Check now".';
-    } else if (appUpdate != null || serverUpdate != null) {
+    } else if (available) {
       result = 'An update is ready.';
     } else {
       result = "You're up to date.";
@@ -296,34 +295,22 @@ class UpdatesSection extends StatelessWidget {
 
     return SettingsCard(
       title: 'Updates',
-      intro: 'Keep the app and your server on the latest version.',
+      intro: 'The app and your server share one version.',
       footnote: 'Every update is checked before it installs, and rolls itself back if anything goes wrong.',
       children: [
         AxListTile(
           leading: const AxTileIcon(Icons.download_outlined),
-          title: 'Archangel OS app',
-          subtitle: 'Version ${AppVersion.current}',
+          title: 'Archangel OS ${AppVersion.full}',
+          subtitle: differ,
           controls: [
-            if (appUpdate == null)
+            if (!available)
               const StatusBadge.ok('Up to date', icon: Icons.check)
             else ...[
-              StatusBadge.info('$appUpdate ready'),
-              if (url != null)
-                AxButton(
-                  label: 'Download',
-                  small: true,
-                  onPressed: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-                ),
+              StatusBadge.info('Update available — $latest'),
+              AxButton(label: 'Update', small: true, onPressed: () => _update(context)),
             ],
           ],
         ),
-        if (backend.isPaired)
-          AxListTile(
-            leading: const AxTileIcon(Icons.dns_outlined),
-            title: 'Server program',
-            subtitle: serverSubtitle,
-            controls: serverControls,
-          ),
         AxListTile(
           title: result,
           subtitle: checked == null ? null : 'Last checked ${formatSettingsDate(checked)}',

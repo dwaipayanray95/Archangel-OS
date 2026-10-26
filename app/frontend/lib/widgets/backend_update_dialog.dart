@@ -12,7 +12,7 @@ import '../ui/ui.dart';
 import 'host_key_dialog.dart';
 import 'passphrase_prompt_dialog.dart';
 
-/// Shown when the user taps "Update" next to the Archangel server version in
+/// Shown when the user taps "Update" on the Archangel OS version in
 /// Settings. Updates an already-set-up server's archangeld to the version
 /// named by [targetVersion]/[releaseTag] (from UpdateCheckService's manifest)
 /// over the same SSH machinery the first-run setup wizard uses - see
@@ -169,7 +169,7 @@ class _BackendUpdateDialogState extends State<BackendUpdateDialog> {
             if (_runError == null) {
               setState(() => _step = _UpdateStep.done);
               // The update badge disappears once backend.backendVersion
-              // (just refreshed above) matches the cached latestBackend.
+              // (just refreshed above) matches the cached latest version.
               context.read<UpdateCheckService>().checkForUpdates(force: true);
             }
           },

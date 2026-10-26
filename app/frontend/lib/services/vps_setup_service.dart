@@ -428,9 +428,8 @@ bash $_remoteScriptDir/ensure_boot_fw_fixup.sh ${config.appPort} tcp
 
   /// Updates an already-running archangeld to [targetVersion], downloading
   /// the binary from the specific release tagged [releaseTag] - NOT
-  /// "latest": a -b/-f release's other component may not have its
-  /// binary attached to whatever release GitHub currently calls
-  /// "latest" at all (see UpdateCheckService.backendTag's doc comment).
+  /// "latest" (the tag comes from the release manifest, see
+  /// UpdateCheckService.releaseTag).
   ///
   /// Keeps the previous binary as `archangeld.bak` and, if the new one
   /// doesn't come up correctly, automatically restores it. "Came up
