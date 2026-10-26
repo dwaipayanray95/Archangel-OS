@@ -1,4 +1,4 @@
-# Project Archangel — Infra
+# Archangel OS — Infra
 
 Personal Oracle Cloud (OCI) Always-Free VPS setup — vibecoding box, dev sandbox, and home for whatever self-hosted experiments come next.
 
@@ -28,8 +28,8 @@ Two steps, run from two different places — details, caveats, and everything ea
 
 **1. On the new server itself** (SSH in first — see section 4 for the connection command), gets it from "just launched" to "baseline + WireGuard fully configured, firewall gotcha fixed and boot-persisted":
 ```bash
-git clone https://github.com/dwaipayanray95/Project-Archangel.git
-cd Project-Archangel
+git clone https://github.com/dwaipayanray95/Archangel-OS.git
+cd Archangel-OS
 ./infra/scripts/install-archangel.sh
 ```
 
@@ -37,7 +37,7 @@ cd Project-Archangel
 
 **3. From your own machine** (not the server — this builds the Go binary locally and pushes it over), deploys the backend:
 ```bash
-cd Project-Archangel/app/backend
+cd Archangel-OS/app/backend
 ./deploy.sh
 ```
 Prints a fresh API token once at the end — save it in a password manager immediately, you'll need it to pair the Flutter app.
@@ -142,7 +142,7 @@ Applied to `Archangel-Mk1` (AMD Micro) on 2026-09-01. **Run this same sequence o
 - **Docker Engine** (official `get.docker.com` script), adds the `archangel` user to the `docker` group if it exists, and orders `docker.service` after `wg-quick@wg0` so containers published on the tunnel address can bind at boot
 - **Caddy** (official apt repo), with `/etc/caddy` made group-writable by `archangel` so the Services screen can manage web addresses
 ```bash
-git clone https://github.com/dwaipayanray95/Project-Archangel.git && cd Project-Archangel
+git clone https://github.com/dwaipayanray95/Archangel-OS.git && cd Archangel-OS
 ./infra/scripts/baseline_setup.sh
 ```
 
@@ -221,7 +221,7 @@ All five are exactly the class of bug that "did it print an error?" doesn't catc
 [`infra/scripts/install-archangel.sh`](scripts/install-archangel.sh) is the canonical "how do I set this box up" entrypoint — a thin orchestrator that runs `baseline_setup.sh` then `wireguard_setup.sh` in order (skipping WireGuard if it's already configured, to protect existing pairings). For a genuinely fresh instance:
 
 ```bash
-git clone https://github.com/dwaipayanray95/Project-Archangel.git && cd Project-Archangel
+git clone https://github.com/dwaipayanray95/Archangel-OS.git && cd Archangel-OS
 ./infra/scripts/install-archangel.sh
 ```
 

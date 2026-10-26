@@ -30,8 +30,8 @@ You need:
 Then:
 
 ```bash
-git clone https://github.com/dwaipayanray95/Project-Archangel.git
-cd Project-Archangel
+git clone https://github.com/dwaipayanray95/Archangel-OS.git
+cd Archangel-OS
 
 # backend
 cd app/backend
@@ -87,7 +87,7 @@ Commit both the original and the copy.
 
 ## Forks
 
-The app checks GitHub Releases, and the setup wizard downloads the server program from them. By default they come from `dwaipayanray95/Project-Archangel`. If you publish your own builds from a fork, point the app at your fork when you build:
+The app checks GitHub Releases, and the setup wizard downloads the server program from them. By default they come from `dwaipayanray95/Archangel-OS`. If you publish your own builds from a fork, point the app at your fork when you build:
 
 ```bash
 flutter build macos --dart-define=ARCHANGEL_REPO=you/your-fork
