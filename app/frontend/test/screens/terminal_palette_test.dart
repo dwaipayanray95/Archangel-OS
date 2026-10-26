@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:archangel/ui/screens/terminal/terminal_palette.dart';
+import 'package:archangel/ui/theme.dart';
 
 double _lum(Color c) {
   double ch(double v) => v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
@@ -42,6 +43,43 @@ void main() {
     test('cursor stands out from the background (>= 3:1)', () {
       expect(_contrast(kTerminalLightTheme.cursor, kTerminalLightBg), greaterThanOrEqualTo(3));
     });
+  });
+
+  group('chrome follows the app tokens', () {
+    for (final b in Brightness.values) {
+      test('${b.name}: text and muted text are readable on the bar and the console', () {
+        final c = b == Brightness.dark ? AxPalette.dark(AxAccent.halo) : AxPalette.light(AxAccent.halo);
+        final tp = TerminalPalette.resolve(c, b);
+        expect(tp.text, c.text);
+        expect(tp.line, c.border);
+        expect(tp.accent, c.accent);
+        for (final bg in [tp.barBg, tp.tabSelectedBg, tp.snipsBg]) {
+          expect(_contrast(tp.text, bg), greaterThanOrEqualTo(4.5));
+          expect(_contrast(tp.textMuted, bg), greaterThanOrEqualTo(4.5));
+        }
+        expect(_contrast(tp.termFg, tp.termBg), greaterThanOrEqualTo(4.5));
+      });
+    }
+  });
+
+  testWidgets('the console palette switches live with the app theme', (tester) async {
+    TerminalPalette? seen;
+    Widget app(Brightness b) => MaterialApp(
+      theme: buildTheme(b),
+      home: Builder(
+        builder: (context) {
+          seen = context.terminalPalette;
+          return const SizedBox();
+        },
+      ),
+    );
+    await tester.pumpWidget(app(Brightness.dark));
+    expect(seen!.termBg, kTerminalBg);
+    expect(seen!.termTheme, kTerminalTheme);
+    await tester.pumpWidget(app(Brightness.light));
+    await tester.pumpAndSettle();
+    expect(seen!.termBg, kTerminalLightBg);
+    expect(seen!.termTheme, kTerminalLightTheme);
   });
 
   test('TerminalPalette returns correct instance for brightness', () {

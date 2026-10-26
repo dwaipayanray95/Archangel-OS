@@ -3,46 +3,29 @@ import 'package:xterm/xterm.dart';
 
 import '../../theme.dart';
 
-/// Dark terminal background & foreground
-const Color kTerminalBg = Color(0xFF0B0C0B);
-const Color kTerminalFg = Color(0xFFE9EFE7);
+/// Dawn (dark) console: deep navy, the same navy as the prototype's console.
+const Color kTerminalBg = Color(0xFF0D0F1D);
+const Color kTerminalFg = Color(0xFFE6E8F5);
 
-/// Light (Pearl) terminal background & foreground
+/// Pearl (light) console: soft pearl.
 const Color kTerminalLightBg = Color(0xFFFAFAFC);
 const Color kTerminalLightFg = Color(0xFF141726);
 
-/// The console container palette (dark console in Dawn).
-const Color kConBg = Color(0xFF0D0F1D);
-const Color kConBarBg = Color(0xFF141729);
-const Color kConTabSelectedBg = Color(0xFF1C2036);
-const Color kConLine = Color(0x14FFFFFF); // rgba(255, 255, 255, 0.08)
-const Color kConText = Color(0xFFE6E8F5);
-const Color kConMuted = Color(0xFF9CA2C2);
-const Color kConAccent = Color(0xFF8FE3D6);
-const Color kConAccent2 = Color(0xFFC3B8FF);
-const Color kConSnipsBg = Color(0xFF10132A);
-const Color kConChipOffBg = Color(0x0FFFFFFF); // rgba(255, 255, 255, 0.06)
-const Color kConChipOnBg = Color(0x24FFC66E); // rgba(255, 197, 107, 0.14)
-const Color kConChipOnFg = Color(0xFFFFC66E);
-const Color kConLiveDotGreen = Color(0xFF6EE7A8);
-const Color kConLiveDotAmber = Color(0xFFFFC66E);
-const Color kConLiveDotGrey = Color(0xFF7F8A7C);
-
 /// Dawn (dark) ANSI Terminal Theme
 const TerminalTheme kTerminalTheme = TerminalTheme(
-  cursor: Color(0xFF7EE787),
+  cursor: Color(0xFF8FE3D6),
   selection: Color(0x663B82F6),
   foreground: kTerminalFg,
   background: kTerminalBg,
-  black: Color(0xFF7F8A7C),
+  black: Color(0xFF8A91B0),
   red: Color(0xFFFF7B72),
   green: Color(0xFF56D364),
   yellow: Color(0xFFE3B341),
   blue: Color(0xFF79B8FF),
   magenta: Color(0xFFD2A8FF),
   cyan: Color(0xFF56D4DD),
-  white: Color(0xFFD0D7CE),
-  brightBlack: Color(0xFF9AA596),
+  white: Color(0xFFD0D4E8),
+  brightBlack: Color(0xFF9AA1BF),
   brightRed: Color(0xFFFFA198),
   brightGreen: Color(0xFF7EE787),
   brightYellow: Color(0xFFF2CC60),
@@ -52,7 +35,7 @@ const TerminalTheme kTerminalTheme = TerminalTheme(
   brightWhite: Color(0xFFFFFFFF),
   searchHitBackground: Color(0xFFF2CC60),
   searchHitBackgroundCurrent: Color(0xFF7EE787),
-  searchHitForeground: Color(0xFF0B0C0B),
+  searchHitForeground: Color(0xFF0D0F1D),
 );
 
 /// Pearl (light) ANSI Terminal Theme
@@ -129,55 +112,44 @@ class TerminalPalette {
 
   bool get isDark => brightness == Brightness.dark;
 
-  static const TerminalPalette dark = TerminalPalette(
-    brightness: Brightness.dark,
-    bg: kConBg,
-    barBg: kConBarBg,
-    tabSelectedBg: kConTabSelectedBg,
-    line: kConLine,
-    text: kConText,
-    textMuted: kConMuted,
-    accent: kConAccent,
-    accent2: kConAccent2,
-    snipsBg: kConSnipsBg,
-    chipOffBg: kConChipOffBg,
-    chipOnBg: kConChipOnBg,
-    chipOnFg: kConChipOnFg,
-    liveDotGreen: kConLiveDotGreen,
-    liveDotAmber: kConLiveDotAmber,
-    liveDotGrey: kConLiveDotGrey,
-    termBg: kTerminalBg,
-    termFg: kTerminalFg,
-    termTheme: kTerminalTheme,
-  );
+  /// The console for [brightness]. The terminal colours are fixed per theme;
+  /// the chrome around them is taken from the app tokens [c], so it always
+  /// follows the active theme and accent.
+  factory TerminalPalette.resolve(AxPalette c, Brightness brightness) {
+    final dark = brightness == Brightness.dark;
+    final termBg = dark ? kTerminalBg : kTerminalLightBg;
+    return TerminalPalette(
+      brightness: brightness,
+      bg: termBg,
+      barBg: dark ? c.surface : c.surfaceAlt,
+      tabSelectedBg: dark ? c.surfaceHigh : c.surface,
+      line: c.border,
+      text: c.text,
+      textMuted: c.textMuted,
+      accent: c.accent,
+      accent2: c.info,
+      snipsBg: dark ? c.surface : c.surfaceAlt,
+      chipOffBg: c.surfaceAlt,
+      chipOnBg: c.warningWash,
+      chipOnFg: c.warning,
+      liveDotGreen: c.success,
+      liveDotAmber: c.warning,
+      liveDotGrey: c.outline,
+      termBg: termBg,
+      termFg: dark ? kTerminalFg : kTerminalLightFg,
+      termTheme: dark ? kTerminalTheme : kTerminalLightTheme,
+    );
+  }
 
-  static const TerminalPalette light = TerminalPalette(
-    brightness: Brightness.light,
-    bg: Color(0xFFF2F3F9),
-    barBg: Color(0xFFECEEF6),
-    tabSelectedBg: kTerminalLightBg,
-    line: Color(0xFFDCDDEB),
-    text: Color(0xFF141726),
-    textMuted: Color(0xFF565C78),
-    accent: Color(0xFF4B3FD1),
-    accent2: Color(0xFF6B55FF),
-    snipsBg: Color(0xFFF4F5FB),
-    chipOffBg: Color(0x14000000),
-    chipOnBg: Color(0x1F805300),
-    chipOnFg: Color(0xFF805300),
-    liveDotGreen: Color(0xFF11683F),
-    liveDotAmber: Color(0xFF805300),
-    liveDotGrey: Color(0xFF6D7190),
-    termBg: kTerminalLightBg,
-    termFg: kTerminalLightFg,
-    termTheme: kTerminalLightTheme,
-  );
+  static final TerminalPalette dark = TerminalPalette.resolve(AxPalette.dark(AxAccent.halo), Brightness.dark);
+  static final TerminalPalette light = TerminalPalette.resolve(AxPalette.light(AxAccent.halo), Brightness.light);
 
+  /// The default-accent palette for [brightness].
   static TerminalPalette of(Brightness brightness) => brightness == Brightness.dark ? dark : light;
 }
 
 extension TerminalPaletteContext on BuildContext {
-  TerminalPalette get terminalPalette => TerminalPalette.of(ax.brightness);
+  TerminalPalette get terminalPalette => TerminalPalette.resolve(ax.colors, ax.brightness);
 }
 
 /// Every text colour of [kTerminalTheme], for the contrast test.
