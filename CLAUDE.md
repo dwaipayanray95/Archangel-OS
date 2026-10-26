@@ -69,3 +69,29 @@ Flutter is at `/opt/homebrew/bin/flutter`. v1 targets are macOS and Android.
 
 Branch `redesign/halo-ui`. Use a short, plain-English subject that says what
 changed for the user. Do not push without Ray's OK.
+
+## Version: bump it with every piece of work
+
+The whole product (app and server) has one version: `version: X.Y.Z+N` in
+`app/frontend/pubspec.yaml`. Never edit it by hand. Use
+`scripts/bump_version.sh <major|minor|patch|build>` from the repo root.
+
+When a piece of work is finished (tests pass, ready to commit or merge),
+bump the version in the same commit:
+
+1. Pick the part from what changed for the user:
+   - `patch`: bug fixes, small polish, wording, performance.
+   - `minor`: a new feature, setting, screen or server endpoint.
+   - `major`: only when Ray asks for it (e.g. 1.0).
+   - `build`: changes users can't see (docs, tests, CI, refactors).
+2. Check whether the current version has been released yet:
+   `git ls-remote --tags origin "v$(grep '^version:' app/frontend/pubspec.yaml | sed -E 's/version: ([0-9.]+)\+.*/\1/')"`.
+   - Released (tag exists): bump the part from step 1.
+   - Not released yet: the next release already gets this number. Run
+     `build` only, unless step 1 needs a bigger bump than the one already
+     made since the last release (e.g. last release 0.8.0, current 0.8.1,
+     and you add a feature: run `minor` to get 0.9.0).
+3. Say the new version in your summary to Ray (e.g. "Version 0.8.0+2 → 0.8.1+3").
+
+Agents working in worktrees do not bump; whoever merges their work does it
+once for the merged batch.
