@@ -5,34 +5,21 @@ Ordered by priority inside each group. Tick items off here as they ship.
 
 ## A. Bugs and safety fixes (do first)
 
-- [ ] **Services lost script Run / Edit / New.** The redesign only shows View and
-      Delete for scripts. `DevopsService.runDeployment` / `saveDeployment` now have
-      no callers, and the "Admin mode is off → Open Settings" banner is gone (only a
-      snackbar). Restore per `docs/design/specs/services.md`, or drop the feature
-      on purpose and delete the dead code.
+- [x] **Services: script Run / Edit / New restored** with the admin-mode banner. ⚠️ Spec `services.md` lists these as "Not in v1" — Ray to decide keep (update spec + intro text) or revert.
 - [ ] *(Later — see F)* **Fullscreen is forced on every launch**, ignoring the saved "Windowed"
       choice (`main.dart` `WindowService.init(fullScreen: true)`, the shell's
       `setFullScreen(true)` after the first frame, and a native toggle in
       `macos/Runner/AppDelegate.swift`). Settings then shows "Windowed" while the
       window is fullscreen. Read the saved preference before init and remove the
       forced calls.
-- [ ] **Process stop lost its safety wording.** Restore "Programs you stop may lose
-      unsaved work. System processes can make the server unstable." and mark Stop
-      as danger; consider guarding critical processes (PID 1, sshd, archangeld,
-      wg-quick).
-- [ ] **Desktop keyboard handler eats terminal keys.** Alt+arrows, Ctrl+Alt+arrows
-      and Ctrl/Alt+Tab are captured even when the terminal is focused (tmux/vim/word
-      jumps break). Skip the handler when the terminal has focus; require Cmd/Ctrl
-      for snap shortcuts.
+- [x] **Process stop warning restored**; critical processes (PID 1, systemd, sshd, archangeld, WireGuard, Docker) need the name typed.
+- [x] **Terminal keeps Alt/Ctrl+Alt+arrows**; snapping needs Cmd+Alt / Ctrl+Alt; skipped in dialogs.
 - [ ] *(Kept as is by decision, 2026-10-26)* **UI scale defaults to 80% everywhere**, including Android tablets: body text
       drops to ~11 px and touch targets below 48 dp, and the desktop-mode
       breakpoint is compared against the scaled width. Default to 100% (or floor at
       100% on touch devices) and compare breakpoints against the real width.
-- [ ] **Windowed mode on Windows/Linux has no minimize/close buttons** (title bar is
-      hidden). Add window controls to the top bar; prevent stacked "Quit?" dialogs.
-- [ ] **"Restart app"** re-runs the widget tree in the same process, so static
-      state (hotkey callbacks, caches) survives. Either reset those explicitly or
-      rename it "Reload interface".
+- [x] **Window buttons on Windows/Linux windowed mode**; no stacked Quit dialogs.
+- [x] **"Restart app" → "Reload interface"**, statics cleared. Follow-up below: it may not actually rebuild.
 - [x] ~~"Clear cache" deleted the whole system temp folder (shared `/tmp`).~~ Fixed:
       it now only clears Archangel's own cache.
 - [x] ~~Build report committed under `android/build/`.~~ Removed and gitignored.
@@ -63,7 +50,7 @@ Ordered by priority inside each group. Tick items off here as they ship.
 - [ ] **Setup wizard in Halo**: the old wizard screen is still used; the pairing-code,
       QR-scan and "Joining your private cloud" screens from the prototype aren't
       built.
-- [ ] **Files upload**: the button exists but `_handleUpload` sends a dummy
+- [x] **Files upload** built end to end (server endpoint + multi-file picker, progress, Replace/Skip/Keep both). Was: the button exists but `_handleUpload` sends a dummy
       `upload1.txt` and `supportsUpload` is false. Needs a real multi-file picker
       and a backend upload endpoint (see D). Per spec, hide the buttons when
       unsupported instead of showing a snackbar.
@@ -73,7 +60,7 @@ Ordered by priority inside each group. Tick items off here as they ship.
 - [ ] **Dock context menu**: add Open / Close window / Keep in dock / Customize dock.
 - [ ] **Reduced motion**: only the boot animation respects it. Desktop windows,
       launcher and Activity charts should too.
-- [ ] **Terminal colours**: spec wants a theme-adaptive console (navy in Dawn,
+- [x] **Terminal colours** follow the theme (navy Dawn / pearl Pearl, all ANSI ≥ 4.5:1). Was: spec wants a theme-adaptive console (navy in Dawn,
       pearl in Pearl); the code uses fixed colours. Check ANSI contrast in Pearl.
 - [ ] **Sentence case**: "Danger Zone", "Software Updates" → "Danger zone",
       "Software updates".
@@ -114,6 +101,10 @@ Ordered by priority inside each group. Tick items off here as they ship.
   Dart ≥ 3.8; releases would have failed to build on 3.29.3).
 
 ## F. Later
+
+- [ ] "Reload interface" may not rebuild anything (the app root is a const widget) — make it a real reload (new key on the root) or remove it.
+- [ ] Formatter: `dart format -l 140` is gone in Dart 3.13 and the new formatter restyles ~100 files. Decide the style, run one repo-wide format commit, and update CLAUDE.md's command.
+- [ ] Optional: block F11 / Cmd+Ctrl+F fullscreen while typing in the terminal (Ray to decide).
 
 - [ ] Fullscreen-first launch and saving window preferences (decide behaviour, then fix the forced fullscreen in A).
 - [ ] System-wide hotkeys: opt-in + configurable, safe registration, unregister on quit (see B).
