@@ -105,6 +105,7 @@ Ordered by priority inside each group. Tick items off here as they ship.
 - [ ] "Reload interface" may not rebuild anything (the app root is a const widget) — make it a real reload (new key on the root) or remove it.
 - [x] Formatter: one repo-wide format at 140 columns (set in analysis_options.yaml); CI now checks formatting.
 - [x] F11 / Cmd+Ctrl+F no longer toggle fullscreen while typing in the terminal.
+- [x] One version for the whole product: `version:` in `app/frontend/pubspec.yaml` is the single source (bump with `scripts/bump_version.sh`). The `VERSION` file and `sync_version.sh` are gone, releases always build the server program and every app, and Settings shows one "Archangel OS 0.8.0 (build 2)" row with one Update button.
 
 - [ ] Fullscreen-first launch and saving window preferences (decide behaviour, then fix the forced fullscreen in A).
 - [ ] System-wide hotkeys: opt-in + configurable, safe registration, unregister on quit (see B).

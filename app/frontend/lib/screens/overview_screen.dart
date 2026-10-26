@@ -99,8 +99,8 @@ class _OverviewScreenState extends State<OverviewScreen> {
       containers: containers.overview?.dockerAvailable == true ? containers.overview!.containers : const [],
       services: devops.services,
       metrics: metrics,
-      backendVersion: backend.backendVersion,
-      latestBackend: updates.latestBackend,
+      updateAvailable: updates.updateAvailable(serverVersion: backend.backendVersion),
+      latestVersion: updates.latestVersion,
     );
 
     final running = containers.overview?.dockerAvailable == true ? containers.overview!.containers.where((c) => c.running).length : null;

@@ -84,7 +84,7 @@ More in [How it works](docs/how-it-works.md).
 | [`docs/`](docs/getting-started.md) | User guides, provider guides, troubleshooting and security. |
 | [`scripts/`](scripts/sync_setup_assets.sh) | Repo helper scripts. |
 | [`.github/workflows/`](.github/workflows) | CI checks and the release pipeline. |
-| `VERSION` | The version numbers for the project, the app and the server program. |
+| `scripts/bump_version.sh` | Bumps the one version (kept in `app/frontend/pubspec.yaml`) before a release. See [CONTRIBUTING.md](CONTRIBUTING.md#releases). |
 
 ## Contributing and security
 

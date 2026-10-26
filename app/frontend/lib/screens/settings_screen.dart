@@ -45,6 +45,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final backend = context.watch<ArchangeldConnection>();
     _syncBackendServices(backend);
-    return SettingsView(paired: backend.isPaired, version: AppVersion.archangel);
+    return SettingsView(paired: backend.isPaired, version: AppVersion.current);
   }
 }

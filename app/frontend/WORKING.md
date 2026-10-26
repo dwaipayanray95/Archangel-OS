@@ -76,15 +76,12 @@ no Windows toolchain. Everything below is real, complete code, but
   binaries, app now requests admin elevation on launch (needed to create
   the tunnel service). Never compiled with an actual Windows toolchain.
 - **The release pipeline** (`.github/workflows/release.yml`, replacing
-  the old manual `build-app.yml`/`release-backend.yml`): tag-triggered
-  only, no manual dispatch. A tag's suffix (`-b`/`-f`/none) decides
-  backend/frontend/both, and every run publishes to that tag's GitHub
-  Release including a generated `version-manifest.json` (what
-  `UpdateCheckService` reads). The tag-parsing and manifest
-  freeze-logic bash has been reasoned through by hand for every tag
-  shape but **never actually run on GitHub's runners** - needs a real
-  tag pushed (`v0.1.0` proved out the original backend-only workflow;
-  this unified one hasn't had its own real run yet).
+  the old manual `build-app.yml`/`release-backend.yml`): one version
+  (`version:` in pubspec.yaml), tag `v<semver>`, every run builds the
+  backend and all apps and publishes `version-manifest.json` (what
+  `UpdateCheckService` reads). Started from Actions or by pushing the
+  tag. The new single-version workflow has **never run on GitHub's
+  runners** yet.
 - **In-app backend updates**: `VpsSetupService.updateBackend()` +
   `BackendUpdateDialog` - backs up the current binary, downloads +
   version-verifies the new one, restarts the service, polls `/health`
@@ -103,9 +100,9 @@ no Windows toolchain. Everything below is real, complete code, but
 
 ## Known gaps / things to do next, roughly in priority order
 
-1. **Run the release pipeline for real** — push a tag of each shape
-   (`vX.Y.Z`, `-b`, `-f`) and confirm the manifest freeze logic actually
-   behaves as designed across a sequence of releases.
+1. **Run the release pipeline for real** — run "Release Archangel" once
+   and confirm the tag, artifacts and `version-manifest.json` come out as
+   described in CONTRIBUTING.md.
 2. **Android/Windows real-device testing**: nobody has run this app on
    either platform yet. Expect friction — this is genuinely the first
    time this code has met a real toolchain for either. (macOS, and now
@@ -181,7 +178,7 @@ lib/
     terminal_session.dart        — the real PTY-over-WebSocket client
     monitoring_service.dart      — real system metrics/process list, mock fallback
     files_service.dart           — real jailed file browser, mock fallback
-    app_version.dart             — frontend/project version constants, synced from VERSION
+    app_version.dart             — the one version (dart-define APP_VERSION/APP_BUILD, fallback = pubspec)
     update_check_service.dart    — fetches GitHub's latest release manifest
     ssh_transport.dart           — dartssh2 wrapper + host-key TOFU
     ssh_credentials.dart         — shared "remember this key" storage
@@ -202,7 +199,7 @@ macos/Runner/
 windows/runner/
   runner.exe.manifest           — requests admin elevation (needed for the tunnel service)
 
-scripts/sync_version.sh          — syncs pubspec.yaml + app_version.dart from ../../VERSION
+(repo root) scripts/bump_version.sh — bumps pubspec.yaml version + app_version.dart fallback
 
 .github/workflows/release.yml    — tag-triggered build+release pipeline (backend + frontend)
 

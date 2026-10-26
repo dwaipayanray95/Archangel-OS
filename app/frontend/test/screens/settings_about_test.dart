@@ -176,7 +176,7 @@ void main() {
       expect(find.text('10.10.0.7'), findsOneWidget);
       expect(find.text('Last checked 7s ago'), findsOneWidget);
       expect(find.text('Updates'), findsOneWidget);
-      expect(find.text('Version ${AppVersion.current}'), findsOneWidget);
+      expect(find.text('Archangel OS ${AppVersion.full}'), findsOneWidget);
       expect(find.text('Check now'), findsOneWidget);
       expect(find.text("You're up to date.").evaluate().length + find.text('No check yet. Press "Check now".').evaluate().length, 1);
     });

@@ -11,6 +11,7 @@ import 'package:archangel/services/archangeld_connection.dart';
 import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/services/devops_service.dart';
 import 'package:archangel/services/monitoring_service.dart';
+import 'package:archangel/services/semver.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/ui/theme.dart';
 
@@ -83,7 +84,11 @@ class FakeUpdates extends UpdateCheckService {
   FakeUpdates(this.backendLatest);
   final String? backendLatest;
   @override
-  String? get latestBackend => backendLatest;
+  String? get latestVersion => backendLatest;
+  @override
+  bool get appBehind => false;
+  @override
+  bool serverBehind(String? serverVersion) => isUpdateAvailable(current: serverVersion, latest: backendLatest);
 }
 
 DockerContainerItem container(String name, {required bool running}) => DockerContainerItem(
@@ -208,14 +213,14 @@ void main() {
         metrics: metrics(
           mounts: [const MountMetric(mountPoint: '/data', device: 'd', totalBytes: 100, usedBytes: 95)],
         ),
-        backendVersion: '0.4.0',
-        latestBackend: '0.5.0',
+        updateAvailable: true,
+        latestVersion: '0.5.0',
       );
       expect(items.map((i) => i.title), [
         'web is stopped',
         'nginx has a problem',
         'Disk /data is 95% full',
-        'Archangel server update available',
+        'Archangel OS update available',
       ]);
       expect(items.map((i) => i.target), [AxSection.apps, AxSection.services, AxSection.activity, AxSection.settings]);
     });
@@ -225,8 +230,8 @@ void main() {
         buildAttentionItems(
           containers: [container('db', running: true)],
           metrics: metrics(),
-          backendVersion: '0.5.0',
-          latestBackend: '0.5.0',
+          updateAvailable: false,
+          latestVersion: '0.5.0',
         ),
         isEmpty,
       );
@@ -249,7 +254,7 @@ void main() {
       expect(find.text('Needs attention'), findsOneWidget);
       expect(find.text('web-app is stopped'), findsOneWidget);
       expect(find.text('nginx has a problem'), findsOneWidget);
-      expect(find.text('Archangel server update available'), findsOneWidget);
+      expect(find.text('Archangel OS update available'), findsOneWidget);
 
       await tester.ensureVisible(find.text('web-app is stopped'));
       await tester.tap(find.text('web-app is stopped'));

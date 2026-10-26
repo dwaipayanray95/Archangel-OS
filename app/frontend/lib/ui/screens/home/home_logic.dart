@@ -2,7 +2,7 @@ import '../../../data/app_state.dart';
 import '../../../models/container_model.dart';
 import '../../../models/devops_model.dart';
 import '../../../models/system_metrics.dart';
-import '../../../services/semver.dart';
+import '../../../services/app_version.dart';
 import '../../components/status_badge.dart';
 
 enum HealthLevel { unreachable, checking, warning, healthy }
@@ -94,8 +94,8 @@ List<AttentionItem> buildAttentionItems({
   List<DockerContainerItem> containers = const [],
   List<DevRowModel> services = const [],
   SystemMetrics? metrics,
-  String? backendVersion,
-  String? latestBackend,
+  bool updateAvailable = false,
+  String? latestVersion,
 }) {
   final items = <AttentionItem>[];
 
@@ -149,12 +149,14 @@ List<AttentionItem> buildAttentionItems({
     }
   }
 
-  if (isUpdateAvailable(current: backendVersion, latest: latestBackend)) {
+  if (updateAvailable) {
     items.add(
       AttentionItem(
-        id: 'update:backend',
-        title: 'Archangel server update available',
-        detail: 'Version $latestBackend is ready (you have $backendVersion). Open Settings to update.',
+        id: 'update',
+        title: 'Archangel OS update available',
+        detail: latestVersion == null
+            ? 'A new version is ready. Open Settings to update.'
+            : 'Version $latestVersion is ready (you have ${AppVersion.current}). Open Settings to update.',
         status: AxStatus.info,
         target: AxSection.settings,
         actionLabel: 'Open Settings',
