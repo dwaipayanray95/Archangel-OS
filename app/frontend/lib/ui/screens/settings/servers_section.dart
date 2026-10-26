@@ -73,6 +73,7 @@ class ServersSection extends StatelessWidget {
         if (active != null) ...[_ActiveConnectionCard(profile: active), SizedBox(height: ax.space.lg)],
         SettingsCard(
           title: 'Servers',
+          intro: 'The servers saved on this device. Switch between them or add another.',
           actions: [
             AxButton.secondary(
               label: 'Add a server',
@@ -225,18 +226,25 @@ class _ActiveConnectionCardState extends State<_ActiveConnectionCard> {
     final pingBadgeText =
         _pingLatencyMs != null ? (_pingSuccess == true ? 'Ping: ${_pingLatencyMs}ms' : 'Timeout (${_pingLatencyMs}ms)') : null;
 
-    final tunnelIp = wg.config?.interfaceAddress ?? 'Not assigned';
-    final peerEndpoint = wg.config?.peerEndpoint ?? widget.profile.host;
-    final daemonVersion = backend.backendVersion != null ? 'v${backend.backendVersion}' : 'Checking…';
     final hostDesc = metrics?.host.hostname != null ? '${widget.profile.host} · ${metrics!.host.hostname}' : widget.profile.host;
 
+    final connectionLine =
+        _reconnecting
+            ? 'Reconnecting to ${widget.profile.name}…'
+            : (_testing
+                ? 'Testing how fast your server answers…'
+                : (_pingLatencyMs != null
+                    ? (_pingSuccess == true ? 'Server responding · ${_pingLatencyMs}ms' : 'Server unreachable · ${_pingLatencyMs}ms')
+                    : connectionText(phase, serverName: widget.profile.name)));
+
     return SettingsCard(
-      title: 'Active Connection',
+      title: 'Active server',
+      intro: 'The server you are using right now, and whether you are connected to it.',
       actions: [phaseBadge],
       children: [
         AxListTile(
           leading: const AxTileIcon(Icons.dns_rounded),
-          title: 'Active: ${widget.profile.name}',
+          title: 'In use: ${widget.profile.name}',
           titleMono: true,
           subtitle: hostDesc,
           subtitleMono: true,
@@ -245,22 +253,12 @@ class _ActiveConnectionCardState extends State<_ActiveConnectionCard> {
               _pingSuccess == true
                   ? StatusBadge.ok(pingBadgeText, icon: Icons.speed_rounded)
                   : StatusBadge.error(pingBadgeText, icon: Icons.speed_rounded),
-            phaseBadge,
           ],
         ),
         AxListTile(
           leading: const AxTileIcon(Icons.bolt_rounded),
-          title: 'Connection controls',
-          subtitle:
-              _reconnecting
-                  ? 'Reconnecting to ${widget.profile.name}…'
-                  : (_testing
-                      ? 'Testing server response time…'
-                      : (_pingLatencyMs != null
-                          ? (_pingSuccess == true
-                              ? 'Server responding · ${_pingLatencyMs}ms latency'
-                              : 'Server unreachable · ${_pingLatencyMs}ms')
-                          : 'Manage tunnel connection, reconnect, or ping server.')),
+          title: 'Connection',
+          subtitle: connectionLine,
           controls: [
             if (isOffline)
               AxButton(
@@ -298,27 +296,25 @@ class _ActiveConnectionCardState extends State<_ActiveConnectionCard> {
         ),
         AxListTile(
           leading: const AxTileIcon(Icons.shield_outlined),
-          title: 'WireGuard tunnel',
-          subtitle: 'Status: ${wg.status.name} · IP: $tunnelIp · Endpoint: $peerEndpoint',
-          subtitleMono: true,
+          title: 'Secure connection',
+          subtitle: 'Keeps everything between this device and your server private.',
           controls: [
             wg.status == TunnelStatus.connected
-                ? const StatusBadge.ok('Mesh active', icon: Icons.hub_outlined)
+                ? const StatusBadge.ok('Encrypted', icon: Icons.lock_outline)
                 : (wg.status == TunnelStatus.connecting || wg.status == TunnelStatus.disconnecting
-                    ? StatusBadge.info(wg.status.name, icon: Icons.sync)
-                    : StatusBadge.neutral(wg.status.name, icon: Icons.circle_outlined)),
+                    ? const StatusBadge.info('Connecting…', icon: Icons.sync)
+                    : const StatusBadge.neutral('Off in this app', icon: Icons.circle_outlined)),
           ],
         ),
         AxListTile(
           leading: const AxTileIcon(Icons.memory_rounded),
-          title: 'Daemon API (archangeld)',
-          subtitle: 'http://${backend.host ?? widget.profile.host} · $daemonVersion',
-          subtitleMono: true,
+          title: 'Archangel on your server',
+          subtitle: backend.backendVersion != null ? 'Version ${backend.backendVersion}' : 'Checking the version…',
           controls: [
             backend.reachable == true
-                ? const StatusBadge.ok('Healthy', icon: Icons.check)
+                ? const StatusBadge.ok('Running', icon: Icons.check)
                 : (backend.reachable == false
-                    ? const StatusBadge.error('Unreachable', icon: Icons.error_outline)
+                    ? const StatusBadge.error("Can't be reached", icon: Icons.error_outline)
                     : const StatusBadge.neutral('Checking…', icon: Icons.sync)),
           ],
         ),

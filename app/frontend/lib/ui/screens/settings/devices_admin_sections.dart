@@ -66,6 +66,7 @@ class DevicesSection extends StatelessWidget {
     final svc = context.watch<DevicesService>();
     return SettingsCard(
       title: 'Devices',
+      intro: 'Phones and computers that are allowed to reach your server.',
       actions: [
         AxIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: svc.loading ? null : svc.refresh),
         AxButton(label: 'Add a device', icon: Icons.qr_code_2, small: true, onPressed: () => showAddDeviceDialog(context)),
@@ -174,6 +175,8 @@ class AdminModeSection extends StatelessWidget {
                 ),
             ],
           ),
+          SizedBox(height: ax.space.xs),
+          Text('Lets the app and the terminal make bigger changes on your server.', style: ax.typo.caption.copyWith(color: c.textMuted)),
           if (enabled != null) ...[
             SizedBox(height: ax.space.sm),
             Align(
