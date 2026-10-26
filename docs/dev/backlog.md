@@ -5,7 +5,7 @@ Ordered by priority inside each group. Tick items off here as they ship.
 
 ## A. Bugs and safety fixes (do first)
 
-- [x] **Services: script Run / Edit / New restored** with the admin-mode banner. ⚠️ Spec `services.md` lists these as "Not in v1" — Ray to decide keep (update spec + intro text) or revert.
+- [x] **Services: script Run / Edit / New restored** with the admin-mode banner. Kept (Ray, 2026-10-26); spec and intro text updated.
 - [ ] *(Later — see F)* **Fullscreen is forced on every launch**, ignoring the saved "Windowed"
       choice (`main.dart` `WindowService.init(fullScreen: true)`, the shell's
       `setFullScreen(true)` after the first frame, and a native toggle in
@@ -103,8 +103,8 @@ Ordered by priority inside each group. Tick items off here as they ship.
 ## F. Later
 
 - [ ] "Reload interface" may not rebuild anything (the app root is a const widget) — make it a real reload (new key on the root) or remove it.
-- [ ] Formatter: `dart format -l 140` is gone in Dart 3.13 and the new formatter restyles ~100 files. Decide the style, run one repo-wide format commit, and update CLAUDE.md's command.
-- [ ] Optional: block F11 / Cmd+Ctrl+F fullscreen while typing in the terminal (Ray to decide).
+- [x] Formatter: one repo-wide format at 140 columns (set in analysis_options.yaml); CI now checks formatting.
+- [x] F11 / Cmd+Ctrl+F no longer toggle fullscreen while typing in the terminal.
 
 - [ ] Fullscreen-first launch and saving window preferences (decide behaviour, then fix the forced fullscreen in A).
 - [ ] System-wide hotkeys: opt-in + configurable, safe registration, unregister on quit (see B).

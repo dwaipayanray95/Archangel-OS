@@ -60,5 +60,7 @@ jobs:
           cache: true
 
       - run: flutter pub get
+      - name: Formatting (dart format, 140 columns from analysis_options.yaml)
+        run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --no-fatal-infos
       - run: flutter test

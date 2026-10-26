@@ -24,7 +24,7 @@ behave.
 ## Commands (run in `app/frontend`)
 
 ```sh
-dart format --page-width 140 lib test   # 140 columns (Dart 3.13+: -l is gone; see docs/dev/backlog.md about restyling)
+dart format lib test              # width (140) comes from analysis_options.yaml; CI fails if unformatted
 flutter analyze                   # must say "No issues found!"
 flutter test                      # the whole suite must pass
 flutter test test/shell_test.dart # one file
