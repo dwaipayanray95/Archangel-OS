@@ -35,11 +35,20 @@ const double kDeskTopBarHeight = 42;
 /// Width of the health widget in the desktop's top-right corner.
 const double kDeskWidgetWidth = 248;
 
-/// How close to an edge a dragged title bar must come to snap.
+/// How close (in logical px) the POINTER must be to a desktop edge to ask for
+/// a snap. The window's own edge does not count.
 const double kDeskSnapEdge = 10;
 
-/// Corner threshold along the edge for snapping into quadrant corners.
-const double kDeskSnapCorner = 64;
+/// Corner zone along the edge for snapping into quadrant corners.
+const double kDeskSnapCorner = 24;
+
+/// The pointer must stay in a snap zone this long before the ghost preview
+/// shows and a release snaps. Quick flicks across an edge never snap.
+const Duration kDeskSnapDwell = Duration(milliseconds: 300);
+
+/// Dragging a snapped window further than this pulls it out and restores its
+/// floating size.
+const double kDeskUnsnapDistance = 16;
 
 /// Margin and spacing gap between arranged windows and the desktop edges.
 const double kDeskWindowGap = 4.0;
@@ -81,6 +90,34 @@ class DesktopWindows extends ChangeNotifier {
   bool _seeded = false;
   DeskSnap _snap = DeskSnap.none;
 
+  /// What the pointer is in the zone of, waiting out [kDeskSnapDwell].
+  DeskSnap _pendingSnap = DeskSnap.none;
+  Timer? _dwell;
+
+  /// Distance dragged since the title-bar drag began (for pulling out).
+  Offset _pulled = Offset.zero;
+
+  /// After pulling a snapped window out, no snap until the pointer has left
+  /// every zone once.
+  bool _needZoneExit = false;
+
+  /// Whether dragging to an edge may snap (Settings > Windows and layout).
+  /// Keyboard snapping ([snapWindow]) is not affected.
+  bool snapEnabled = true;
+
+  @override
+  void dispose() {
+    _dwell?.cancel();
+    super.dispose();
+  }
+
+  void _clearDwell() {
+    _dwell?.cancel();
+    _dwell = null;
+    _pendingSnap = DeskSnap.none;
+    _snap = DeskSnap.none;
+  }
+
   /// The usable area for windows (below the top bar, above the dock).
   Size area = const Size(1200, 700);
 
@@ -91,7 +128,8 @@ class DesktopWindows extends ChangeNotifier {
 
   bool get launcherOpen => _launcherOpen;
 
-  /// The snap a window drag would make right now.
+  /// The snap a window drag would make if let go right now (only set once
+  /// the pointer has dwelled in a zone).
   DeskSnap get snap => _snap;
 
   /// The outline shown while dragging toward an edge, or null.
@@ -348,42 +386,70 @@ class DesktopWindows extends ChangeNotifier {
     final w = windowFor(s);
     if (w == null) return;
     w.isDragging = true;
+    _pulled = Offset.zero;
+    _needZoneExit = false;
+    _clearDwell();
     notifyListeners();
   }
 
-  /// Moves [s] by [delta]. [pointer] (window-area coordinates) drives
-  /// edge snapping: near screen edges and corners, a preview shows
-  /// where the window will land on [endMove].
+  /// Moves [s] by [delta] (a title-bar drag). [pointer] (window-area
+  /// coordinates) drives edge snapping: the pointer must dwell in an edge or
+  /// corner zone for [kDeskSnapDwell] before the preview shows; [endMove]
+  /// then snaps. A snapped window stays put until pulled [kDeskUnsnapDistance].
   void move(AxSection s, Offset delta, {Offset? pointer, bool? altPressed}) {
     final w = windowFor(s);
     if (w == null) return;
     w.isDragging = true;
+    _pulled += delta;
     if (w.maximized) {
-      // Dragging a maximized or snapped window restores its size under the pointer.
+      if (_pulled.distance <= kDeskUnsnapDistance) {
+        notifyListeners();
+        return;
+      }
+      // Pulled out: back to the floating size under the pointer, and no
+      // re-snap until the pointer has left the zones.
       final restore = w.restoreRect!;
       w.restoreRect = null;
       w.snapped = DeskSnap.none;
+      _needZoneExit = true;
       final x = pointer == null ? w.rect.left : pointer.dx - restore.width / 2;
       w.rect = _clamp(Rect.fromLTWH(x, w.rect.top, restore.width, restore.height));
     }
     w.rect = _clamp(w.rect.shift(delta));
-    _snap = pointer == null ? DeskSnap.none : snapAt(pointer, altPressed: altPressed);
+    _trackZone(pointer, altPressed);
     notifyListeners();
   }
 
-  /// Ends a title-bar drag, snapping [s] if it was let go at an edge.
+  void _trackZone(Offset? pointer, bool? altPressed) {
+    final zone = (!snapEnabled || pointer == null) ? DeskSnap.none : snapAt(pointer, altPressed: altPressed);
+    if (zone == DeskSnap.none) _needZoneExit = false;
+    if (_needZoneExit || zone == _pendingSnap) return;
+    _clearDwell();
+    if (zone == DeskSnap.none) return;
+    _pendingSnap = zone;
+    _dwell = Timer(kDeskSnapDwell, () {
+      _dwell = null;
+      _snap = _pendingSnap;
+      notifyListeners();
+    });
+  }
+
+  /// Ends a title-bar drag. Snaps [s] only if the pointer had dwelled in a
+  /// zone; otherwise (released outside, or moved out first) nothing happens.
   void endMove(AxSection s) {
     final w = windowFor(s);
     if (w != null) {
       w.isDragging = false;
       final target = snapRect(_snap);
-      if (target != null) {
+      if (target != null && snapEnabled) {
         w.restoreRect = w.rect;
         w.snapped = _snap;
         w.rect = target;
       }
     }
-    _snap = DeskSnap.none;
+    _clearDwell();
+    _pulled = Offset.zero;
+    _needZoneExit = false;
     notifyListeners();
   }
 
@@ -402,6 +468,7 @@ class DesktopWindows extends ChangeNotifier {
       shown[i]
         ..isDragging = false
         ..restoreRect = null
+        ..snapped = DeskSnap.none
         ..rect = _clamp(Rect.fromLTWH(g + c * (cw + g), g + r * (rh + g), cw, rh));
     }
     notifyListeners();
@@ -673,6 +740,7 @@ class _DesktopModeViewState extends State<DesktopModeView> {
   @override
   Widget build(BuildContext context) {
     final prefs = context.watch<DesktopPrefs>();
+    widget.windows.snapEnabled = prefs.snapToEdges;
     final reserve = prefs.reserve;
     final ax = context.ax;
     return Column(
