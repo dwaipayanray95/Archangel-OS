@@ -29,7 +29,10 @@ class ServersSection extends StatelessWidget {
 
   Future<void> _rename(BuildContext context, ServerProfile p) async {
     final registry = context.read<ServerRegistry>();
-    final name = await showDialog<String>(context: context, builder: (_) => _RenameDialog(initial: p.name));
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(initial: p.name),
+    );
     if (name != null && name.trim().isNotEmpty) await registry.rename(p.id, name);
   }
 
@@ -79,8 +82,8 @@ class ServersSection extends StatelessWidget {
               label: 'Add a server',
               icon: Icons.add,
               small: true,
-              onPressed:
-                  () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
+              onPressed: () =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SetupLandingScreen(canCancel: true))),
             ),
           ],
           children: [
@@ -223,17 +226,17 @@ class _ActiveConnectionCardState extends State<_ActiveConnectionCard> {
       ConnectionPhase.notPaired => const StatusBadge.neutral('Not paired'),
     };
 
-    final pingBadgeText =
-        _pingLatencyMs != null ? (_pingSuccess == true ? 'Ping: ${_pingLatencyMs}ms' : 'Timeout (${_pingLatencyMs}ms)') : null;
+    final pingBadgeText = _pingLatencyMs != null
+        ? (_pingSuccess == true ? 'Ping: ${_pingLatencyMs}ms' : 'Timeout (${_pingLatencyMs}ms)')
+        : null;
 
     final hostDesc = metrics?.host.hostname != null ? '${widget.profile.host} · ${metrics!.host.hostname}' : widget.profile.host;
 
-    final connectionLine =
-        _reconnecting
-            ? 'Reconnecting to ${widget.profile.name}…'
-            : (_testing
-                ? 'Testing how fast your server answers…'
-                : (_pingLatencyMs != null
+    final connectionLine = _reconnecting
+        ? 'Reconnecting to ${widget.profile.name}…'
+        : (_testing
+              ? 'Testing how fast your server answers…'
+              : (_pingLatencyMs != null
                     ? (_pingSuccess == true ? 'Server responding · ${_pingLatencyMs}ms' : 'Server unreachable · ${_pingLatencyMs}ms')
                     : connectionText(phase, serverName: widget.profile.name)));
 
@@ -302,8 +305,8 @@ class _ActiveConnectionCardState extends State<_ActiveConnectionCard> {
             wg.status == TunnelStatus.connected
                 ? const StatusBadge.ok('Encrypted', icon: Icons.lock_outline)
                 : (wg.status == TunnelStatus.connecting || wg.status == TunnelStatus.disconnecting
-                    ? const StatusBadge.info('Connecting…', icon: Icons.sync)
-                    : const StatusBadge.neutral('Off in this app', icon: Icons.circle_outlined)),
+                      ? const StatusBadge.info('Connecting…', icon: Icons.sync)
+                      : const StatusBadge.neutral('Off in this app', icon: Icons.circle_outlined)),
           ],
         ),
         AxListTile(
@@ -314,8 +317,8 @@ class _ActiveConnectionCardState extends State<_ActiveConnectionCard> {
             backend.reachable == true
                 ? const StatusBadge.ok('Running', icon: Icons.check)
                 : (backend.reachable == false
-                    ? const StatusBadge.error("Can't be reached", icon: Icons.error_outline)
-                    : const StatusBadge.neutral('Checking…', icon: Icons.sync)),
+                      ? const StatusBadge.error("Can't be reached", icon: Icons.error_outline)
+                      : const StatusBadge.neutral('Checking…', icon: Icons.sync)),
           ],
         ),
       ],
@@ -363,11 +366,10 @@ class _ServerRow extends StatelessWidget {
           tooltip: 'More for ${profile.name}',
           icon: const Icon(Icons.more_horiz),
           onSelected: (m) => m == _ServerMenu.rename ? onRename() : onRemove(),
-          itemBuilder:
-              (_) => const [
-                PopupMenuItem(value: _ServerMenu.rename, child: Text('Rename')),
-                PopupMenuItem(value: _ServerMenu.remove, child: Text('Remove')),
-              ],
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: _ServerMenu.rename, child: Text('Rename')),
+            PopupMenuItem(value: _ServerMenu.remove, child: Text('Remove')),
+          ],
         ),
       ],
     );
@@ -412,7 +414,10 @@ class _RenameDialogState extends State<_RenameDialog> {
           decoration: const InputDecoration(labelText: 'Server name'),
         ),
       ),
-      actions: [AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()), AxButton(label: 'Save', onPressed: _submit)],
+      actions: [
+        AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+        AxButton(label: 'Save', onPressed: _submit),
+      ],
     );
   }
 }

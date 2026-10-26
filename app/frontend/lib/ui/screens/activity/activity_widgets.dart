@@ -32,7 +32,9 @@ class SparklineChart extends StatelessWidget {
       child: SizedBox(
         height: height,
         width: double.infinity,
-        child: CustomPaint(painter: _SparklinePainter(values: values, accent: accent, forcedMaxY: maxY)),
+        child: CustomPaint(
+          painter: _SparklinePainter(values: values, accent: accent, forcedMaxY: maxY),
+        ),
       ),
     );
   }
@@ -51,11 +53,10 @@ class _SparklinePainter extends CustomPainter {
 
     if (values.length < 2) {
       // Draw a calm baseline if fewer than 2 points
-      final p =
-          Paint()
-            ..color = accent.withValues(alpha: 0.3)
-            ..strokeWidth = 1.5
-            ..style = PaintingStyle.stroke;
+      final p = Paint()
+        ..color = accent.withValues(alpha: 0.3)
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke;
       canvas.drawLine(Offset(0, size.height * 0.75), Offset(size.width, size.height * 0.75), p);
       return;
     }
@@ -91,19 +92,17 @@ class _SparklinePainter extends CustomPainter {
     areaPath.lineTo(size.width, size.height);
     areaPath.close();
 
-    final fillPaint =
-        Paint()
-          ..color = accent.withValues(alpha: 0.14)
-          ..style = PaintingStyle.fill;
+    final fillPaint = Paint()
+      ..color = accent.withValues(alpha: 0.14)
+      ..style = PaintingStyle.fill;
     canvas.drawPath(areaPath, fillPaint);
 
-    final strokePaint =
-        Paint()
-          ..color = accent
-          ..strokeWidth = 2.0
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..style = PaintingStyle.stroke;
+    final strokePaint = Paint()
+      ..color = accent
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
     canvas.drawPath(linePath, strokePaint);
   }
 
@@ -197,15 +196,25 @@ class WideMeasureCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(label, style: ax.typo.label.copyWith(color: c.textMuted)),
-              Text(value, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: c.text)),
+              Text(
+                value,
+                style: ax.typo.mono.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: c.text),
+              ),
             ],
           ),
           SizedBox(height: ax.space.sm),
           SparklineChart(values: chartValues, semanticsLabel: chartSemantics, maxY: chartMaxY, height: 52),
           SizedBox(height: ax.space.sm),
-          Row(children: [StatusBadge(label: meaning.label, status: meaning.status, icon: meaning.icon)]),
+          Row(
+            children: [StatusBadge(label: meaning.label, status: meaning.status, icon: meaning.icon)],
+          ),
           SizedBox(height: ax.space.xs),
-          Text(subLine, style: ax.typo.caption.copyWith(color: c.textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(
+            subLine,
+            style: ax.typo.caption.copyWith(color: c.textMuted),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -315,7 +324,10 @@ class _CompactMeasuresCardState extends State<CompactMeasuresCard> {
                       ),
                     ),
                     SizedBox(width: ax.space.xs),
-                    Text(items[i].value, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text)),
+                    Text(
+                      items[i].value,
+                      style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text),
+                    ),
                     SizedBox(width: 2),
                     Icon(_expandedIndex == i ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 18, color: c.textMuted),
                   ],
@@ -387,7 +399,10 @@ class ServerInfoCard extends StatelessWidget {
       children: [
         Text(label, style: ax.typo.caption.copyWith(color: c.textMuted)),
         SizedBox(height: 2),
-        Text(value, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text)),
+        Text(
+          value,
+          style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text),
+        ),
       ],
     );
   }
@@ -437,10 +452,9 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
   Future<void> _stopProcess(LiveProcessInfo proc, {bool force = false}) async {
     final mon = context.read<MonitoringService>();
     final title = force ? 'Force stop ${proc.name}?' : 'Stop ${proc.name}?';
-    final body =
-        force
-            ? "Use this only if Stop didn't work. It ends the program at once, so anything it hadn't saved is lost."
-            : "This asks it to close. Whatever it's doing stops, and apps that rely on it may stop working until it runs again.";
+    final body = force
+        ? "Use this only if Stop didn't work. It ends the program at once, so anything it hadn't saved is lost."
+        : "This asks it to close. Whatever it's doing stops, and apps that rely on it may stop working until it runs again.";
     final confirmLabel = force ? 'Force stop' : 'Stop';
 
     final critical = isCriticalProcess(proc.pid, proc.name);
@@ -503,29 +517,32 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(ax.space.md, ax.space.md, ax.space.md, ax.space.sm),
-            child:
-                widget.isWide
-                    ? Row(
-                      children: [
-                        Expanded(child: Text('Busiest programs', style: ax.typo.title.copyWith(color: c.text))),
-                        SizedBox(width: ax.space.sm),
-                        _searchAndSortRow(ax, c, isExpanded: false),
-                      ],
-                    )
-                    : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text('Busiest programs', style: ax.typo.title.copyWith(color: c.text)),
-                        SizedBox(height: ax.space.sm),
-                        _searchAndSortRow(ax, c, isExpanded: true),
-                      ],
-                    ),
+            child: widget.isWide
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: Text('Busiest programs', style: ax.typo.title.copyWith(color: c.text)),
+                      ),
+                      SizedBox(width: ax.space.sm),
+                      _searchAndSortRow(ax, c, isExpanded: false),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Busiest programs', style: ax.typo.title.copyWith(color: c.text)),
+                      SizedBox(height: ax.space.sm),
+                      _searchAndSortRow(ax, c, isExpanded: true),
+                    ],
+                  ),
           ),
           Divider(height: 1, color: c.border.withValues(alpha: 0.5)),
           if (_query.trim().isNotEmpty && shown.isEmpty)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xl),
-              child: Center(child: Text('Nothing matches "$_query"', style: ax.typo.body.copyWith(color: c.textMuted))),
+              child: Center(
+                child: Text('Nothing matches "$_query"', style: ax.typo.body.copyWith(color: c.textMuted)),
+              ),
             )
           else if (widget.isWide)
             _buildWideTable(ax, c, shown)
@@ -559,8 +576,14 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
           isDense: true,
           filled: true,
           fillColor: c.surfaceAlt,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(ax.radii.sm), borderSide: BorderSide(color: c.border)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ax.radii.sm), borderSide: BorderSide(color: c.border)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(ax.radii.sm),
+            borderSide: BorderSide(color: c.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(ax.radii.sm),
+            borderSide: BorderSide(color: c.border),
+          ),
         ),
       ),
     );
@@ -568,7 +591,11 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
     final sortButtons = Container(
       height: 36,
       padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.sm), border: Border.all(color: c.border)),
+      decoration: BoxDecoration(
+        color: c.surfaceAlt,
+        borderRadius: BorderRadius.circular(ax.radii.sm),
+        border: Border.all(color: c.border),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -580,7 +607,11 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
 
     return Row(
       mainAxisSize: isExpanded ? MainAxisSize.max : MainAxisSize.min,
-      children: [if (isExpanded) Expanded(child: searchField) else searchField, SizedBox(width: ax.space.sm), sortButtons],
+      children: [
+        if (isExpanded) Expanded(child: searchField) else searchField,
+        SizedBox(width: ax.space.sm),
+        sortButtons,
+      ],
     );
   }
 
@@ -614,8 +645,20 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
           padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: ax.space.xs + 2),
           child: Row(
             children: [
-              Expanded(flex: 3, child: Text('Program', style: ax.typo.caption.copyWith(color: c.textMuted, fontWeight: FontWeight.w600))),
-              Expanded(flex: 2, child: Text('Run by', style: ax.typo.caption.copyWith(color: c.textMuted, fontWeight: FontWeight.w600))),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  'Program',
+                  style: ax.typo.caption.copyWith(color: c.textMuted, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'Run by',
+                  style: ax.typo.caption.copyWith(color: c.textMuted, fontWeight: FontWeight.w600),
+                ),
+              ),
               Expanded(
                 flex: 2,
                 child: Text(
@@ -640,10 +683,25 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
             padding: EdgeInsets.symmetric(horizontal: ax.space.md, vertical: 4),
             child: Row(
               children: [
-                Expanded(flex: 3, child: Text(p.name, style: ax.typo.mono.copyWith(color: c.text, fontWeight: FontWeight.w600))),
-                Expanded(flex: 2, child: Text(p.user, style: ax.typo.caption.copyWith(color: c.textMuted))),
-                Expanded(flex: 2, child: Text('${p.cpu.toStringAsFixed(1)}%', style: ax.typo.mono.copyWith(color: c.text))),
-                Expanded(flex: 2, child: Text(p.memoryLabel, style: ax.typo.mono.copyWith(color: c.text))),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    p.name,
+                    style: ax.typo.mono.copyWith(color: c.text, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(p.user, style: ax.typo.caption.copyWith(color: c.textMuted)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text('${p.cpu.toStringAsFixed(1)}%', style: ax.typo.mono.copyWith(color: c.text)),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(p.memoryLabel, style: ax.typo.mono.copyWith(color: c.text)),
+                ),
                 _processMenu(ax, c, p),
               ],
             ),
@@ -666,7 +724,10 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.name, style: ax.typo.mono.copyWith(color: c.text, fontWeight: FontWeight.w600)),
+                      Text(
+                        p.name,
+                        style: ax.typo.mono.copyWith(color: c.text, fontWeight: FontWeight.w600),
+                      ),
                       SizedBox(height: 2),
                       Text(
                         '${p.cpu.toStringAsFixed(1)}% CPU · ${p.memoryLabel} · ${p.user}',
@@ -694,23 +755,28 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
         if (val == 'force_stop') _stopProcess(p, force: true);
         if (val == 'priority') _changePriority(p);
       },
-      itemBuilder:
-          (context) => [
-            PopupMenuItem(value: 'stop', child: Text('Stop', style: ax.typo.body.copyWith(color: c.text))),
-            PopupMenuItem(value: 'force_stop', child: Text('Force stop', style: ax.typo.body.copyWith(color: c.danger))),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              value: 'priority',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Change priority…', style: ax.typo.body.copyWith(color: c.text)),
-                  Text('Advanced', style: ax.typo.caption.copyWith(color: c.textMuted)),
-                ],
-              ),
-            ),
-          ],
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'stop',
+          child: Text('Stop', style: ax.typo.body.copyWith(color: c.text)),
+        ),
+        PopupMenuItem(
+          value: 'force_stop',
+          child: Text('Force stop', style: ax.typo.body.copyWith(color: c.danger)),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'priority',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Change priority…', style: ax.typo.body.copyWith(color: c.text)),
+              Text('Advanced', style: ax.typo.caption.copyWith(color: c.textMuted)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -775,12 +841,11 @@ class _ChangePriorityDialogState extends State<ChangePriorityDialog> {
     final isChosen = _selected == value;
     return Expanded(
       child: Material(
-        color:
-            !enabled
-                ? c.surfaceAlt.withValues(alpha: 0.5)
-                : isChosen
-                ? c.accentWash
-                : c.surfaceAlt,
+        color: !enabled
+            ? c.surfaceAlt.withValues(alpha: 0.5)
+            : isChosen
+            ? c.accentWash
+            : c.surfaceAlt,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ax.radii.sm),
           side: BorderSide(color: isChosen ? c.accent : c.border),
@@ -794,12 +859,11 @@ class _ChangePriorityDialogState extends State<ChangePriorityDialog> {
               child: Text(
                 label,
                 style: ax.typo.label.copyWith(
-                  color:
-                      !enabled
-                          ? c.textMuted.withValues(alpha: 0.5)
-                          : isChosen
-                          ? c.accent
-                          : c.text,
+                  color: !enabled
+                      ? c.textMuted.withValues(alpha: 0.5)
+                      : isChosen
+                      ? c.accent
+                      : c.text,
                 ),
               ),
             ),

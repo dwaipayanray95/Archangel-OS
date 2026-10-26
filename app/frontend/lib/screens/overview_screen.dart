@@ -77,18 +77,17 @@ class _OverviewScreenState extends State<OverviewScreen> {
       final failed = mon.status == MonitoringStatus.error || mon.status == MonitoringStatus.disconnected;
       return AxPage(
         title: 'Home',
-        child:
-            failed && mon.status != MonitoringStatus.connecting
-                ? ErrorState(
-                  title: "Can't reach your server",
-                  message: 'Check that the secure connection is on and that the server is running, then try again.',
-                  onRetry: _retry,
-                  helpTitle: 'Why can\'t I reach it?',
-                  helpText:
-                      'Your devices talk to the server through a private "secure connection". If it is switched off, '
-                      'or the server itself is turned off or restarting, nothing can load. Open Settings to check the connection.',
-                )
-                : LoadingState(message: 'Connecting to your server...', onRetry: _retry),
+        child: failed && mon.status != MonitoringStatus.connecting
+            ? ErrorState(
+                title: "Can't reach your server",
+                message: 'Check that the secure connection is on and that the server is running, then try again.',
+                onRetry: _retry,
+                helpTitle: 'Why can\'t I reach it?',
+                helpText:
+                    'Your devices talk to the server through a private "secure connection". If it is switched off, '
+                    'or the server itself is turned off or restarting, nothing can load. Open Settings to check the connection.',
+              )
+            : LoadingState(message: 'Connecting to your server...', onRetry: _retry),
       );
     }
 
@@ -169,10 +168,9 @@ class _HealthHero extends StatelessWidget {
       HealthLevel.checking => AxStatus.neutral,
     };
     final apps = running == null ? null : (running == 1 ? '1 app is running.' : '$running apps are running.');
-    final tail =
-        attention == 0
-            ? 'Nothing needs you right now.'
-            : (attention == 1 ? 'One thing could use a look.' : '$attention things could use a look.');
+    final tail = attention == 0
+        ? 'Nothing needs you right now.'
+        : (attention == 1 ? 'One thing could use a look.' : '$attention things could use a look.');
     final detail = health.level == HealthLevel.healthy ? [if (apps != null) apps, tail].join(' ') : health.detail;
     return AxCard(
       semanticsLabel: 'Server health: ${health.headline}. $detail',
@@ -233,10 +231,9 @@ class _MetricCards extends StatelessWidget {
         label: 'Disk',
         value: Text('${diskPct.round()}% full'),
         percent: diskPct,
-        note:
-            disk.totalBytes > 0
-                ? '${gbText(disk.freeGb)} GB free · ${usageBadgeLabel(diskPct, high: 'almost full', mid: 'getting full', ok: 'room to spare')}'
-                : usageBadgeLabel(diskPct, high: 'Almost full', mid: 'Getting full', ok: 'Room to spare'),
+        note: disk.totalBytes > 0
+            ? '${gbText(disk.freeGb)} GB free · ${usageBadgeLabel(diskPct, high: 'almost full', mid: 'getting full', ok: 'room to spare')}'
+            : usageBadgeLabel(diskPct, high: 'Almost full', mid: 'Getting full', ok: 'Room to spare'),
         status: usageStatus(diskPct),
         onTap: onOpenActivity,
         semantics: 'Disk ${diskPct.round()} percent full',
@@ -262,7 +259,11 @@ class _MetricCards extends StatelessWidget {
         final cols = box.maxWidth >= 720 ? 4 : (box.maxWidth >= 300 ? 2 : 1);
         final gap = ax.space.md;
         final w = (box.maxWidth - gap * (cols - 1)) / cols;
-        return Wrap(spacing: gap, runSpacing: gap, children: [for (final card in cards) SizedBox(width: w, child: card)]);
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [for (final card in cards) SizedBox(width: w, child: card)],
+        );
       },
     );
   }
@@ -321,7 +322,9 @@ class _MetricCard extends StatelessWidget {
             children: [
               Icon(icon, size: 15, color: c.textMuted),
               SizedBox(width: ax.space.xs + 2),
-              Expanded(child: Text(label, style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 12.5))),
+              Expanded(
+                child: Text(label, style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 12.5)),
+              ),
               if (help != null) help!,
             ],
           ),
@@ -337,17 +340,23 @@ class _MetricCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: SizedBox(
               height: 5,
-              child:
-                  percent == null
-                      ? const SizedBox.shrink()
-                      : LinearProgressIndicator(value: (percent! / 100).clamp(0.0, 1.0), backgroundColor: c.border, color: barColor),
+              child: percent == null
+                  ? const SizedBox.shrink()
+                  : LinearProgressIndicator(value: (percent! / 100).clamp(0.0, 1.0), backgroundColor: c.border, color: barColor),
             ),
           ),
           SizedBox(height: ax.space.sm),
           Row(
             children: [
               if (noteIcon != null) ...[Icon(noteIcon, size: 13, color: tone), const SizedBox(width: 4)],
-              Expanded(child: Text(note, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.caption.copyWith(color: tone))),
+              Expanded(
+                child: Text(
+                  note,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ax.typo.caption.copyWith(color: tone),
+                ),
+              ),
             ],
           ),
         ],
@@ -413,7 +422,12 @@ class _CardTitle extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(ax.space.lg, ax.space.md + 2, ax.space.md, ax.space.xs),
       child: Row(
         children: [
-          Expanded(child: Semantics(header: true, child: Text(text, style: ax.typo.title.copyWith(color: ax.colors.text)))),
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(text, style: ax.typo.title.copyWith(color: ax.colors.text)),
+            ),
+          ),
           if (trailing != null) trailing!,
         ],
       ),
@@ -437,10 +451,9 @@ class _AttentionCard extends StatelessWidget {
         children: [
           _CardTitle(
             'Needs attention',
-            trailing:
-                items.isEmpty
-                    ? const StatusBadge.ok('All clear')
-                    : StatusBadge.warning(items.length == 1 ? '1 to review' : '${items.length} to review'),
+            trailing: items.isEmpty
+                ? const StatusBadge.ok('All clear')
+                : StatusBadge.warning(items.length == 1 ? '1 to review' : '${items.length} to review'),
           ),
           if (items.isEmpty)
             Padding(
@@ -449,7 +462,9 @@ class _AttentionCard extends StatelessWidget {
                 children: [
                   Icon(Icons.check_circle_outline, color: c.success),
                   SizedBox(width: ax.space.md),
-                  Expanded(child: Text('Nothing needs your attention right now.', style: ax.typo.body.copyWith(color: c.text))),
+                  Expanded(
+                    child: Text('Nothing needs your attention right now.', style: ax.typo.body.copyWith(color: c.text)),
+                  ),
                 ],
               ),
             )
@@ -516,10 +531,9 @@ class _QuickActions extends StatelessWidget {
     messenger.showSnackBar(
       SnackBar(
         content: Text(res.success ? 'Reboot started. Your server will be back in about a minute.' : res.message),
-        action:
-            !res.success && res.message.toLowerCase().contains('admin')
-                ? SnackBarAction(label: 'Open Settings', onPressed: () => app.go(AxSection.settings))
-                : null,
+        action: !res.success && res.message.toLowerCase().contains('admin')
+            ? SnackBarAction(label: 'Open Settings', onPressed: () => app.go(AxSection.settings))
+            : null,
       ),
     );
   }
@@ -554,7 +568,10 @@ class _QuickActions extends StatelessWidget {
                   runSpacing: gap,
                   children: [
                     for (final (icon, label, onTap, danger) in actions)
-                      SizedBox(width: w, child: _ActionTile(icon: icon, label: label, onTap: onTap, danger: danger)),
+                      SizedBox(
+                        width: w,
+                        child: _ActionTile(icon: icon, label: label, onTap: onTap, danger: danger),
+                      ),
                   ],
                 );
               },
@@ -585,7 +602,10 @@ class _ActionTile extends StatelessWidget {
       onTap: onTap,
       child: Material(
         color: c.glassStrong,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.md), side: BorderSide(color: c.border)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ax.radii.md),
+          side: BorderSide(color: c.border),
+        ),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(ax.radii.md),

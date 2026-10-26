@@ -48,9 +48,9 @@ Future<bool> showHostKeyConfirmDialog(
                 Text(
                   isMismatch
                       ? 'This address previously showed a different identity. That can happen if the server was '
-                          'rebuilt, but it can also mean someone is intercepting the connection. Only continue if you are certain.'
+                            'rebuilt, but it can also mean someone is intercepting the connection. Only continue if you are certain.'
                       : 'This is the first time connecting to $host. Check that the fingerprint below matches the one '
-                          'your cloud provider shows for this server (if it shows one) before continuing.',
+                            'your cloud provider shows for this server (if it shows one) before continuing.',
                   style: ax.typo.body.copyWith(color: isMismatch ? c.danger : c.textMuted),
                 ),
                 SizedBox(height: ax.space.md),

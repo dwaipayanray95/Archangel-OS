@@ -86,7 +86,11 @@ class ActivityView extends StatelessWidget {
             ],
           ),
         ),
-        if (isWide && isConnected) Padding(padding: const EdgeInsets.only(top: 4), child: StatusBadge.ok('Live', icon: Icons.circle)),
+        if (isWide && isConnected)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: StatusBadge.ok('Live', icon: Icons.circle),
+          ),
       ],
     );
   }
@@ -103,12 +107,11 @@ class ActivityView extends StatelessWidget {
     final coresStr = metrics.cpu.cores.length == 1 ? '1 core' : '${metrics.cpu.cores.length} cores';
     final memSub = 'of ${formatBytes(metrics.memory.totalBytes)} · ${metrics.memory.usagePercent.round()}%';
 
-    final diskRate =
-        metrics.disk.readBytesPerSec >= metrics.disk.writeBytesPerSec && metrics.disk.readBytesPerSec > 1024
-            ? 'reading ${formatRate(metrics.disk.readBytesPerSec)}'
-            : metrics.disk.writeBytesPerSec > 1024
-            ? 'writing ${formatRate(metrics.disk.writeBytesPerSec)}'
-            : 'reading ${formatRate(metrics.disk.readBytesPerSec)}';
+    final diskRate = metrics.disk.readBytesPerSec >= metrics.disk.writeBytesPerSec && metrics.disk.readBytesPerSec > 1024
+        ? 'reading ${formatRate(metrics.disk.readBytesPerSec)}'
+        : metrics.disk.writeBytesPerSec > 1024
+        ? 'writing ${formatRate(metrics.disk.writeBytesPerSec)}'
+        : 'reading ${formatRate(metrics.disk.readBytesPerSec)}';
     final diskSub = 'of ${formatBytes(metrics.disk.totalBytes)} · ${metrics.disk.usagePercent.round()}% · $diskRate';
     final netSub = '↓ ${formatRate(metrics.network.rxBytesPerSec)} · ↑ ${formatRate(metrics.network.txBytesPerSec)}';
 
@@ -165,12 +168,20 @@ class ActivityView extends StatelessWidget {
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [Expanded(child: cards[0]), SizedBox(width: ax.space.md), Expanded(child: cards[1])],
+          children: [
+            Expanded(child: cards[0]),
+            SizedBox(width: ax.space.md),
+            Expanded(child: cards[1]),
+          ],
         ),
         SizedBox(height: ax.space.md),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [Expanded(child: cards[2]), SizedBox(width: ax.space.md), Expanded(child: cards[3])],
+          children: [
+            Expanded(child: cards[2]),
+            SizedBox(width: ax.space.md),
+            Expanded(child: cards[3]),
+          ],
         ),
       ],
     );

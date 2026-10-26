@@ -715,7 +715,9 @@ class _DesktopModeViewState extends State<DesktopModeView> {
                     return Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        Positioned.fill(child: IgnorePointer(child: _EmptyDesk(hasWindows: widget.windows.visible.isNotEmpty))),
+                        Positioned.fill(
+                          child: IgnorePointer(child: _EmptyDesk(hasWindows: widget.windows.visible.isNotEmpty)),
+                        ),
                         if (ghost != null)
                           Positioned.fromRect(
                             key: const ValueKey('snap-preview'),
@@ -735,36 +737,40 @@ class _DesktopModeViewState extends State<DesktopModeView> {
                               // Minimized windows stay mounted (offstage) so a
                               // terminal session or half-typed form survives.
                               ? Offstage(
-                                key: ValueKey('win-${w.section.name}'),
-                                child: TickerMode(
-                                  enabled: false,
-                                  child: SizedBox(width: w.rect.width, height: w.rect.height, child: widget.buildContent(w.section)),
-                                ),
-                              )
+                                  key: ValueKey('win-${w.section.name}'),
+                                  child: TickerMode(
+                                    enabled: false,
+                                    child: SizedBox(width: w.rect.width, height: w.rect.height, child: widget.buildContent(w.section)),
+                                  ),
+                                )
                               : AnimatedPositioned(
-                                key: ValueKey('win-${w.section.name}'),
-                                duration: w.isDragging ? Duration.zero : const Duration(milliseconds: 200),
-                                curve: Curves.easeOutCubic,
-                                left: w.rect.left,
-                                top: w.rect.top,
-                                width: w.rect.width,
-                                height: w.rect.height,
-                                child: _Window(
-                                  window: w,
-                                  focused: w.section == front,
-                                  windows: widget.windows,
-                                  onFocus: widget.onFocus,
-                                  child: widget.buildContent(w.section),
+                                  key: ValueKey('win-${w.section.name}'),
+                                  duration: w.isDragging ? Duration.zero : const Duration(milliseconds: 200),
+                                  curve: Curves.easeOutCubic,
+                                  left: w.rect.left,
+                                  top: w.rect.top,
+                                  width: w.rect.width,
+                                  height: w.rect.height,
+                                  child: _Window(
+                                    window: w,
+                                    focused: w.section == front,
+                                    windows: widget.windows,
+                                    onFocus: widget.onFocus,
+                                    child: widget.buildContent(w.section),
+                                  ),
                                 ),
-                              ),
                       ],
                     );
                   },
                 ),
               ),
-              Positioned.fill(child: _DockHost(prefs: prefs, windows: widget.windows, onOpen: _open)),
+              Positioned.fill(
+                child: _DockHost(prefs: prefs, windows: widget.windows, onOpen: _open),
+              ),
               if (widget.windows.launcherOpen)
-                Positioned.fill(child: _Launcher(onClose: () => widget.windows.toggleLauncher(false), onOpen: _open)),
+                Positioned.fill(
+                  child: _Launcher(onClose: () => widget.windows.toggleLauncher(false), onOpen: _open),
+                ),
               if (_switcherOpen && _switcherApps.isNotEmpty)
                 Positioned.fill(
                   child: _AppSwitcherHud(
@@ -901,8 +907,9 @@ class _AppSwitcherTile extends StatelessWidget {
                 color: isSelected ? c.accent.withValues(alpha: 0.90) : c.glassBorder.withValues(alpha: 0.5),
                 width: isSelected ? 1.8 : 1,
               ),
-              boxShadow:
-                  isSelected ? [BoxShadow(color: c.accent.withValues(alpha: 0.32), blurRadius: 16, offset: const Offset(0, 4))] : null,
+              boxShadow: isSelected
+                  ? [BoxShadow(color: c.accent.withValues(alpha: 0.32), blurRadius: 16, offset: const Offset(0, 4))]
+                  : null,
             ),
             alignment: Alignment.center,
             child: Icon(icon, size: isSelected ? 36 : 33, color: isSelected ? c.accent : c.textMuted),
@@ -989,7 +996,9 @@ class _HealthWidget extends StatelessWidget {
                 children: [
                   Icon(icon, size: 18, color: tone),
                   SizedBox(width: ax.space.sm),
-                  Expanded(child: Text(health.pill, style: ax.typo.label.copyWith(color: c.text))),
+                  Expanded(
+                    child: Text(health.pill, style: ax.typo.label.copyWith(color: c.text)),
+                  ),
                   Text('Server', style: ax.typo.caption.copyWith(color: c.textSubtle)),
                 ],
               ),
@@ -1077,7 +1086,10 @@ class _WidgetMeter extends StatelessWidget {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          SizedBox(width: 58, child: Text(label, style: ax.typo.caption.copyWith(color: c.textMuted))),
+          SizedBox(
+            width: 58,
+            child: Text(label, style: ax.typo.caption.copyWith(color: c.textMuted)),
+          ),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4),
@@ -1129,7 +1141,10 @@ Future<String?> showDeskMenu(BuildContext context, Offset at, List<DeskMenuItem>
     color: c.glassStrong,
     elevation: 8,
     constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.md), side: BorderSide(color: c.glassBorder)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(ax.radii.md),
+      side: BorderSide(color: c.glassBorder),
+    ),
     items: [
       for (final i in items)
         if (i.isDivider)
@@ -1178,12 +1193,15 @@ class _EmptyDesk extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isDarkWallpaper =
-        prefs.wallpaper == DeskWallpaper.halo ? Theme.of(context).brightness == Brightness.dark : prefs.wallpaper != DeskWallpaper.mist;
+    final isDarkWallpaper = prefs.wallpaper == DeskWallpaper.halo
+        ? Theme.of(context).brightness == Brightness.dark
+        : prefs.wallpaper != DeskWallpaper.mist;
 
     final textColor = isDarkWallpaper ? const Color(0xFFF4F5FB) : const Color(0xFF121420);
 
-    return Center(child: AxWordmark(size: 32, color: textColor, osColor: c.accent));
+    return Center(
+      child: AxWordmark(size: 32, color: textColor, osColor: c.accent),
+    );
   }
 }
 
@@ -1494,7 +1512,9 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
 extension on Widget {
   Widget withBottomLine(Color color) => DecoratedBox(
     position: DecorationPosition.foreground,
-    decoration: BoxDecoration(border: Border(bottom: BorderSide(color: color))),
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: color)),
+    ),
     child: this,
   );
 }
@@ -1588,13 +1608,12 @@ class _Window extends StatelessWidget {
                           focus();
                           windows.startMove(s);
                         },
-                        onPanUpdate:
-                            (d) => windows.move(
-                              s,
-                              d.delta,
-                              pointer: window.rect.topLeft + d.localPosition,
-                              altPressed: HardwareKeyboard.instance.isAltPressed,
-                            ),
+                        onPanUpdate: (d) => windows.move(
+                          s,
+                          d.delta,
+                          pointer: window.rect.topLeft + d.localPosition,
+                          altPressed: HardwareKeyboard.instance.isAltPressed,
+                        ),
                         onPanEnd: (_) => windows.endMove(s),
                         onPanCancel: () => windows.endMove(s),
                         onDoubleTap: () => windows.toggleMaximize(s),
@@ -1742,7 +1761,10 @@ class _DockHostState extends State<_DockHost> {
     final dock = MouseRegion(
       onEnter: (_) => prefs.autoHide ? _show() : null,
       onExit: (_) => prefs.autoHide ? _scheduleHide() : null,
-      child: Padding(padding: const EdgeInsets.all(14), child: _Dock(prefs: prefs, windows: widget.windows, onOpen: widget.onOpen)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: _Dock(prefs: prefs, windows: widget.windows, onOpen: widget.onOpen),
+      ),
     );
     return Stack(
       children: [
@@ -1896,7 +1918,11 @@ class _DockButton extends StatelessWidget {
     final ax = context.ax;
     final c = ax.colors;
     final radius = BorderRadius.circular(size.button * 0.3);
-    final dot = Container(width: 4, height: 4, decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle));
+    final dot = Container(
+      width: 4,
+      height: 4,
+      decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
+    );
     return Semantics(
       button: true,
       label: open ? '$label, open' : label,
@@ -1963,13 +1989,17 @@ class _LauncherState extends State<_Launcher> {
     final ax = context.ax;
     final c = ax.colors;
     final q = _q.trim().toLowerCase();
-    final items =
-        AxSection.values
-            .where((s) => q.isEmpty || axSectionLabels[s]!.toLowerCase().contains(q) || _blurbs[s]!.toLowerCase().contains(q))
-            .toList();
+    final items = AxSection.values
+        .where((s) => q.isEmpty || axSectionLabels[s]!.toLowerCase().contains(q) || _blurbs[s]!.toLowerCase().contains(q))
+        .toList();
     return Stack(
       children: [
-        Positioned.fill(child: GestureDetector(onTap: widget.onClose, child: ColoredBox(color: c.scrim.withValues(alpha: 0.35)))),
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: widget.onClose,
+            child: ColoredBox(color: c.scrim.withValues(alpha: 0.35)),
+          ),
+        ),
         Align(
           alignment: const Alignment(0, -0.55),
           child: ConstrainedBox(

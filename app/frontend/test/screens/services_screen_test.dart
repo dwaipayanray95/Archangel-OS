@@ -204,7 +204,10 @@ void main() {
       await tester.tap(find.text('Deployments'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Saved setups that describe how an app is installed. You can run one, change it, or add a new one.'), findsOneWidget);
+      expect(
+        find.text('Saved setups that describe how an app is installed. You can run one, change it, or add a new one.'),
+        findsOneWidget,
+      );
     });
   });
 

@@ -14,7 +14,9 @@ Future<void> _pump(WidgetTester tester, BootKind kind, {bool reduced = false}) a
       theme: buildTheme(Brightness.dark),
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: reduced),
-        child: Scaffold(body: BootSplash(kind: kind, onDone: () => done = true)),
+        child: Scaffold(
+          body: BootSplash(kind: kind, onDone: () => done = true),
+        ),
       ),
     ),
   );

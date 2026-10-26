@@ -241,12 +241,11 @@ void main() {
   });
 
   test('tidy lays visible windows out without overlaps', () {
-    final d =
-        desk()
-          ..open(AxSection.home)
-          ..open(AxSection.apps)
-          ..open(AxSection.files)
-          ..open(AxSection.terminal);
+    final d = desk()
+      ..open(AxSection.home)
+      ..open(AxSection.apps)
+      ..open(AxSection.files)
+      ..open(AxSection.terminal);
     d.minimize(AxSection.terminal);
     d.tidy();
     final shown = d.windows.where((w) => !w.minimized).toList();

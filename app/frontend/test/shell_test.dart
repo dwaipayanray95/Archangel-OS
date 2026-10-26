@@ -46,7 +46,11 @@ void main() {
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byType(NavigationRail), findsNothing);
       for (final l in ['Home', 'Apps', 'Files', 'Terminal', 'More']) {
-        expect(find.descendant(of: find.byType(NavigationBar), matching: find.text(l)), findsOneWidget, reason: l);
+        expect(
+          find.descendant(of: find.byType(NavigationBar), matching: find.text(l)),
+          findsOneWidget,
+          reason: l,
+        );
       }
       expect(find.descendant(of: find.byType(NavigationBar), matching: find.text('Settings')), findsNothing);
     });
@@ -151,7 +155,11 @@ void main() {
       expect(side.extended, isTrue);
       expect(find.byType(NavigationBar), findsNothing);
       for (final s in AxSection.values) {
-        expect(find.descendant(of: find.byType(AxSidebar), matching: find.text(axSectionLabels[s]!)), findsOneWidget, reason: '$s');
+        expect(
+          find.descendant(of: find.byType(AxSidebar), matching: find.text(axSectionLabels[s]!)),
+          findsOneWidget,
+          reason: '$s',
+        );
       }
       expect(find.byType(AxWordmark), findsOneWidget);
       expect(find.text('Desktop mode'), findsOneWidget);
@@ -487,7 +495,11 @@ void main() {
       final node = FocusNode(debugLabel: 'fake-terminal');
       addTearDown(node.dispose);
       final overlay = Navigator.of(tester.element(find.byType(DesktopModeView))).overlay!;
-      final entry = OverlayEntry(builder: (_) => TerminalFocusMarker(child: Focus(focusNode: node, child: const SizedBox.shrink())));
+      final entry = OverlayEntry(
+        builder: (_) => TerminalFocusMarker(
+          child: Focus(focusNode: node, child: const SizedBox.shrink()),
+        ),
+      );
       overlay.insert(entry);
       await tester.pump();
       node.requestFocus();
@@ -527,7 +539,10 @@ void main() {
       await _settle(tester);
       final windows = tester.widget<DesktopModeView>(find.byType(DesktopModeView)).windows;
 
-      showDialog<void>(context: tester.element(find.byType(DesktopModeView)), builder: (_) => const AlertDialog(title: Text('Hold on')));
+      showDialog<void>(
+        context: tester.element(find.byType(DesktopModeView)),
+        builder: (_) => const AlertDialog(title: Text('Hold on')),
+      );
       await _settle(tester);
       await chord(tester, [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.altLeft], LogicalKeyboardKey.arrowLeft);
       expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
@@ -718,7 +733,10 @@ void main() {
       final app = await pumpAppShell(tester);
       app.go(AxSection.files);
       await _settle(tester);
-      showDialog<void>(context: tester.element(find.byType(ArchangelShell)), builder: (_) => const AlertDialog(title: Text('A dialog')));
+      showDialog<void>(
+        context: tester.element(find.byType(ArchangelShell)),
+        builder: (_) => const AlertDialog(title: Text('A dialog')),
+      );
       await _settle(tester);
       expect(find.text('A dialog'), findsOneWidget);
       await tester.binding.handlePopRoute();

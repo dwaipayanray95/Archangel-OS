@@ -150,7 +150,10 @@ Future<FakeMonitoring> pumpActivity(
         ChangeNotifierProvider<ArchangeldConnection>.value(value: FakeBackend(paired: paired)),
         ChangeNotifierProvider<AdminModeService>.value(value: FakeAdminMode(isAdmin: isAdmin)),
       ],
-      child: MaterialApp(theme: buildTheme(brightness), home: const Scaffold(body: MonitoringScreen())),
+      child: MaterialApp(
+        theme: buildTheme(brightness),
+        home: const Scaffold(body: MonitoringScreen()),
+      ),
     ),
   );
   await tester.pump(const Duration(milliseconds: 50));

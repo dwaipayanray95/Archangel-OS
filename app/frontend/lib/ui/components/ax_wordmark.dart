@@ -27,8 +27,14 @@ class AxWordmark extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: 'Archangel', style: TextStyle(fontWeight: FontWeight.w600, color: color ?? c.text, letterSpacing: spacing)),
-            TextSpan(text: ' ', style: TextStyle(letterSpacing: spacing)),
+            TextSpan(
+              text: 'Archangel',
+              style: TextStyle(fontWeight: FontWeight.w600, color: color ?? c.text, letterSpacing: spacing),
+            ),
+            TextSpan(
+              text: ' ',
+              style: TextStyle(letterSpacing: spacing),
+            ),
             TextSpan(
               text: 'OS',
               style: TextStyle(fontWeight: FontWeight.w400, color: osColor ?? c.accent, letterSpacing: spacing.clamp(0, 99)),

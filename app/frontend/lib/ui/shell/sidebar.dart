@@ -35,43 +35,39 @@ class AxSidebar extends StatelessWidget {
         child: AxGlass(
           radius: ax.radii.lg,
           child: LayoutBuilder(
-            builder:
-                (context, box) => SingleChildScrollView(
-                  padding: EdgeInsets.all(extended ? ax.space.md + 2 : ax.space.sm + 2),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: box.maxHeight - (extended ? 28 : 20)),
-                    child: IntrinsicHeight(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (extended)
-                            Padding(
-                              padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.xs, ax.space.sm, ax.space.lg),
-                              child: const Align(alignment: Alignment.centerLeft, child: AxWordmark()),
-                            ),
-                          _SwitcherCard(compact: !extended),
-                          SizedBox(height: ax.space.md),
-                          for (final s in AxSection.values)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 2),
-                              child: SidebarItem(
-                                key: ValueKey('side-${s.name}'),
-                                section: s,
-                                extended: extended,
-                                selected: s == selected,
-                                onTap: () => onSelect(s),
-                              ),
-                            ),
-                          const Spacer(),
-                          if (onDesktopMode != null) ...[
-                            SizedBox(height: ax.space.md),
-                            _ModeButton(extended: extended, onTap: onDesktopMode!),
-                          ],
-                        ],
-                      ),
-                    ),
+            builder: (context, box) => SingleChildScrollView(
+              padding: EdgeInsets.all(extended ? ax.space.md + 2 : ax.space.sm + 2),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: box.maxHeight - (extended ? 28 : 20)),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (extended)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(ax.space.sm, ax.space.xs, ax.space.sm, ax.space.lg),
+                          child: const Align(alignment: Alignment.centerLeft, child: AxWordmark()),
+                        ),
+                      _SwitcherCard(compact: !extended),
+                      SizedBox(height: ax.space.md),
+                      for (final s in AxSection.values)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: SidebarItem(
+                            key: ValueKey('side-${s.name}'),
+                            section: s,
+                            extended: extended,
+                            selected: s == selected,
+                            onTap: () => onSelect(s),
+                          ),
+                        ),
+                      const Spacer(),
+                      if (onDesktopMode != null) ...[SizedBox(height: ax.space.md), _ModeButton(extended: extended, onTap: onDesktopMode!)],
+                    ],
                   ),
                 ),
+              ),
+            ),
           ),
         ),
       ),
@@ -156,7 +152,10 @@ class _SwitcherCard extends StatelessWidget {
         message: 'Switch server',
         child: Material(
           color: c.glassStrong,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.md), side: BorderSide(color: c.border)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ax.radii.md),
+            side: BorderSide(color: c.border),
+          ),
           child: InkWell(
             onTap: () => showServerSheet(context),
             borderRadius: BorderRadius.circular(ax.radii.md),

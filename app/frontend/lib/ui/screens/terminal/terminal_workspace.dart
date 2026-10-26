@@ -112,10 +112,9 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
     if (widget.onReorderSessions != null) {
       widget.onReorderSessions!(oldIndex, newIndex);
     } else {
-      final currentSelected =
-          widget.sessions.isNotEmpty && widget.selected >= 0 && widget.selected < widget.sessions.length
-              ? widget.sessions[widget.selected]
-              : null;
+      final currentSelected = widget.sessions.isNotEmpty && widget.selected >= 0 && widget.selected < widget.sessions.length
+          ? widget.sessions[widget.selected]
+          : null;
       final session = widget.sessions.removeAt(oldIndex);
       widget.sessions.insert(newIndex, session);
       if (currentSelected != null) {
@@ -188,10 +187,9 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
           },
         );
 
-        final adminButton =
-            widget.adminModeEnabled == null
-                ? const SizedBox.shrink()
-                : _AdminButton(enabled: widget.adminModeEnabled!, onToggle: widget.onToggleAdminMode);
+        final adminButton = widget.adminModeEnabled == null
+            ? const SizedBox.shrink()
+            : _AdminButton(enabled: widget.adminModeEnabled!, onToggle: widget.onToggleAdminMode);
 
         Widget topBar;
         if (wide) {
@@ -300,14 +298,20 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                   else
                     Icon(statusIcon, size: 13, color: statusColor),
                   SizedBox(width: ax.space.xs),
-                  Text(statusText, style: ax.typo.mono.copyWith(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
+                  Text(
+                    statusText,
+                    style: ax.typo.mono.copyWith(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600),
+                  ),
                 ],
               );
 
               return Container(
                 height: 30,
                 padding: EdgeInsets.symmetric(horizontal: ax.space.md),
-                decoration: BoxDecoration(color: tp.barBg, border: Border(top: BorderSide(color: tp.line))),
+                decoration: BoxDecoration(
+                  color: tp.barBg,
+                  border: Border(top: BorderSide(color: tp.line)),
+                ),
                 child: Row(children: [statusBadge, const Spacer(), if (!wide && widget.adminModeEnabled != null) adminButton]),
               );
             },
@@ -341,7 +345,10 @@ class _TerminalWorkspaceState extends State<TerminalWorkspace> {
                       SizedBox(
                         width: 260,
                         child: Container(
-                          decoration: BoxDecoration(color: tp.snipsBg, border: Border(left: BorderSide(color: tp.line))),
+                          decoration: BoxDecoration(
+                            color: tp.snipsBg,
+                            border: Border(left: BorderSide(color: tp.line)),
+                          ),
                           child: SnippetsView(
                             snippets: _snippets,
                             onSelect: _applySnippet,
@@ -392,7 +399,11 @@ class _SessionTab extends StatelessWidget {
             decoration: BoxDecoration(
               color: tp.termBg,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
-              border: Border(top: BorderSide(color: tp.line), left: BorderSide(color: tp.line), right: BorderSide(color: tp.line)),
+              border: Border(
+                top: BorderSide(color: tp.line),
+                left: BorderSide(color: tp.line),
+                right: BorderSide(color: tp.line),
+              ),
             ),
             child: Material(
               color: Colors.transparent,
@@ -407,9 +418,16 @@ class _SessionTab extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(width: 7, height: 7, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+                          ),
                           SizedBox(width: ax.space.sm),
-                          Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600, color: tp.text)),
+                          Text(
+                            session.name,
+                            style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600, color: tp.text),
+                          ),
                         ],
                       ),
                     ),
@@ -422,7 +440,10 @@ class _SessionTab extends StatelessWidget {
                       child: InkWell(
                         customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         onTap: onEnd,
-                        child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: tp.textMuted)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.close, size: 14, color: tp.textMuted),
+                        ),
                       ),
                     ),
                   ),
@@ -457,7 +478,10 @@ class _SessionTab extends StatelessWidget {
                           decoration: BoxDecoration(color: dotColor.withValues(alpha: 0.6), shape: BoxShape.circle),
                         ),
                         SizedBox(width: ax.space.sm),
-                        Text(session.name, style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500, color: tp.textMuted)),
+                        Text(
+                          session.name,
+                          style: ax.typo.mono.copyWith(fontSize: 12.5, fontWeight: FontWeight.w500, color: tp.textMuted),
+                        ),
                       ],
                     ),
                   ),
@@ -471,7 +495,10 @@ class _SessionTab extends StatelessWidget {
                       child: InkWell(
                         customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                         onTap: onEnd,
-                        child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.close, size: 14, color: tp.textMuted)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Icon(Icons.close, size: 14, color: tp.textMuted),
+                        ),
                       ),
                     ),
                   ),
@@ -548,7 +575,10 @@ class _TerminalMoreMenu extends StatelessWidget {
       elevation: 8,
       shadowColor: Colors.black.withValues(alpha: tp.isDark ? 0.6 : 0.15),
       color: tp.barBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: tp.line)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: tp.line),
+      ),
       constraints: const BoxConstraints(minWidth: 240, maxWidth: 270),
       onSelected: (val) {
         if (val == 'snippets') {

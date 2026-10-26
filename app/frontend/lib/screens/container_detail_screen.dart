@@ -79,7 +79,11 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
         surfaceTintColor: Colors.transparent,
         foregroundColor: c.text,
         leading: const BackButton(),
-        title: Text(item.name, style: ax.typo.title.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
+        title: Text(
+          item.name,
+          style: ax.typo.title.copyWith(color: c.text),
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       body: LayoutBuilder(
         builder: (context, box) {
@@ -102,7 +106,10 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
                             spacing: ax.space.md,
                             runSpacing: ax.space.sm,
                             crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [appStatusBadge(item), Text(item.image, style: ax.typo.mono.copyWith(color: c.textMuted))],
+                            children: [
+                              appStatusBadge(item),
+                              Text(item.image, style: ax.typo.mono.copyWith(color: c.textMuted)),
+                            ],
                           ),
                           SizedBox(height: ax.space.lg),
                           Wrap(
@@ -164,7 +171,10 @@ class _ContainerDetailScreenState extends State<ContainerDetailScreen> {
                       ),
                     ),
                     SizedBox(height: ax.space.lg),
-                    SizedBox(height: logHeight, child: AppLogView(logs: svc.liveLogs)),
+                    SizedBox(
+                      height: logHeight,
+                      child: AppLogView(logs: svc.liveLogs),
+                    ),
                   ],
                 ),
               ),

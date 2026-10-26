@@ -26,7 +26,10 @@ void main() {
           ChangeNotifierProvider(create: (_) => ServerRegistry()),
           ChangeNotifierProvider(create: (_) => AdminModeService()),
         ],
-        child: MaterialApp(theme: buildTheme(Brightness.dark), home: const Scaffold(body: TerminalScreen())),
+        child: MaterialApp(
+          theme: buildTheme(Brightness.dark),
+          home: const Scaffold(body: TerminalScreen()),
+        ),
       ),
     );
     await tester.pump();

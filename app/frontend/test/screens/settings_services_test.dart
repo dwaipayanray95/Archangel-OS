@@ -114,7 +114,10 @@ void main() {
             ChangeNotifierProvider(create: (_) => ContainersService()),
             ChangeNotifierProvider(create: (_) => DevopsService()),
           ],
-          child: MaterialApp(theme: buildTheme(Brightness.light, AxAccent.green), home: const Scaffold(body: StatusStrip())),
+          child: MaterialApp(
+            theme: buildTheme(Brightness.light, AxAccent.green),
+            home: const Scaffold(body: StatusStrip()),
+          ),
         ),
       );
       for (var i = 0; i < 5; i++) {

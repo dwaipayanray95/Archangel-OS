@@ -67,12 +67,8 @@ Future<AppState> pumpAppShell(
         ChangeNotifierProvider(create: (_) => UpdateCheckService()),
       ],
       child: Consumer<AppState>(
-        builder:
-            (context, app, _) => MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: buildTheme(brightness, app.accentChoice),
-              home: const ArchangelShell(),
-            ),
+        builder: (context, app, _) =>
+            MaterialApp(debugShowCheckedModeBanner: false, theme: buildTheme(brightness, app.accentChoice), home: const ArchangelShell()),
       ),
     ),
   );

@@ -226,10 +226,9 @@ class _RunAppPageState extends State<RunAppPage> {
             backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
             foregroundColor: c.text,
-            leading:
-                _step == _Step.pick || _done
-                    ? CloseButton(onPressed: () => Navigator.of(context).maybePop(_done))
-                    : BackButton(onPressed: _busy ? null : _back),
+            leading: _step == _Step.pick || _done
+                ? CloseButton(onPressed: () => Navigator.of(context).maybePop(_done))
+                : BackButton(onPressed: _busy ? null : _back),
             title: Text(title, style: ax.typo.title.copyWith(color: c.text)),
           ),
           body: LayoutBuilder(
@@ -328,7 +327,10 @@ class _RunAppPageState extends State<RunAppPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (p.isCustom) ...[
-            Semantics(header: true, child: Text('Which app?', style: ax.typo.title.copyWith(color: c.text))),
+            Semantics(
+              header: true,
+              child: Text('Which app?', style: ax.typo.title.copyWith(color: c.text)),
+            ),
             SizedBox(height: ax.space.sm),
             TextFormField(
               controller: _image,
@@ -385,7 +387,10 @@ class _RunAppPageState extends State<RunAppPage> {
             validator: (v) => validateAppName(v ?? ''),
           ),
           SizedBox(height: ax.space.xl),
-          Semantics(header: true, child: Text('Who can open it?', style: ax.typo.title.copyWith(color: c.text))),
+          Semantics(
+            header: true,
+            child: Text('Who can open it?', style: ax.typo.title.copyWith(color: c.text)),
+          ),
           SizedBox(height: ax.space.sm),
           _ChoiceCard(
             key: const ValueKey('access-private'),
@@ -564,7 +569,10 @@ class _RunAppPageState extends State<RunAppPage> {
           decoration: const InputDecoration(labelText: 'Restart behaviour'),
           items: [
             for (final (value, label) in restartChoices)
-              DropdownMenuItem(value: value, child: Text(label, overflow: TextOverflow.ellipsis)),
+              DropdownMenuItem(
+                value: value,
+                child: Text(label, overflow: TextOverflow.ellipsis),
+              ),
           ],
           onChanged: (v) => setState(() => _restart = v ?? _restart),
         ),
@@ -600,10 +608,12 @@ class _RunAppPageState extends State<RunAppPage> {
                   color: failed ? c.dangerWash : (_done ? c.successWash : c.infoWash),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child:
-                    _busy
-                        ? Padding(padding: const EdgeInsets.all(14), child: CircularProgressIndicator(strokeWidth: 2.5, color: c.info))
-                        : Icon(failed ? Icons.error_outline : Icons.check_rounded, color: failed ? c.danger : c.success, size: 28),
+                child: _busy
+                    ? Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: c.info),
+                      )
+                    : Icon(failed ? Icons.error_outline : Icons.check_rounded, color: failed ? c.danger : c.success, size: 28),
               ),
               SizedBox(height: ax.space.lg),
               Text(
@@ -616,8 +626,8 @@ class _RunAppPageState extends State<RunAppPage> {
                     ? _error!
                     : _done
                     ? (_access == PortVisibility.public
-                        ? 'Anyone with the address can open it.'
-                        : 'Open it from any of your devices while the private connection is on.')
+                          ? 'Anyone with the address can open it.'
+                          : 'Open it from any of your devices while the private connection is on.')
                     : 'This usually takes under a minute. Big apps take longer the first time.',
                 style: ax.typo.body.copyWith(color: failed ? c.danger : c.textMuted),
               ),
@@ -635,7 +645,9 @@ class _RunAppPageState extends State<RunAppPage> {
                         else
                           Icon(Icons.radio_button_unchecked, size: 20, color: c.textSubtle),
                         SizedBox(width: ax.space.md),
-                        Expanded(child: Text(label, style: ax.typo.body.copyWith(color: done || working ? c.text : c.textMuted))),
+                        Expanded(
+                          child: Text(label, style: ax.typo.body.copyWith(color: done || working ? c.text : c.textMuted)),
+                        ),
                         Text(
                           done ? 'Done' : (working ? 'Working…' : 'Waiting'),
                           style: ax.typo.caption.copyWith(color: done ? c.success : c.textMuted),
@@ -683,7 +695,12 @@ class _RunAppPageState extends State<RunAppPage> {
         children: [
           Row(
             children: [
-              Expanded(child: Semantics(header: true, child: Text(title, style: ax.typo.title.copyWith(color: c.text)))),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(title, style: ax.typo.title.copyWith(color: c.text)),
+                ),
+              ),
               if (help != null) help,
             ],
           ),
@@ -710,7 +727,9 @@ class _RunAppPageState extends State<RunAppPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children)),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+              ),
               AxIconButton(icon: Icons.close_rounded, tooltip: removeTip, onPressed: onRemove),
             ],
           ),
@@ -756,7 +775,13 @@ class _RunAppPageState extends State<RunAppPage> {
           isExpanded: true,
           dropdownColor: c.surfaceHigh,
           decoration: const InputDecoration(labelText: 'Who can reach it'),
-          items: [for (final v in PortVisibility.values) DropdownMenuItem(value: v, child: Text(v.label, overflow: TextOverflow.ellipsis))],
+          items: [
+            for (final v in PortVisibility.values)
+              DropdownMenuItem(
+                value: v,
+                child: Text(v.label, overflow: TextOverflow.ellipsis),
+              ),
+          ],
           onChanged: (v) => setState(() => r.visibility = v ?? r.visibility),
         ),
         if (r.visibility == PortVisibility.public) ...[
@@ -850,10 +875,12 @@ class AppTile extends StatelessWidget {
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(size * 0.3)),
-        child:
-            icon != null
-                ? Icon(icon, color: fg, size: size * 0.5)
-                : Text(letter, style: TextStyle(fontFamily: kUiFontFamily, fontWeight: FontWeight.w700, fontSize: size * 0.4, color: fg)),
+        child: icon != null
+            ? Icon(icon, color: fg, size: size * 0.5)
+            : Text(
+                letter,
+                style: TextStyle(fontFamily: kUiFontFamily, fontWeight: FontWeight.w700, fontSize: size * 0.4, color: fg),
+              ),
       ),
     );
   }
@@ -939,7 +966,9 @@ class _Notice extends StatelessWidget {
         children: [
           Icon(Icons.warning_amber_rounded, color: c.warning),
           SizedBox(width: ax.space.sm),
-          Expanded(child: Text(text, style: ax.typo.body.copyWith(color: c.text))),
+          Expanded(
+            child: Text(text, style: ax.typo.body.copyWith(color: c.text)),
+          ),
         ],
       ),
     );

@@ -174,12 +174,11 @@ double worstDiskPercent(DiskMetrics disk) {
 }
 
 /// The status for a usage percentage.
-AxStatus usageStatus(double percent) =>
-    percent >= kUsageLimit
-        ? AxStatus.error
-        : percent >= 75
-        ? AxStatus.warning
-        : AxStatus.ok;
+AxStatus usageStatus(double percent) => percent >= kUsageLimit
+    ? AxStatus.error
+    : percent >= 75
+    ? AxStatus.warning
+    : AxStatus.ok;
 
 String usageBadgeLabel(double percent, {required String high, required String mid, String ok = 'Fine'}) =>
     percent >= kUsageLimit ? high : (percent >= 75 ? mid : ok);

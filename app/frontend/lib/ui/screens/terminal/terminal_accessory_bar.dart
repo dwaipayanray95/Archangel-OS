@@ -26,7 +26,10 @@ class TerminalAccessoryBar extends StatelessWidget {
       builder: (context, _) {
         return Container(
           key: const ValueKey('terminal-accessory-bar'),
-          decoration: BoxDecoration(color: tp.barBg, border: Border(top: BorderSide(color: tp.line))),
+          decoration: BoxDecoration(
+            color: tp.barBg,
+            border: Border(top: BorderSide(color: tp.line)),
+          ),
           padding: EdgeInsets.symmetric(horizontal: ax.space.xs, vertical: ax.space.xs),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -88,7 +91,10 @@ class _Key extends StatelessWidget {
           message: tooltip,
           child: Material(
             color: bg,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.sm), side: BorderSide(color: border)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(ax.radii.sm),
+              side: BorderSide(color: border),
+            ),
             child: InkWell(
               customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.sm)),
               onTap: onTap,
@@ -97,10 +103,12 @@ class _Key extends StatelessWidget {
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child:
-                        icon != null
-                            ? Icon(icon, size: 20, color: fg)
-                            : Text(label!, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: fg)),
+                    child: icon != null
+                        ? Icon(icon, size: 20, color: fg)
+                        : Text(
+                            label!,
+                            style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: fg),
+                          ),
                   ),
                 ),
               ),

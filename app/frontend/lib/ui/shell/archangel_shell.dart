@@ -273,38 +273,37 @@ class _ArchangelShellState extends State<ArchangelShell> {
             showMore: moreVisible,
             more: MorePage(onOpen: _open),
           );
-          main =
-              phone
-                  ? _PhoneFrame(
-                    showBack: axMoreSections.contains(app.section) && !moreVisible,
-                    onBack: () => setState(() => _showMore = true),
-                    child: content,
-                  )
-                  : Row(
-                    children: [
-                      AxSidebar(
-                        extended: extended,
-                        selected: app.section,
-                        onSelect: _open,
-                        onDesktopMode: desktopAllowed ? () => app.layout = AxLayout.desktop : null,
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            SafeArea(
-                              bottom: false,
-                              left: false,
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(context.ax.space.lg, context.ax.space.md, context.ax.space.md, 0),
-                                child: const StatusStrip(showServerName: false),
-                              ),
+          main = phone
+              ? _PhoneFrame(
+                  showBack: axMoreSections.contains(app.section) && !moreVisible,
+                  onBack: () => setState(() => _showMore = true),
+                  child: content,
+                )
+              : Row(
+                  children: [
+                    AxSidebar(
+                      extended: extended,
+                      selected: app.section,
+                      onSelect: _open,
+                      onDesktopMode: desktopAllowed ? () => app.layout = AxLayout.desktop : null,
+                    ),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          SafeArea(
+                            bottom: false,
+                            left: false,
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(context.ax.space.lg, context.ax.space.md, context.ax.space.md, 0),
+                              child: const StatusStrip(showServerName: false),
                             ),
-                            Expanded(child: content),
-                          ],
-                        ),
+                          ),
+                          Expanded(child: content),
+                        ],
                       ),
-                    ],
-                  );
+                    ),
+                  ],
+                );
         }
 
         final Widget body = Stack(
@@ -339,35 +338,34 @@ class _ArchangelShellState extends State<ArchangelShell> {
                 child: Scaffold(
                   backgroundColor: Colors.transparent,
                   body: body,
-                  bottomNavigationBar:
-                      phone
-                          ? _GlassNavBar(
-                            child: NavigationBar(
-                              selectedIndex: moreVisible || app.section.index >= _phoneTabs.length ? _phoneTabs.length : app.section.index,
-                              onDestinationSelected: (i) {
-                                if (i == _phoneTabs.length) {
-                                  setState(() => _showMore = true);
-                                  app.closeNotif();
-                                } else {
-                                  _open(_phoneTabs[i]);
-                                }
-                              },
-                              destinations: [
-                                for (final s in _phoneTabs)
-                                  NavigationDestination(
-                                    icon: Icon(axSectionIcons[s]),
-                                    selectedIcon: Icon(axSectionSelectedIcons[s]),
-                                    label: axSectionLabels[s]!,
-                                  ),
-                                const NavigationDestination(
-                                  icon: Icon(Icons.more_horiz),
-                                  selectedIcon: Icon(Icons.more_horiz),
-                                  label: 'More',
+                  bottomNavigationBar: phone
+                      ? _GlassNavBar(
+                          child: NavigationBar(
+                            selectedIndex: moreVisible || app.section.index >= _phoneTabs.length ? _phoneTabs.length : app.section.index,
+                            onDestinationSelected: (i) {
+                              if (i == _phoneTabs.length) {
+                                setState(() => _showMore = true);
+                                app.closeNotif();
+                              } else {
+                                _open(_phoneTabs[i]);
+                              }
+                            },
+                            destinations: [
+                              for (final s in _phoneTabs)
+                                NavigationDestination(
+                                  icon: Icon(axSectionIcons[s]),
+                                  selectedIcon: Icon(axSectionSelectedIcons[s]),
+                                  label: axSectionLabels[s]!,
                                 ),
-                              ],
-                            ),
-                          )
-                          : null,
+                              const NavigationDestination(
+                                icon: Icon(Icons.more_horiz),
+                                selectedIcon: Icon(Icons.more_horiz),
+                                label: 'More',
+                              ),
+                            ],
+                          ),
+                        )
+                      : null,
                 ),
               ),
             ),
@@ -402,7 +400,9 @@ class _PhoneFrame extends StatelessWidget {
                   children: [
                     if (showBack) AxIconButton(icon: Icons.arrow_back, tooltip: 'Back to More', onPressed: onBack) else const AxWordmark(),
                     SizedBox(width: ax.space.md),
-                    const Expanded(child: Align(alignment: Alignment.centerRight, child: _ServerPill())),
+                    const Expanded(
+                      child: Align(alignment: Alignment.centerRight, child: _ServerPill()),
+                    ),
                   ],
                 ),
                 SizedBox(height: ax.space.xs),

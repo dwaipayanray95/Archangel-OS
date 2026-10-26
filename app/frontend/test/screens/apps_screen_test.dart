@@ -114,7 +114,10 @@ Future<void> _pump(
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()),
         ChangeNotifierProvider<ContainersService>.value(value: svc),
       ],
-      child: MaterialApp(theme: buildTheme(brightness), home: Scaffold(body: home)),
+      child: MaterialApp(
+        theme: buildTheme(brightness),
+        home: Scaffold(body: home),
+      ),
     ),
   );
   await tester.pump(const Duration(milliseconds: 100));
@@ -176,7 +179,12 @@ void main() {
 
   testWidgets('run an app starts with a catalog; a preset fills in port and folder', (tester) async {
     final svc = _FakeContainers(_overview());
-    await _pump(tester, svc, size: const Size(390, 844), home: RunAppPage(service: svc));
+    await _pump(
+      tester,
+      svc,
+      size: const Size(390, 844),
+      home: RunAppPage(service: svc),
+    );
     expect(find.text('What would you like to run?'), findsOneWidget);
     await tester.tap(find.text('Uptime Kuma'));
     await tester.pump(const Duration(milliseconds: 300));
@@ -194,7 +202,12 @@ void main() {
 
   testWidgets('public shows a warning and builds the 0.0.0.0 spec', (tester) async {
     final svc = _FakeContainers(_overview());
-    await _pump(tester, svc, size: const Size(390, 844), home: RunAppPage(service: svc));
+    await _pump(
+      tester,
+      svc,
+      size: const Size(390, 844),
+      home: RunAppPage(service: svc),
+    );
     await pickSomethingElse(tester);
     await tester.enterText(find.widgetWithText(TextFormField, 'Image'), 'nginx');
     expect(find.textContaining('Anyone on the internet will be able'), findsNothing);
@@ -216,7 +229,12 @@ void main() {
 
   testWidgets('invalid ports block the form', (tester) async {
     final svc = _FakeContainers(_overview());
-    await _pump(tester, svc, size: const Size(390, 844), home: RunAppPage(service: svc));
+    await _pump(
+      tester,
+      svc,
+      size: const Size(390, 844),
+      home: RunAppPage(service: svc),
+    );
     await pickSomethingElse(tester);
     await tester.enterText(find.widgetWithText(TextFormField, 'Image'), 'nginx');
     await tester.enterText(find.widgetWithText(TextFormField, 'Port inside the app'), '70000');
@@ -231,7 +249,12 @@ void main() {
 
   testWidgets('a server error offers to change settings', (tester) async {
     final svc = _FailingContainers(_overview());
-    await _pump(tester, svc, size: const Size(390, 844), home: RunAppPage(service: svc));
+    await _pump(
+      tester,
+      svc,
+      size: const Size(390, 844),
+      home: RunAppPage(service: svc),
+    );
     await tester.tap(find.text('Vaultwarden'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(find.text('Run app'));
@@ -257,7 +280,12 @@ void main() {
   testWidgets('run app page has no overflow at 390 and 1400', (tester) async {
     for (final size in const [Size(390, 844), Size(1400, 900)]) {
       final svc = _FakeContainers(_overview());
-      await _pump(tester, svc, size: size, home: RunAppPage(key: ValueKey(size), service: svc));
+      await _pump(
+        tester,
+        svc,
+        size: size,
+        home: RunAppPage(key: ValueKey(size), service: svc),
+      );
       expect(tester.takeException(), isNull);
       await tester.ensureVisible(find.text('Something else'));
       await tester.tap(find.text('Something else'));

@@ -71,7 +71,10 @@ class NotifPanel extends StatelessWidget {
         tween: Tween(begin: 0, end: 1),
         duration: const Duration(milliseconds: 230),
         curve: Curves.easeOutCubic,
-        builder: (context, t, child) => Opacity(opacity: t, child: Transform.translate(offset: Offset(0, (1 - t) * -12), child: child)),
+        builder: (context, t, child) => Opacity(
+          opacity: t,
+          child: Transform.translate(offset: Offset(0, (1 - t) * -12), child: child),
+        ),
         child: Semantics(
           container: true,
           label: 'Notifications',
@@ -137,8 +140,14 @@ class NotifPanel extends StatelessWidget {
                                     TextSpan(
                                       style: ax.typo.body.copyWith(color: c.text),
                                       children: [
-                                        TextSpan(text: '${n.actor} ', style: const TextStyle(fontWeight: FontWeight.w600)),
-                                        TextSpan(text: n.text, style: TextStyle(color: c.textMuted)),
+                                        TextSpan(
+                                          text: '${n.actor} ',
+                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                        ),
+                                        TextSpan(
+                                          text: n.text,
+                                          style: TextStyle(color: c.textMuted),
+                                        ),
                                       ],
                                     ),
                                   ),

@@ -126,27 +126,26 @@ class _AppLogViewState extends State<AppLogView> {
               borderRadius: BorderRadius.circular(ax.radii.md),
               border: Border.all(color: c.border),
             ),
-            child:
-                lines.isEmpty
-                    ? Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(ax.space.lg),
-                        child: Text(
-                          'No log lines yet. New output appears here as it happens.',
-                          textAlign: TextAlign.center,
-                          style: ax.typo.body.copyWith(color: c.textMuted),
-                        ),
-                      ),
-                    )
-                    : Scrollbar(
-                      controller: _scroll,
-                      child: ListView.builder(
-                        controller: _scroll,
-                        padding: EdgeInsets.all(ax.space.md),
-                        itemCount: lines.length,
-                        itemBuilder: (context, i) => _LogLine(entry: lines[i]),
+            child: lines.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(ax.space.lg),
+                      child: Text(
+                        'No log lines yet. New output appears here as it happens.',
+                        textAlign: TextAlign.center,
+                        style: ax.typo.body.copyWith(color: c.textMuted),
                       ),
                     ),
+                  )
+                : Scrollbar(
+                    controller: _scroll,
+                    child: ListView.builder(
+                      controller: _scroll,
+                      padding: EdgeInsets.all(ax.space.md),
+                      itemCount: lines.length,
+                      itemBuilder: (context, i) => _LogLine(entry: lines[i]),
+                    ),
+                  ),
           ),
         ),
       ],
@@ -169,8 +168,15 @@ class _LogLine extends StatelessWidget {
         TextSpan(
           style: ax.typo.mono.copyWith(color: c.text),
           children: [
-            if (entry.ts.isNotEmpty) TextSpan(text: '${entry.ts} ', style: TextStyle(color: c.textSubtle)),
-            TextSpan(text: '${entry.level.toUpperCase()} ', style: TextStyle(color: level, fontWeight: FontWeight.w700)),
+            if (entry.ts.isNotEmpty)
+              TextSpan(
+                text: '${entry.ts} ',
+                style: TextStyle(color: c.textSubtle),
+              ),
+            TextSpan(
+              text: '${entry.level.toUpperCase()} ',
+              style: TextStyle(color: level, fontWeight: FontWeight.w700),
+            ),
             TextSpan(text: entry.text),
           ],
         ),

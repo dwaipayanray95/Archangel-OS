@@ -119,10 +119,9 @@ class AxButton extends StatelessWidget {
     );
 
     final callback = enabled ? onPressed : null;
-    final Widget button =
-        kind == AxButtonKind.ghost
-            ? TextButton(onPressed: callback, style: style, child: content)
-            : FilledButton(onPressed: callback, style: style, child: content);
+    final Widget button = kind == AxButtonKind.ghost
+        ? TextButton(onPressed: callback, style: style, child: content)
+        : FilledButton(onPressed: callback, style: style, child: content);
 
     return Semantics(
       button: true,

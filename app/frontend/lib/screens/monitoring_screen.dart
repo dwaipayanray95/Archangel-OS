@@ -113,7 +113,11 @@ class _MonitoringScreenState extends State<MonitoringScreen> {
                 SizedBox(height: ax.space.md),
                 Text('Reaching your server…', style: ax.typo.headline.copyWith(color: c.text)),
                 SizedBox(height: ax.space.xs),
-                Text('Live numbers appear in a moment.', style: ax.typo.body.copyWith(color: c.textMuted), textAlign: TextAlign.center),
+                Text(
+                  'Live numbers appear in a moment.',
+                  style: ax.typo.body.copyWith(color: c.textMuted),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
           ),

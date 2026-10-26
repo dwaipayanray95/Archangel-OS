@@ -155,10 +155,9 @@ String formatUptimeLong(int seconds) {
 /// Filters by name / user in the server process list and sorts by CPU or Memory descending.
 List<LiveProcessInfo> filterAndSortPrograms(List<LiveProcessInfo> processes, {String query = '', required bool sortByMemory}) {
   final q = query.trim().toLowerCase();
-  final filtered =
-      q.isEmpty
-          ? List<LiveProcessInfo>.of(processes)
-          : processes.where((p) => p.name.toLowerCase().contains(q) || p.user.toLowerCase().contains(q)).toList();
+  final filtered = q.isEmpty
+      ? List<LiveProcessInfo>.of(processes)
+      : processes.where((p) => p.name.toLowerCase().contains(q) || p.user.toLowerCase().contains(q)).toList();
   if (sortByMemory) {
     filtered.sort((a, b) => (b.rssBytes > 0 || a.rssBytes > 0) ? b.rssBytes.compareTo(a.rssBytes) : b.mem.compareTo(a.mem));
   } else {

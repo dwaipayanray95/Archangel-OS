@@ -29,11 +29,17 @@ class MorePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Semantics(header: true, child: Text('Server', style: ax.typo.label.copyWith(color: ax.colors.textMuted))),
+          Semantics(
+            header: true,
+            child: Text('Server', style: ax.typo.label.copyWith(color: ax.colors.textMuted)),
+          ),
           SizedBox(height: ax.space.sm),
           AxCard(padding: EdgeInsets.all(ax.space.sm), child: const ServerList()),
           SizedBox(height: ax.space.xl),
-          Semantics(header: true, child: Text('Manage', style: ax.typo.label.copyWith(color: ax.colors.textMuted))),
+          Semantics(
+            header: true,
+            child: Text('Manage', style: ax.typo.label.copyWith(color: ax.colors.textMuted)),
+          ),
           SizedBox(height: ax.space.sm),
           AxCard(
             padding: EdgeInsets.all(ax.space.sm),

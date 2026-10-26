@@ -26,7 +26,11 @@ enum SyncServerMode {
 /// needing to touch a terminal or deploy script - or, with
 /// [SyncServerMode.enableAdminMode], to turn Admin mode back on.
 Future<void> showSyncServerConfigDialog(BuildContext context, {SyncServerMode mode = SyncServerMode.sync}) {
-  return showDialog<void>(context: context, barrierDismissible: false, builder: (context) => SyncServerConfigDialog(mode: mode));
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => SyncServerConfigDialog(mode: mode),
+  );
 }
 
 class SyncServerConfigDialog extends StatefulWidget {
@@ -172,9 +176,9 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
               Text(
                 _isAdminMode
                     ? 'Admin mode lets the terminal and Archangel run commands as root (sudo). '
-                        'Turning it on needs your SSH key, because the app can only turn it off by itself.'
+                          'Turning it on needs your SSH key, because the app can only turn it off by itself.'
                     : 'Updates the server\'s service definition and permissions to the latest standard, '
-                        'including persistent terminal sessions. Admin mode (sudo) is left as it is - on or off.',
+                          'including persistent terminal sessions. Admin mode (sudo) is left as it is - on or off.',
                 style: ax.typo.body.copyWith(color: c.textMuted),
               ),
               SizedBox(height: ax.space.lg),
@@ -193,10 +197,9 @@ class _SyncServerConfigDialogState extends State<SyncServerConfigDialog> {
           ),
           _Step.done => SetupDoneView(
             title: _isAdminMode ? 'Admin mode is on' : 'Server configuration updated',
-            message:
-                _isAdminMode
-                    ? 'The terminal and Archangel can run commands as root (sudo) again.'
-                    : 'The service definition and the /home/archangel folder are set up. Persistent terminal sessions are live.',
+            message: _isAdminMode
+                ? 'The terminal and Archangel can run commands as root (sudo) again.'
+                : 'The service definition and the /home/archangel folder are set up. Persistent terminal sessions are live.',
           ),
         },
       ),

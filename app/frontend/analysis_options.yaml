@@ -33,3 +33,7 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+# Repo-wide formatting width (dart format reads this; no -l flag needed).
+formatter:
+  page_width: 140

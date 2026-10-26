@@ -79,7 +79,12 @@ class UploadProgressCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(title, style: ax.typo.label.copyWith(color: c.text, fontWeight: FontWeight.w600))),
+              Expanded(
+                child: Text(
+                  title,
+                  style: ax.typo.label.copyWith(color: c.text, fontWeight: FontWeight.w600),
+                ),
+              ),
               if (errorMessage == null) AxButton.ghost(label: 'Cancel', small: true, onPressed: onCancel),
             ],
           ),

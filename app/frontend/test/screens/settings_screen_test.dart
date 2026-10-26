@@ -130,7 +130,11 @@ Future<_Harness> _pumpSettings(
         ChangeNotifierProvider(create: (_) => UpdateCheckService()),
         ChangeNotifierProvider<DesktopPrefs>.value(value: prefs),
       ],
-      child: MaterialApp(debugShowCheckedModeBanner: false, theme: buildTheme(brightness, AxAccent.green), home: Scaffold(body: child)),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(brightness, AxAccent.green),
+        home: Scaffold(body: child),
+      ),
     ),
   );
   await _settle(tester);
@@ -439,9 +443,8 @@ void main() {
     testWidgets('403 shows the server\'s admin-mode message and keeps the form', (tester) async {
       await _pumpSettings(
         tester,
-        devicesHandler:
-            (req) async =>
-                req.method == 'POST' ? _json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403) : _json([]),
+        devicesHandler: (req) async =>
+            req.method == 'POST' ? _json({'success': false, 'message': 'Admin mode is off - this action needs it'}, 403) : _json([]),
       );
       await _open(tester, SettingsSectionId.devices);
       await _tapText(tester, 'Add a device');
@@ -496,7 +499,10 @@ void main() {
       await _pumpSettings(
         tester,
         size: const Size(1400, 900),
-        wrap: (child) => Align(alignment: Alignment.topLeft, child: SizedBox(width: 340, child: child)),
+        wrap: (child) => Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(width: 340, child: child),
+        ),
       );
       await _open(tester, SettingsSectionId.appearance);
       expect(find.byKey(const ValueKey('layout-choice')), findsOneWidget);
@@ -700,27 +706,26 @@ void main() {
           child: MaterialApp(
             theme: buildTheme(Brightness.dark, AxAccent.green),
             home: Builder(
-              builder:
-                  (context) => Scaffold(
-                    body: TextButton(
-                      onPressed:
-                          () => showUninstallDialog(
-                            context,
-                            connector: ({
-                              required host,
-                              required port,
-                              required username,
-                              required privateKeyPem,
-                              required onUnknownHostKey,
-                              passphrase,
-                            }) async {
-                              connectedWith = {'host': host, 'user': username};
-                              return fake;
-                            },
-                          ),
-                      child: const Text('open'),
-                    ),
+              builder: (context) => Scaffold(
+                body: TextButton(
+                  onPressed: () => showUninstallDialog(
+                    context,
+                    connector:
+                        ({
+                          required host,
+                          required port,
+                          required username,
+                          required privateKeyPem,
+                          required onUnknownHostKey,
+                          passphrase,
+                        }) async {
+                          connectedWith = {'host': host, 'user': username};
+                          return fake;
+                        },
                   ),
+                  child: const Text('open'),
+                ),
+              ),
             ),
           ),
         ),

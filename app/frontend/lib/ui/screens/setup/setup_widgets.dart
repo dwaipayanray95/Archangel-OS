@@ -45,9 +45,15 @@ class SetupHeading extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Semantics(header: true, child: Text(title, style: ax.typo.headline.copyWith(color: c.text))),
+        Semantics(
+          header: true,
+          child: Text(title, style: ax.typo.headline.copyWith(color: c.text)),
+        ),
         if (subtitle != null)
-          Padding(padding: EdgeInsets.only(top: ax.space.sm), child: Text(subtitle!, style: ax.typo.body.copyWith(color: c.textMuted))),
+          Padding(
+            padding: EdgeInsets.only(top: ax.space.sm),
+            child: Text(subtitle!, style: ax.typo.body.copyWith(color: c.textMuted)),
+          ),
       ],
     );
   }
@@ -70,9 +76,14 @@ class SetupBullet extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(padding: const EdgeInsets.only(top: 2), child: Icon(icon, size: 18, color: iconColor ?? c.accent)),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(icon, size: 18, color: iconColor ?? c.accent),
+          ),
           SizedBox(width: ax.space.md),
-          Expanded(child: Text(text, style: ax.typo.body.copyWith(color: c.text))),
+          Expanded(
+            child: Text(text, style: ax.typo.body.copyWith(color: c.text)),
+          ),
         ],
       ),
     );
@@ -183,8 +194,13 @@ class ProviderFirewallHelp extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(width: 22, child: Text('${i + 1}.', style: ax.typo.caption.copyWith(color: c.textMuted))),
-                      Expanded(child: Text(list[i], style: ax.typo.caption.copyWith(color: c.textMuted))),
+                      SizedBox(
+                        width: 22,
+                        child: Text('${i + 1}.', style: ax.typo.caption.copyWith(color: c.textMuted)),
+                      ),
+                      Expanded(
+                        child: Text(list[i], style: ax.typo.caption.copyWith(color: c.textMuted)),
+                      ),
                     ],
                   ),
                 ),

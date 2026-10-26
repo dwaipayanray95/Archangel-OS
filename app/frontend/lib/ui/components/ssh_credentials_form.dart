@@ -192,7 +192,9 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
                 children: [
                   SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent)),
                   SizedBox(width: ax.space.sm),
-                  Expanded(child: Text('Unlocking your saved key...', style: ax.typo.body.copyWith(color: c.textMuted))),
+                  Expanded(
+                    child: Text('Unlocking your saved key...', style: ax.typo.body.copyWith(color: c.textMuted)),
+                  ),
                 ],
               ),
             ),
@@ -204,7 +206,9 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
               children: [
                 Icon(Icons.lock_open_outlined, size: 18, color: c.success),
                 SizedBox(width: ax.space.sm),
-                Expanded(child: Text('Using your saved key.', style: ax.typo.body.copyWith(color: c.textMuted))),
+                Expanded(
+                  child: Text('Using your saved key.', style: ax.typo.body.copyWith(color: c.textMuted)),
+                ),
               ],
             ),
           ),
@@ -299,7 +303,9 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
                 children: [
                   Icon(Icons.error_outline, size: 18, color: c.danger),
                   SizedBox(width: ax.space.sm),
-                  Expanded(child: Text(widget.errorText!, style: ax.typo.body.copyWith(color: c.danger))),
+                  Expanded(
+                    child: Text(widget.errorText!, style: ax.typo.body.copyWith(color: c.danger)),
+                  ),
                 ],
               ),
             ),

@@ -22,26 +22,25 @@ class DevicesSection extends StatelessWidget {
     final registry = context.read<ServerRegistry>();
     final messenger = ScaffoldMessenger.maybeOf(context);
 
-    final confirmed =
-        device.current
-            ? await showConfirmDialog(
-              context,
-              title: 'Revoke "${device.name}"?',
-              message:
-                  'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
-                  'You will need SSH access to the server to pair again.',
-              confirmLabel: 'Revoke',
-              danger: true,
-              // Cutting your own connection needs the name typed.
-              typeToConfirm: device.name,
-            )
-            : await showConfirmDialog(
-              context,
-              title: 'Remove ${device.name}?',
-              message: "It won't be able to reach your server any more.",
-              confirmLabel: 'Remove',
-              danger: true,
-            );
+    final confirmed = device.current
+        ? await showConfirmDialog(
+            context,
+            title: 'Revoke "${device.name}"?',
+            message:
+                'This is the device you are using. It will lose access to the server immediately, and this app will be unpaired. '
+                'You will need SSH access to the server to pair again.',
+            confirmLabel: 'Revoke',
+            danger: true,
+            // Cutting your own connection needs the name typed.
+            typeToConfirm: device.name,
+          )
+        : await showConfirmDialog(
+            context,
+            title: 'Remove ${device.name}?',
+            message: "It won't be able to reach your server any more.",
+            confirmLabel: 'Remove',
+            danger: true,
+          );
     if (!confirmed) return;
 
     final result = await svc.revoke(device, self: device.current);
@@ -102,7 +101,11 @@ class _DeviceRow extends StatelessWidget {
           children: [
             if (created != null) TextSpan(text: 'Paired ${formatSettingsDate(created)}'),
             if (created != null && ip != null) const TextSpan(text: ' · '),
-            if (ip != null) TextSpan(text: ip, style: ax.typo.mono.copyWith(color: muted)),
+            if (ip != null)
+              TextSpan(
+                text: ip,
+                style: ax.typo.mono.copyWith(color: muted),
+              ),
           ],
         ),
       );
@@ -163,7 +166,12 @@ class AdminModeSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Semantics(header: true, child: Text('Admin mode', style: ax.typo.title.copyWith(color: c.text)))),
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text('Admin mode', style: ax.typo.title.copyWith(color: c.text)),
+                ),
+              ),
               if (enabled != null)
                 Semantics(
                   label: 'Admin mode',
@@ -181,10 +189,9 @@ class AdminModeSection extends StatelessWidget {
             SizedBox(height: ax.space.sm),
             Align(
               alignment: Alignment.centerLeft,
-              child:
-                  enabled
-                      ? const StatusBadge.warning('Administrator commands allowed', icon: Icons.key_outlined)
-                      : const StatusBadge.neutral('Administrator commands blocked', icon: Icons.lock_outline),
+              child: enabled
+                  ? const StatusBadge.warning('Administrator commands allowed', icon: Icons.key_outlined)
+                  : const StatusBadge.neutral('Administrator commands blocked', icon: Icons.lock_outline),
             ),
             SizedBox(height: ax.space.md),
             Text(
@@ -211,7 +218,9 @@ class AdminModeSection extends StatelessWidget {
               children: [
                 Icon(Icons.error_outline, size: 18, color: c.danger),
                 SizedBox(width: ax.space.sm),
-                Expanded(child: Text(svc.error!, style: ax.typo.body.copyWith(color: c.danger))),
+                Expanded(
+                  child: Text(svc.error!, style: ax.typo.body.copyWith(color: c.danger)),
+                ),
               ],
             ),
             SizedBox(height: ax.space.sm),

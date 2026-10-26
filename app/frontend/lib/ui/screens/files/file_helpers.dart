@@ -49,10 +49,9 @@ List<Crumb> buildCrumbs(String path, {String? rootPath, bool collapseNarrow = fa
   final List<Crumb> crumbs;
 
   if (cleanRoot != null && (cleanPath == cleanRoot || cleanPath.startsWith('$cleanRoot/') || cleanPath.isEmpty)) {
-    final rest =
-        cleanPath.isEmpty || cleanPath == cleanRoot
-            ? <String>[]
-            : cleanPath.substring(cleanRoot.length).split('/').where((p) => p.isNotEmpty).toList();
+    final rest = cleanPath.isEmpty || cleanPath == cleanRoot
+        ? <String>[]
+        : cleanPath.substring(cleanRoot.length).split('/').where((p) => p.isNotEmpty).toList();
 
     var acc = cleanRoot;
     crumbs = [

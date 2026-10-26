@@ -176,7 +176,11 @@ class _TerminalPaneState extends State<TerminalPane> {
                           children: [
                             Icon(Icons.cloud_off, size: 36, color: tp.textMuted),
                             SizedBox(height: ax.space.md),
-                            Text('Disconnected', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: tp.text)),
+                            Text(
+                              'Disconnected',
+                              textAlign: TextAlign.center,
+                              style: ax.typo.title.copyWith(color: tp.text),
+                            ),
                             SizedBox(height: ax.space.xs),
                             Text(
                               'Your session is still running on the server. Reconnect to pick up where you left off.',
@@ -196,9 +200,17 @@ class _TerminalPaneState extends State<TerminalPane> {
                           children: [
                             Icon(Icons.info_outline, size: 36, color: tp.textMuted),
                             SizedBox(height: ax.space.md),
-                            Text('This session ended', textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: tp.text)),
+                            Text(
+                              'This session ended',
+                              textAlign: TextAlign.center,
+                              style: ax.typo.title.copyWith(color: tp.text),
+                            ),
                             SizedBox(height: ax.space.xs),
-                            Text('The shell exited.', textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: tp.textMuted)),
+                            Text(
+                              'The shell exited.',
+                              textAlign: TextAlign.center,
+                              style: ax.typo.body.copyWith(color: tp.textMuted),
+                            ),
                             SizedBox(height: ax.space.lg),
                             AxButton(label: 'Start a new session', icon: Icons.refresh, onPressed: session.reconnect),
                           ],
@@ -228,7 +240,9 @@ class _TerminalPaneState extends State<TerminalPane> {
                                   children: [
                                     Icon(Icons.lock, size: 18, color: c.warning),
                                     SizedBox(width: ax.space.sm),
-                                    Expanded(child: Text('That command needs Admin mode', style: ax.typo.title.copyWith(color: c.warning))),
+                                    Expanded(
+                                      child: Text('That command needs Admin mode', style: ax.typo.title.copyWith(color: c.warning)),
+                                    ),
                                   ],
                                 ),
                                 SizedBox(height: ax.space.xs),
@@ -284,7 +298,13 @@ class _OverlayCard extends StatelessWidget {
           color: tp.barBg,
           borderRadius: BorderRadius.circular(ax.radii.lg),
           border: Border.all(color: tp.line),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: tp.isDark ? 0.4 : 0.08), blurRadius: 24, offset: const Offset(0, 8))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: tp.isDark ? 0.4 : 0.08),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: child,
       ),

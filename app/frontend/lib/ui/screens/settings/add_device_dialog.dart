@@ -74,13 +74,12 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
         constraints: const BoxConstraints(maxWidth: 420),
         child: result == null ? _nameStep(ax) : _codeStep(ax, result.bundle!),
       ),
-      actions:
-          result == null
-              ? [
-                AxButton.ghost(label: 'Cancel', onPressed: _creating ? null : () => Navigator.of(context).pop()),
-                AxButton(label: 'Create pairing code', loading: _creating, onPressed: _create),
-              ]
-              : [AxButton(label: 'Done', onPressed: () => Navigator.of(context).pop())],
+      actions: result == null
+          ? [
+              AxButton.ghost(label: 'Cancel', onPressed: _creating ? null : () => Navigator.of(context).pop()),
+              AxButton(label: 'Create pairing code', loading: _creating, onPressed: _create),
+            ]
+          : [AxButton(label: 'Done', onPressed: () => Navigator.of(context).pop())],
     );
   }
 
@@ -116,7 +115,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
                 children: [
                   Icon(Icons.error_outline, size: 18, color: c.danger),
                   SizedBox(width: ax.space.sm),
-                  Expanded(child: Text(_error!, style: ax.typo.body.copyWith(color: c.danger))),
+                  Expanded(
+                    child: Text(_error!, style: ax.typo.body.copyWith(color: c.danger)),
+                  ),
                 ],
               ),
             ),
@@ -191,7 +192,9 @@ class _AddDeviceDialogState extends State<AddDeviceDialog> {
             borderRadius: BorderRadius.circular(ax.radii.md),
             border: Border.all(color: c.border),
           ),
-          child: SingleChildScrollView(child: SelectableText(code, style: ax.typo.mono.copyWith(color: c.text))),
+          child: SingleChildScrollView(
+            child: SelectableText(code, style: ax.typo.mono.copyWith(color: c.text)),
+          ),
         ),
         SizedBox(height: ax.space.sm),
         Align(

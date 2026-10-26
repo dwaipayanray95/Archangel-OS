@@ -115,16 +115,15 @@ class _BootGateState extends State<BootGate> {
         widget.child,
         if (_showing)
           Positioned.fill(
-            child:
-                _kind == null
-                    ? ColoredBox(color: context.ax.colors.bg)
-                    : BootSplash(
-                      key: ValueKey(_run),
-                      kind: _kind!,
-                      onDone: () {
-                        if (mounted) setState(() => _showing = false);
-                      },
-                    ),
+            child: _kind == null
+                ? ColoredBox(color: context.ax.colors.bg)
+                : BootSplash(
+                    key: ValueKey(_run),
+                    kind: _kind!,
+                    onDone: () {
+                      if (mounted) setState(() => _showing = false);
+                    },
+                  ),
           ),
       ],
     );
@@ -196,7 +195,13 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
           // a proper default style.
           return Material(
             type: MaterialType.transparency,
-            child: Opacity(opacity: out, child: ColoredBox(color: c.bg, child: Center(child: scene))),
+            child: Opacity(
+              opacity: out,
+              child: ColoredBox(
+                color: c.bg,
+                child: Center(child: scene),
+              ),
+            ),
           );
         },
       ),
@@ -218,7 +223,12 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
     final tag = Curves.easeOut.transform(_seg(t, 0.74, 0.88));
 
     Widget word = AxWordmark(size: size, letterSpacing: spacing);
-    if (blur > 0.05) word = ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: word);
+    if (blur > 0.05) {
+      word = ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: word,
+      );
+    }
 
     return SizedBox(
       width: double.infinity,
@@ -227,7 +237,11 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(child: CustomPaint(painter: _OrbsPainter(t: t, a: c.orbA, b: c.orbB, cc: c.orbC))),
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _OrbsPainter(t: t, a: c.orbA, b: c.orbB, cc: c.orbC),
+            ),
+          ),
           ClipRect(clipper: _CenterReveal(reveal), child: word),
           Positioned(
             top: 260 / 2 + 36,
@@ -255,14 +269,18 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
 
     Widget word = ShaderMask(
       blendMode: BlendMode.srcATop,
-      shaderCallback:
-          (rect) => LinearGradient(
-            colors: [Colors.transparent, c.accent.withValues(alpha: 0.85), Colors.transparent],
-            stops: [(sweep - 0.12).clamp(0.0, 1.0), sweep.clamp(0.0, 1.0), (sweep + 0.12).clamp(0.0, 1.0)],
-          ).createShader(rect),
+      shaderCallback: (rect) => LinearGradient(
+        colors: [Colors.transparent, c.accent.withValues(alpha: 0.85), Colors.transparent],
+        stops: [(sweep - 0.12).clamp(0.0, 1.0), sweep.clamp(0.0, 1.0), (sweep + 0.12).clamp(0.0, 1.0)],
+      ).createShader(rect),
       child: const AxWordmark(size: 44),
     );
-    if (blur > 0.05) word = ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: word);
+    if (blur > 0.05) {
+      word = ImageFiltered(
+        imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: word,
+      );
+    }
 
     return Stack(
       alignment: Alignment.center,
@@ -270,9 +288,19 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
         Container(
           width: 380,
           height: 130,
-          decoration: BoxDecoration(gradient: RadialGradient(colors: [c.orbA.withValues(alpha: glow), c.orbA.withValues(alpha: 0)])),
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              colors: [
+                c.orbA.withValues(alpha: glow),
+                c.orbA.withValues(alpha: 0),
+              ],
+            ),
+          ),
         ),
-        Opacity(opacity: appear, child: Transform.scale(scale: _lerp(0.96, 1, appear), child: word)),
+        Opacity(
+          opacity: appear,
+          child: Transform.scale(scale: _lerp(0.96, 1, appear), child: word),
+        ),
       ],
     );
   }

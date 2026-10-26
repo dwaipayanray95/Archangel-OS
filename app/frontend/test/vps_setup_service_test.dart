@@ -153,7 +153,10 @@ void main() {
 
     test('rejects an unsupported server architecture', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'sparc64', stderr: ''))],
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'sparc64', stderr: '')),
+        ],
       );
       final service = VpsSetupService(ssh);
 
@@ -195,7 +198,14 @@ void main() {
           (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
           (RegExp(r'test -f /etc/wireguard/wg0.conf'), const SshExecResult(exitCode: 0, stdout: '', stderr: '')),
           (RegExp(r'ifconfig.me'), const SshExecResult(exitCode: 0, stdout: '203.0.113.5', stderr: '')),
-          (RegExp(r'archangeld pair'), SshExecResult(exitCode: 0, stdout: _fakeBundle(name: 'my-mac'), stderr: '')),
+          (
+            RegExp(r'archangeld pair'),
+            SshExecResult(
+              exitCode: 0,
+              stdout: _fakeBundle(name: 'my-mac'),
+              stderr: '',
+            ),
+          ),
         ],
       );
       final service = VpsSetupService(ssh);
@@ -309,7 +319,10 @@ void main() {
   group('VpsSetupService.updateBackend', () {
     test('sync step installs terminal prerequisites and orders Docker after WireGuard', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+        ],
       );
       await VpsSetupService(ssh).syncServiceAndPermissions().toList();
       final sync = ssh.commands.firstWhere((c) => c.contains('archangel.service'));
@@ -320,24 +333,26 @@ void main() {
 
     test('backs up, downloads, restarts, and confirms via the health poll', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+        ],
       );
       final service = VpsSetupService(ssh);
       var polls = 0;
 
-      final events =
-          await service
-              .updateBackend(
-                targetVersion: '0.3.0',
-                releaseTag: 'v0.3.0-b',
-                githubRepoSlug: 'owner/repo',
-                fetchLiveVersion: () async {
-                  polls++;
-                  return '0.3.0'; // "comes up correctly" on the first poll
-                },
-                pollInterval: Duration.zero,
-              )
-              .toList();
+      final events = await service
+          .updateBackend(
+            targetVersion: '0.3.0',
+            releaseTag: 'v0.3.0-b',
+            githubRepoSlug: 'owner/repo',
+            fetchLiveVersion: () async {
+              polls++;
+              return '0.3.0'; // "comes up correctly" on the first poll
+            },
+            pollInterval: Duration.zero,
+          )
+          .toList();
 
       expect(ssh.commands.any((c) => c.contains('cp -f /opt/archangel/archangeld /opt/archangel/archangeld.bak')), isTrue);
       expect(ssh.commands.any((c) => c.contains('releases/download/v0.3.0-b/archangeld-amd64')), isTrue);
@@ -349,7 +364,10 @@ void main() {
 
     test('rolls back automatically if the new version never comes up', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+        ],
       );
       final service = VpsSetupService(ssh);
 
@@ -403,18 +421,20 @@ void main() {
 
     test('verifies the download against the tagged release SHA256SUMS before installing', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'aarch64', stderr: ''))],
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'aarch64', stderr: '')),
+        ],
       );
-      final events =
-          await VpsSetupService(ssh)
-              .updateBackend(
-                targetVersion: '0.3.0',
-                releaseTag: 'v0.3.0-b',
-                githubRepoSlug: 'owner/repo',
-                fetchLiveVersion: () async => '0.3.0',
-                pollInterval: Duration.zero,
-              )
-              .toList();
+      final events = await VpsSetupService(ssh)
+          .updateBackend(
+            targetVersion: '0.3.0',
+            releaseTag: 'v0.3.0-b',
+            githubRepoSlug: 'owner/repo',
+            fetchLiveVersion: () async => '0.3.0',
+            pollInterval: Duration.zero,
+          )
+          .toList();
 
       expect(ssh.commands.any((c) => c.contains('releases/download/v0.3.0-b/SHA256SUMS')), isTrue);
       final verify = ssh.commands.firstWhere((c) => c.contains('sha256sum -c -'));
@@ -428,18 +448,20 @@ void main() {
 
     test('warns and continues when the release has no SHA256SUMS (404)', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('404'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+        responses: [
+          _sumsResponse('404'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+        ],
       );
-      final events =
-          await VpsSetupService(ssh)
-              .updateBackend(
-                targetVersion: '0.3.0',
-                releaseTag: 'v0.3.0-b',
-                githubRepoSlug: 'owner/repo',
-                fetchLiveVersion: () async => '0.3.0',
-                pollInterval: Duration.zero,
-              )
-              .toList();
+      final events = await VpsSetupService(ssh)
+          .updateBackend(
+            targetVersion: '0.3.0',
+            releaseTag: 'v0.3.0-b',
+            githubRepoSlug: 'owner/repo',
+            fetchLiveVersion: () async => '0.3.0',
+            pollInterval: Duration.zero,
+          )
+          .toList();
 
       expect(events.any((e) => e.message == 'Release has no checksums - skipped verification'), isTrue);
       expect(ssh.commands.any((c) => c.contains('sha256sum -c -')), isFalse);
@@ -471,7 +493,10 @@ void main() {
 
     test('only re-applies the sudoers grant if it already exists (never silently re-enables Admin mode)', () async {
       final ssh = FakeSshTransport(
-        responses: [_sumsResponse('200'), (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: ''))],
+        responses: [
+          _sumsResponse('200'),
+          (RegExp(r'uname -m'), const SshExecResult(exitCode: 0, stdout: 'x86_64', stderr: '')),
+        ],
       );
       await VpsSetupService(ssh)
           .updateBackend(
@@ -537,7 +562,9 @@ void main() {
     });
 
     test('surfaces a failed script run as an exception without claiming success', () async {
-      final ssh = FakeSshTransport(responses: [(RegExp(r'uninstall\.sh'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'boom'))]);
+      final ssh = FakeSshTransport(
+        responses: [(RegExp(r'uninstall\.sh'), const SshExecResult(exitCode: 1, stdout: '', stderr: 'boom'))],
+      );
       final service = VpsSetupService(ssh);
 
       await expectLater(service.uninstall(appPort: 8443, wgPort: 51820), emitsThrough(emitsError(isA<VpsSetupException>())));

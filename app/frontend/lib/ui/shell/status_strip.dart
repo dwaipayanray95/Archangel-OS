@@ -107,7 +107,12 @@ class _StatusStripState extends State<StatusStrip> {
                   if (showName)
                     Padding(
                       padding: EdgeInsets.only(top: 2, left: ax.space.xs),
-                      child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.caption.copyWith(color: c.textMuted)),
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: ax.typo.caption.copyWith(color: c.textMuted),
+                      ),
                     ),
                 ],
               ),
@@ -162,24 +167,23 @@ class ConnectionPill extends StatelessWidget {
         dense: compact,
         busy: connectionIsTransitional(phase),
         icon: ConnectionStatusLine.iconFor(phase),
-        trailing:
-            compact || stage == 0
-                ? null
-                : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 1; i <= 3; i++)
-                      Container(
-                        width: 12,
-                        height: 4,
-                        margin: const EdgeInsets.only(left: 3),
-                        decoration: BoxDecoration(
-                          color: fg.withValues(alpha: i <= stage ? 1 : 0.25),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+        trailing: compact || stage == 0
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 1; i <= 3; i++)
+                    Container(
+                      width: 12,
+                      height: 4,
+                      margin: const EdgeInsets.only(left: 3),
+                      decoration: BoxDecoration(
+                        color: fg.withValues(alpha: i <= stage ? 1 : 0.25),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                  ],
-                ),
+                    ),
+                ],
+              ),
       ),
     );
   }

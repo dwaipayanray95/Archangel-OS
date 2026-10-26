@@ -70,7 +70,9 @@ Widget _errorLine(BuildContext context, String message) {
         children: [
           Icon(Icons.error_outline, size: 18, color: ax.colors.danger),
           SizedBox(width: ax.space.sm),
-          Expanded(child: Text(message, style: ax.typo.body.copyWith(color: ax.colors.danger))),
+          Expanded(
+            child: Text(message, style: ax.typo.body.copyWith(color: ax.colors.danger)),
+          ),
         ],
       ),
     ),

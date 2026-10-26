@@ -123,10 +123,9 @@ class WireGuardController extends ChangeNotifier {
       VpnStage.denied => TunnelStatus.error,
     };
     if (stage == VpnStage.denied) {
-      _lastError =
-          Platform.isWindows
-              ? 'Permission denied creating the tunnel service - Archangel needs to run as Administrator on Windows.'
-              : 'Permission denied starting the VPN tunnel.';
+      _lastError = Platform.isWindows
+          ? 'Permission denied creating the tunnel service - Archangel needs to run as Administrator on Windows.'
+          : 'Permission denied starting the VPN tunnel.';
     }
     notifyListeners();
   }

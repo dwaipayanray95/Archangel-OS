@@ -59,7 +59,12 @@ class StatusBadge extends StatelessWidget {
           children: [
             Icon(icon ?? defaultIcon(status), size: 16, color: fg),
             SizedBox(width: ax.space.xs + 2),
-            Flexible(child: Text(label, style: ax.typo.caption.copyWith(color: fg, fontWeight: FontWeight.w700))),
+            Flexible(
+              child: Text(
+                label,
+                style: ax.typo.caption.copyWith(color: fg, fontWeight: FontWeight.w700),
+              ),
+            ),
           ],
         ),
       ),

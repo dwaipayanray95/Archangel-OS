@@ -20,15 +20,14 @@ Future<bool> showConfirmDialog(
 }) async {
   final result = await showDialog<bool>(
     context: context,
-    builder:
-        (context) => ConfirmDialog(
-          title: title,
-          message: message,
-          confirmLabel: confirmLabel,
-          cancelLabel: cancelLabel,
-          danger: danger,
-          typeToConfirm: typeToConfirm,
-        ),
+    builder: (context) => ConfirmDialog(
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      cancelLabel: cancelLabel,
+      danger: danger,
+      typeToConfirm: typeToConfirm,
+    ),
   );
   return result ?? false;
 }
@@ -82,7 +81,9 @@ class _ConfirmDialogState extends State<ConfirmDialog> {
       title: Row(
         children: [
           if (widget.danger) ...[Icon(Icons.warning_amber_rounded, color: c.danger), SizedBox(width: ax.space.sm)],
-          Expanded(child: Text(widget.title, style: ax.typo.title.copyWith(color: c.text))),
+          Expanded(
+            child: Text(widget.title, style: ax.typo.title.copyWith(color: c.text)),
+          ),
         ],
       ),
       content: ConstrainedBox(

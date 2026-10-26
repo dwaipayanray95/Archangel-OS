@@ -103,7 +103,10 @@ class GetServerScreen extends StatelessWidget {
               ],
             ),
             SizedBox(height: ax.space.xl),
-            Semantics(header: true, child: Text('Where to get one', style: ax.typo.title.copyWith(color: c.text))),
+            Semantics(
+              header: true,
+              child: Text('Where to get one', style: ax.typo.title.copyWith(color: c.text)),
+            ),
             SizedBox(height: ax.space.md),
             for (final p in _providers) ...[
               AxCard(
@@ -136,7 +139,10 @@ class GetServerScreen extends StatelessWidget {
               SizedBox(height: ax.space.md),
             ],
             SizedBox(height: ax.space.md),
-            Semantics(header: true, child: Text('What you will need', style: ax.typo.title.copyWith(color: c.text))),
+            Semantics(
+              header: true,
+              child: Text('What you will need', style: ax.typo.title.copyWith(color: c.text)),
+            ),
             SizedBox(height: ax.space.sm),
             const SetupBullet(text: 'A server running Ubuntu 22.04 or 24.04.'),
             Row(

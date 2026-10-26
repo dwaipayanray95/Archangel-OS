@@ -56,7 +56,10 @@ Future<_Svc> _pump(WidgetTester tester, Size size, Brightness b) async {
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()),
         ChangeNotifierProvider<ContainersService>.value(value: svc),
       ],
-      child: MaterialApp(theme: buildTheme(b), home: const ContainerDetailScreen(container: _web)),
+      child: MaterialApp(
+        theme: buildTheme(b),
+        home: const ContainerDetailScreen(container: _web),
+      ),
     ),
   );
   await tester.pump(const Duration(milliseconds: 100));

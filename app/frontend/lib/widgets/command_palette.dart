@@ -115,7 +115,9 @@ class _CommandPaletteState extends State<CommandPalette> {
                   children: [
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
-                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+                      decoration: BoxDecoration(
+                        border: Border(bottom: BorderSide(color: c.border)),
+                      ),
                       child: Row(
                         children: [
                           Icon(Icons.search, size: 20, color: c.accent),
@@ -161,7 +163,9 @@ class _CommandPaletteState extends State<CommandPalette> {
                             if (groups.isEmpty)
                               Padding(
                                 padding: EdgeInsets.symmetric(vertical: ax.space.xxl),
-                                child: Center(child: Text('No match for "$query"', style: ax.typo.body.copyWith(color: c.textMuted))),
+                                child: Center(
+                                  child: Text('No match for "$query"', style: ax.typo.body.copyWith(color: c.textMuted)),
+                                ),
                               )
                             else
                               for (final entry in groups.entries) ...[
@@ -180,7 +184,10 @@ class _CommandPaletteState extends State<CommandPalette> {
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
-                      decoration: BoxDecoration(color: c.surface, border: Border(top: BorderSide(color: c.border))),
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        border: Border(top: BorderSide(color: c.border)),
+                      ),
                       child: Wrap(
                         spacing: ax.space.lg,
                         runSpacing: ax.space.xs,
@@ -275,8 +282,16 @@ class _PaletteRowState extends State<_PaletteRow> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(item.label, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
-                      Text(item.sub, style: ax.typo.caption.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
+                      Text(
+                        item.label,
+                        style: ax.typo.label.copyWith(color: c.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        item.sub,
+                        style: ax.typo.caption.copyWith(color: c.textMuted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),

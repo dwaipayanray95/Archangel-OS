@@ -472,7 +472,9 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
     final ax = context.ax;
     final isReview = _step == _Step.review;
     return Container(
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: ax.colors.border))),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: ax.colors.border)),
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: kSetupMaxWidth),
@@ -679,7 +681,9 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                         children: [
                           Icon(Icons.error_outline, size: 18, color: c.danger),
                           SizedBox(width: ax.space.sm),
-                          Expanded(child: Text(error, style: ax.typo.body.copyWith(color: c.danger))),
+                          Expanded(
+                            child: Text(error, style: ax.typo.body.copyWith(color: c.danger)),
+                          ),
                         ],
                       ),
                     ),
@@ -743,7 +747,9 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
                 children: [
                   Icon(Icons.warning_amber_rounded, size: 18, color: c.warning),
                   SizedBox(width: ax.space.sm),
-                  Expanded(child: Text('Before you start', style: ax.typo.label.copyWith(color: c.warning))),
+                  Expanded(
+                    child: Text('Before you start', style: ax.typo.label.copyWith(color: c.warning)),
+                  ),
                 ],
               ),
               SizedBox(height: ax.space.sm),
@@ -776,10 +782,9 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
       if (e.stageComplete && e.stage != 'verify') done.add(e.stage);
     }
     if (!_connecting && !(failed && _failedStage == 'connect')) done.add('connect');
-    final activeKey =
-        failed
-            ? null
-            : (_connecting ? 'connect' : (_log.isEmpty ? null : (_log.last.stageComplete ? null : normalizeSetupStage(_log.last.stage))));
+    final activeKey = failed
+        ? null
+        : (_connecting ? 'connect' : (_log.isEmpty ? null : (_log.last.stageComplete ? null : normalizeSetupStage(_log.last.stage))));
     final activeMessage = (activeKey != null && activeKey != 'connect' && _log.isNotEmpty) ? _log.last.message : null;
 
     final errorText = '${_error ?? ''}';
@@ -798,14 +803,13 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
               for (final (key, label) in kSetupStages)
                 _StageRow(
                   label: label,
-                  state:
-                      failed && _failedStage == key
-                          ? _StageState.failed
-                          : done.contains(key)
-                          ? _StageState.done
-                          : key == activeKey
-                          ? _StageState.active
-                          : _StageState.pending,
+                  state: failed && _failedStage == key
+                      ? _StageState.failed
+                      : done.contains(key)
+                      ? _StageState.done
+                      : key == activeKey
+                      ? _StageState.active
+                      : _StageState.pending,
                   detail: key == activeKey ? (activeMessage == null ? null : '$activeMessage (${_elapsedSeconds}s)') : null,
                 ),
             ],
@@ -839,7 +843,10 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
           subtitle: 'This device is paired as "${_bundle?.name ?? ''}". The private secure connection and the Archangel server are set up.',
         ),
         SizedBox(height: ax.space.xl),
-        Semantics(header: true, child: Text('What to try next', style: ax.typo.title.copyWith(color: c.text))),
+        Semantics(
+          header: true,
+          child: Text('What to try next', style: ax.typo.title.copyWith(color: c.text)),
+        ),
         SizedBox(height: ax.space.sm),
         const SetupBullet(text: 'Check the Home screen to see how your server is doing.', icon: Icons.home_outlined),
         const SetupBullet(text: 'Run your first app from Apps.', icon: Icons.apps_outlined),
@@ -958,7 +965,12 @@ class _StageRow extends StatelessWidget {
                     style: ax.typo.body.copyWith(color: textColor, fontWeight: state == _StageState.active ? FontWeight.w700 : null),
                   ),
                   if (detail != null)
-                    Text(detail!, maxLines: 2, overflow: TextOverflow.ellipsis, style: ax.typo.caption.copyWith(color: c.textMuted)),
+                    Text(
+                      detail!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: ax.typo.caption.copyWith(color: c.textMuted),
+                    ),
                 ],
               ),
             ),
@@ -991,7 +1003,9 @@ class _FailureCard extends StatelessWidget {
             children: [
               Icon(Icons.error_outline, size: 20, color: c.danger),
               SizedBox(width: ax.space.sm),
-              Expanded(child: Text('This step failed: $stageLabel', style: ax.typo.title.copyWith(color: c.danger))),
+              Expanded(
+                child: Text('This step failed: $stageLabel', style: ax.typo.title.copyWith(color: c.danger)),
+              ),
             ],
           ),
           SizedBox(height: ax.space.sm),

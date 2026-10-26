@@ -41,7 +41,10 @@ class AxPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Semantics(header: true, child: Text(title, style: ax.typo.headline.copyWith(color: c.text))),
+                  Semantics(
+                    header: true,
+                    child: Text(title, style: ax.typo.headline.copyWith(color: c.text)),
+                  ),
                   if (subtitle != null)
                     Padding(
                       padding: EdgeInsets.only(top: ax.space.xs),
@@ -58,7 +61,11 @@ class AxPage extends StatelessWidget {
         );
         final body = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [header, SizedBox(height: ax.space.lg), if (scrollable) child else Expanded(child: child)],
+          children: [
+            header,
+            SizedBox(height: ax.space.lg),
+            if (scrollable) child else Expanded(child: child),
+          ],
         );
         final padded = Padding(padding: EdgeInsets.all(pad), child: body);
         return Align(

@@ -20,7 +20,10 @@ Future<void> showHelpSheet(BuildContext context, {required String title, require
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Semantics(header: true, child: Text(title, style: ax.typo.title.copyWith(color: c.text))),
+              Semantics(
+                header: true,
+                child: Text(title, style: ax.typo.title.copyWith(color: c.text)),
+              ),
               SizedBox(height: ax.space.sm),
               Text(message, style: ax.typo.body.copyWith(color: c.textMuted)),
               SizedBox(height: ax.space.lg),
@@ -67,6 +70,10 @@ class HelpLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AxButton.ghost(label: label, icon: Icons.help_outline, onPressed: () => showHelpSheet(context, title: title, message: message));
+    return AxButton.ghost(
+      label: label,
+      icon: Icons.help_outline,
+      onPressed: () => showHelpSheet(context, title: title, message: message),
+    );
   }
 }

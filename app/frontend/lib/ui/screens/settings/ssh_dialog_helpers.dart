@@ -121,7 +121,9 @@ class SetupProgressLog extends StatelessWidget {
                     color: entry.stageComplete ? c.success : c.textMuted,
                   ),
                 SizedBox(width: ax.space.sm),
-                Expanded(child: Text(entry.message, style: ax.typo.body.copyWith(color: entry.stageComplete ? c.text : c.textMuted))),
+                Expanded(
+                  child: Text(entry.message, style: ax.typo.body.copyWith(color: entry.stageComplete ? c.text : c.textMuted)),
+                ),
               ],
             ),
           ),
@@ -135,7 +137,9 @@ class SetupProgressLog extends StatelessWidget {
                 children: [
                   Icon(Icons.error_outline, size: 18, color: c.danger),
                   SizedBox(width: ax.space.sm),
-                  Expanded(child: Text('$errorTitle: $error', style: ax.typo.body.copyWith(color: c.danger))),
+                  Expanded(
+                    child: Text('$errorTitle: $error', style: ax.typo.body.copyWith(color: c.danger)),
+                  ),
                 ],
               ),
             ),
@@ -161,10 +165,18 @@ class SetupDoneView extends StatelessWidget {
       children: [
         Icon(Icons.check_circle_outline, color: c.success, size: 44),
         SizedBox(height: ax.space.md),
-        Text(title, textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: c.text)),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: ax.typo.title.copyWith(color: c.text),
+        ),
         if (message != null) ...[
           SizedBox(height: ax.space.sm),
-          Text(message!, textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: c.textMuted)),
+          Text(
+            message!,
+            textAlign: TextAlign.center,
+            style: ax.typo.body.copyWith(color: c.textMuted),
+          ),
         ],
       ],
     );

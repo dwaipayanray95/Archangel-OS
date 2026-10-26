@@ -412,18 +412,17 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
               isDense: true,
               labelText: 'Filter this folder',
               prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              suffixIcon:
-                  _filter.isNotEmpty
-                      ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 16),
-                        onPressed: () {
-                          setState(() {
-                            _filter = '';
-                            _filterController.clear();
-                          });
-                        },
-                      )
-                      : null,
+              suffixIcon: _filter.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 16),
+                      onPressed: () {
+                        setState(() {
+                          _filter = '';
+                          _filterController.clear();
+                        });
+                      },
+                    )
+                  : null,
             ),
             onChanged: (v) => setState(() => _filter = v),
           ),
@@ -434,8 +433,9 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           tooltip: 'Sort order',
           initialValue: _sort,
           onSelected: _setSort,
-          itemBuilder:
-              (context) => [for (final choice in FilesSortChoice.values) PopupMenuItem(value: choice, child: Text(choice.menuLabel))],
+          itemBuilder: (context) => [
+            for (final choice in FilesSortChoice.values) PopupMenuItem(value: choice, child: Text(choice.menuLabel)),
+          ],
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: Container(
@@ -519,10 +519,9 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
       }
       return ErrorState(
         title: 'Couldn\'t open this folder',
-        message:
-            files.error!.contains('Exception') || files.error!.contains('Socket')
-                ? 'Your server didn\'t answer. Check that it\'s online, then try again.'
-                : files.error!,
+        message: files.error!.contains('Exception') || files.error!.contains('Socket')
+            ? 'Your server didn\'t answer. Check that it\'s online, then try again.'
+            : files.error!,
         onRetry: files.retry,
       );
     }
@@ -802,7 +801,11 @@ class _WideTableRow extends StatelessWidget {
             // Size (folders show "—")
             SizedBox(
               width: 110,
-              child: Text(entry.isDir ? '—' : entry.size, textAlign: TextAlign.end, style: ax.typo.mono.copyWith(color: c.textMuted)),
+              child: Text(
+                entry.isDir ? '—' : entry.size,
+                textAlign: TextAlign.end,
+                style: ax.typo.mono.copyWith(color: c.textMuted),
+              ),
             ),
 
             // Modified
@@ -818,26 +821,25 @@ class _WideTableRow extends StatelessWidget {
             // Download action
             SizedBox(
               width: 40,
-              child:
-                  entry.isDir || onDownload == null
-                      ? const SizedBox.shrink()
-                      : Align(
-                        alignment: Alignment.centerRight,
-                        child: Tooltip(
-                          message: 'Download ${entry.name}',
-                          child: InkWell(
-                            mouseCursor: SystemMouseCursors.click,
-                            borderRadius: BorderRadius.circular(ax.radii.sm),
-                            onTap: onDownload,
-                            child: Container(
-                              width: 28,
-                              height: 28,
-                              alignment: Alignment.center,
-                              child: Icon(Icons.download_rounded, size: 18, color: c.textMuted),
-                            ),
+              child: entry.isDir || onDownload == null
+                  ? const SizedBox.shrink()
+                  : Align(
+                      alignment: Alignment.centerRight,
+                      child: Tooltip(
+                        message: 'Download ${entry.name}',
+                        child: InkWell(
+                          mouseCursor: SystemMouseCursors.click,
+                          borderRadius: BorderRadius.circular(ax.radii.sm),
+                          onTap: onDownload,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            alignment: Alignment.center,
+                            child: Icon(Icons.download_rounded, size: 18, color: c.textMuted),
                           ),
                         ),
                       ),
+                    ),
             ),
           ],
         ),
@@ -896,7 +898,12 @@ class _NarrowTableRow extends StatelessWidget {
                     style: ax.typo.body.copyWith(fontWeight: FontWeight.w600, color: isHidden ? c.textMuted : c.text),
                   ),
                   SizedBox(height: ax.space.xs),
-                  Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.caption.copyWith(color: c.textMuted)),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ax.typo.caption.copyWith(color: c.textMuted),
+                  ),
                 ],
               ),
             ),
@@ -952,7 +959,11 @@ class _NotAllowedState extends StatelessWidget {
               child: Icon(Icons.lock_outline_rounded, size: 28, color: c.warning),
             ),
             SizedBox(height: ax.space.md),
-            Text('This folder is off limits', style: ax.typo.title.copyWith(color: c.text), textAlign: TextAlign.center),
+            Text(
+              'This folder is off limits',
+              style: ax.typo.title.copyWith(color: c.text),
+              textAlign: TextAlign.center,
+            ),
             SizedBox(height: ax.space.sm),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),

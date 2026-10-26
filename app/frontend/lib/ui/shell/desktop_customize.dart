@@ -32,7 +32,10 @@ class DesktopCustomizeDialog extends StatelessWidget {
     ];
     return Dialog(
       backgroundColor: c.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.xl), side: BorderSide(color: c.glassBorder)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ax.radii.xl),
+        side: BorderSide(color: c.glassBorder),
+      ),
       insetPadding: EdgeInsets.all(ax.space.lg),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560, maxHeight: 720),
@@ -162,30 +165,29 @@ class DeskWallpaperSwatch extends StatelessWidget {
     final ax = context.ax;
     final c = ax.colors;
     final second = wallpaper.secondGlow;
-    final preview =
-        wallpaper.base == null
-            // Halo: the theme's own glows.
-            ? DecoratedBox(
+    final preview = wallpaper.base == null
+        // Halo: the theme's own glows.
+        ? DecoratedBox(
+            decoration: BoxDecoration(
+              color: c.bg,
+              gradient: RadialGradient(center: const Alignment(-0.8, -0.8), radius: 1.3, colors: [c.orbA, c.orbA.withValues(alpha: 0)]),
+            ),
+            child: DecoratedBox(
               decoration: BoxDecoration(
-                color: c.bg,
-                gradient: RadialGradient(center: const Alignment(-0.8, -0.8), radius: 1.3, colors: [c.orbA, c.orbA.withValues(alpha: 0)]),
+                gradient: RadialGradient(center: const Alignment(0.9, 0.9), radius: 1.2, colors: [c.orbB, c.orbB.withValues(alpha: 0)]),
               ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(center: const Alignment(0.9, 0.9), radius: 1.2, colors: [c.orbB, c.orbB.withValues(alpha: 0)]),
-                ),
-              ),
-            )
-            : DecoratedBox(
-              decoration: BoxDecoration(color: wallpaper.base),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (second != null) DecoratedBox(decoration: BoxDecoration(gradient: second)),
-                  DecoratedBox(decoration: BoxDecoration(gradient: wallpaper.gradient)),
-                ],
-              ),
-            );
+            ),
+          )
+        : DecoratedBox(
+            decoration: BoxDecoration(color: wallpaper.base),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (second != null) DecoratedBox(decoration: BoxDecoration(gradient: second)),
+                DecoratedBox(decoration: BoxDecoration(gradient: wallpaper.gradient)),
+              ],
+            ),
+          );
     return Semantics(
       button: true,
       selected: selected,
@@ -255,7 +257,9 @@ class _PinRow extends StatelessWidget {
         children: [
           Icon(axSectionIcons[section], size: 20, color: pinned ? c.accent : c.textSubtle),
           SizedBox(width: ax.space.md),
-          Expanded(child: Text(label, style: ax.typo.body.copyWith(color: pinned ? c.text : c.textMuted))),
+          Expanded(
+            child: Text(label, style: ax.typo.body.copyWith(color: pinned ? c.text : c.textMuted)),
+          ),
           IconButton(tooltip: 'Move $label up', icon: const Icon(Icons.keyboard_arrow_up), onPressed: canUp ? () => onMove(-1) : null),
           IconButton(tooltip: 'Move $label down', icon: const Icon(Icons.keyboard_arrow_down), onPressed: canDown ? () => onMove(1) : null),
           Switch(key: ValueKey('pin-${section.name}'), value: pinned, onChanged: (_) => onToggle()),

@@ -152,12 +152,17 @@ Future<(AppState, FakeMonitoring)> pumpHome(
       providers: [
         ChangeNotifierProvider<AppState>.value(value: app),
         ChangeNotifierProvider<MonitoringService>.value(value: mon),
-        ChangeNotifierProvider<ArchangeldConnection>.value(value: FakeBackend(paired: paired, version: backendVersion)),
+        ChangeNotifierProvider<ArchangeldConnection>.value(
+          value: FakeBackend(paired: paired, version: backendVersion),
+        ),
         ChangeNotifierProvider<ContainersService>.value(value: FakeContainers(containers)),
         ChangeNotifierProvider<DevopsService>.value(value: FakeDevops(services)),
         ChangeNotifierProvider<UpdateCheckService>.value(value: FakeUpdates(latestBackend)),
       ],
-      child: MaterialApp(theme: buildTheme(brightness), home: const Scaffold(body: OverviewScreen())),
+      child: MaterialApp(
+        theme: buildTheme(brightness),
+        home: const Scaffold(body: OverviewScreen()),
+      ),
     ),
   );
   await tester.pump(const Duration(milliseconds: 50));
@@ -180,7 +185,9 @@ void main() {
     test('names the full disk', () {
       final h = evaluateHealth(
         connected: true,
-        metrics: metrics(mounts: [const MountMetric(mountPoint: '/', device: 'd', totalBytes: 100, usedBytes: 94)]),
+        metrics: metrics(
+          mounts: [const MountMetric(mountPoint: '/', device: 'd', totalBytes: 100, usedBytes: 94)],
+        ),
       );
       expect(h.headline, 'Disk / is 94% full');
     });
@@ -198,7 +205,9 @@ void main() {
           DevRowModel(name: 'nginx', meta: '', status: 'failed', ok: false, actions: []),
           DevRowModel(name: 'ssh', meta: '', status: 'active', ok: true, actions: []),
         ],
-        metrics: metrics(mounts: [const MountMetric(mountPoint: '/data', device: 'd', totalBytes: 100, usedBytes: 95)]),
+        metrics: metrics(
+          mounts: [const MountMetric(mountPoint: '/data', device: 'd', totalBytes: 100, usedBytes: 95)],
+        ),
         backendVersion: '0.4.0',
         latestBackend: '0.5.0',
       );
@@ -317,7 +326,10 @@ void main() {
             tester,
             size: size,
             brightness: b,
-            data: metrics(cpu: 95, mounts: [const MountMetric(mountPoint: '/', device: 'd', totalBytes: 100, usedBytes: 95)]),
+            data: metrics(
+              cpu: 95,
+              mounts: [const MountMetric(mountPoint: '/', device: 'd', totalBytes: 100, usedBytes: 95)],
+            ),
             containers: [container('a-rather-long-application-name-that-keeps-going', running: false)],
             services: const [DevRowModel(name: 'some-long-service.service', meta: '', status: 'failed', ok: false, actions: [])],
             backendVersion: '0.4.0',

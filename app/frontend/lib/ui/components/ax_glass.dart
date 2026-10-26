@@ -19,7 +19,9 @@ class AxBackdrop extends StatelessWidget {
     final c = context.ax.colors;
     Widget glow(Alignment at, double radius, Color color) => Positioned.fill(
       child: DecoratedBox(
-        decoration: BoxDecoration(gradient: RadialGradient(center: at, radius: radius, colors: [color, color.withValues(alpha: 0)])),
+        decoration: BoxDecoration(
+          gradient: RadialGradient(center: at, radius: radius, colors: [color, color.withValues(alpha: 0)]),
+        ),
       ),
     );
     return Stack(
@@ -79,21 +81,23 @@ class AxGlass extends StatelessWidget {
         color: strong ? c.glassStrong : c.glass,
         borderRadius: r,
         border: Border.all(color: borderColor ?? c.glassBorder),
-        boxShadow:
-            shadow || (light && !strong)
-                ? [
-                  BoxShadow(
-                    color: (light ? const Color(0xFF3C328C) : Colors.black).withValues(alpha: shadow ? (light ? 0.16 : 0.45) : 0.07),
-                    blurRadius: shadow ? 40 : 24,
-                    offset: Offset(0, shadow ? 14 : 8),
-                  ),
-                ]
-                : null,
+        boxShadow: shadow || (light && !strong)
+            ? [
+                BoxShadow(
+                  color: (light ? const Color(0xFF3C328C) : Colors.black).withValues(alpha: shadow ? (light ? 0.16 : 0.45) : 0.07),
+                  blurRadius: shadow ? 40 : 24,
+                  offset: Offset(0, shadow ? 14 : 8),
+                ),
+              ]
+            : null,
       ),
       child: padding == null ? child : Padding(padding: padding!, child: child),
     );
     if (blur) {
-      box = ClipRRect(borderRadius: r, child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24), child: box));
+      box = ClipRRect(
+        borderRadius: r,
+        child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24), child: box),
+      );
     }
     return box;
   }
@@ -134,7 +138,11 @@ class AxPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (busy)
-            SizedBox(width: size - 2, height: size - 2, child: CircularProgressIndicator(strokeWidth: 2, color: fg))
+            SizedBox(
+              width: size - 2,
+              height: size - 2,
+              child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+            )
           else if (icon != null)
             Icon(icon, size: size, color: fg),
           SizedBox(width: ax.space.sm),

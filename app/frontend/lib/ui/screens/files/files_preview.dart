@@ -158,14 +158,22 @@ class _FilePreviewBodyState extends State<FilePreviewBody> {
     final c = ax.colors;
     return Container(
       padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.xl),
-      decoration: BoxDecoration(color: c.surfaceAlt, borderRadius: BorderRadius.circular(ax.radii.md), border: Border.all(color: c.border)),
+      decoration: BoxDecoration(
+        color: c.surfaceAlt,
+        borderRadius: BorderRadius.circular(ax.radii.md),
+        border: Border.all(color: c.border),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 32, color: c.textMuted),
           SizedBox(height: ax.space.sm),
-          Text(text, textAlign: TextAlign.center, style: ax.typo.body.copyWith(fontSize: 13, color: c.textMuted)),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: ax.typo.body.copyWith(fontSize: 13, color: c.textMuted),
+          ),
         ],
       ),
     );
@@ -242,10 +250,9 @@ class _PreviewHeaderIconButton extends StatelessWidget {
             border: Border.all(color: c.border),
           ),
           alignment: Alignment.center,
-          child:
-              loading
-                  ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent))
-                  : Icon(icon, size: 16, color: c.textMuted),
+          child: loading
+              ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.accent))
+              : Icon(icon, size: 16, color: c.textMuted),
         ),
       ),
     );
@@ -304,7 +311,11 @@ class _WidePreviewCardState extends State<WidePreviewCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(entry.name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text), softWrap: true),
+                        Text(
+                          entry.name,
+                          style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text),
+                          softWrap: true,
+                        ),
                         SizedBox(height: ax.space.xs),
                         Text(meta, style: ax.typo.caption.copyWith(color: c.textMuted)),
                       ],
@@ -393,7 +404,11 @@ class _NarrowPreviewViewState extends State<NarrowPreviewView> {
             ],
           ),
           SizedBox(height: ax.space.md),
-          Text(entry.name, style: ax.typo.mono.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text), softWrap: true),
+          Text(
+            entry.name,
+            style: ax.typo.mono.copyWith(fontSize: 18, fontWeight: FontWeight.w600, color: c.text),
+            softWrap: true,
+          ),
           SizedBox(height: ax.space.lg),
           AxCard(
             padding: EdgeInsets.all(ax.space.md),
@@ -432,7 +447,12 @@ class _MetaRow extends StatelessWidget {
         Text(label, style: ax.typo.body.copyWith(color: c.textMuted)),
         const SizedBox(width: 8),
         Flexible(
-          child: Text(value, style: ax.typo.mono.copyWith(color: c.text), textAlign: TextAlign.end, overflow: TextOverflow.ellipsis),
+          child: Text(
+            value,
+            style: ax.typo.mono.copyWith(color: c.text),
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

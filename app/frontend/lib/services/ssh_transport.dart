@@ -94,14 +94,13 @@ class Dartssh2Transport implements SshTransport {
       socket,
       username: username,
       identities: SSHKeyPair.fromPem(privateKeyPem, passphrase),
-      onVerifyHostKey:
-          (type, fingerprintBytes) => resolveHostKeyTrust(
-            knownHosts: knownHosts,
-            host: host,
-            keyType: type,
-            fingerprint: utf8.decode(fingerprintBytes),
-            onUnknownHostKey: onUnknownHostKey,
-          ),
+      onVerifyHostKey: (type, fingerprintBytes) => resolveHostKeyTrust(
+        knownHosts: knownHosts,
+        host: host,
+        keyType: type,
+        fingerprint: utf8.decode(fingerprintBytes),
+        onUnknownHostKey: onUnknownHostKey,
+      ),
     );
     await client.authenticated;
     return Dartssh2Transport._(client);

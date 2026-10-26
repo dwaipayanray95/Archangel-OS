@@ -27,12 +27,23 @@ class _StateFrame extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconTheme(data: IconThemeData(color: iconColor, size: 40), child: icon),
+              IconTheme(
+                data: IconThemeData(color: iconColor, size: 40),
+                child: icon,
+              ),
               SizedBox(height: ax.space.md),
-              Text(title, textAlign: TextAlign.center, style: ax.typo.title.copyWith(color: c.text)),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: ax.typo.title.copyWith(color: c.text),
+              ),
               if (message != null) ...[
                 SizedBox(height: ax.space.sm),
-                Text(message!, textAlign: TextAlign.center, style: ax.typo.body.copyWith(color: c.textMuted)),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: ax.typo.body.copyWith(color: c.textMuted),
+                ),
               ],
               for (final w in children) ...[SizedBox(height: ax.space.lg), w],
             ],
@@ -138,20 +149,19 @@ class _LoadingStateState extends State<LoadingState> {
     final c = context.ax.colors;
     return Semantics(
       liveRegion: true,
-      child:
-          _slow
-              ? _StateFrame(
-                icon: const Icon(Icons.hourglass_empty),
-                iconColor: c.warning,
-                title: 'Still waiting...',
-                message: widget.stillWaitingMessage,
-                children: [if (widget.onRetry != null) AxButton(label: 'Try again', icon: Icons.refresh, onPressed: widget.onRetry)],
-              )
-              : _StateFrame(
-                icon: SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: c.accent)),
-                iconColor: c.accent,
-                title: widget.message,
-              ),
+      child: _slow
+          ? _StateFrame(
+              icon: const Icon(Icons.hourglass_empty),
+              iconColor: c.warning,
+              title: 'Still waiting...',
+              message: widget.stillWaitingMessage,
+              children: [if (widget.onRetry != null) AxButton(label: 'Try again', icon: Icons.refresh, onPressed: widget.onRetry)],
+            )
+          : _StateFrame(
+              icon: SizedBox(width: 32, height: 32, child: CircularProgressIndicator(strokeWidth: 3, color: c.accent)),
+              iconColor: c.accent,
+              title: widget.message,
+            ),
     );
   }
 }

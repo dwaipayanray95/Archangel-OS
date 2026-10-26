@@ -331,7 +331,10 @@ ThemeData buildTheme(Brightness brightness, [AxAccent accent = AxAccent.halo]) {
     dialogTheme: DialogThemeData(
       backgroundColor: c.surface,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ax.radii.xl), side: BorderSide(color: c.border)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ax.radii.xl),
+        side: BorderSide(color: c.border),
+      ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: c.surface,
@@ -345,13 +348,22 @@ ThemeData buildTheme(Brightness brightness, [AxAccent accent = AxAccent.halo]) {
       hintStyle: TextStyle(color: c.textSubtle, fontSize: 14),
       helperStyle: TextStyle(color: c.textMuted, fontSize: 12),
       errorStyle: TextStyle(color: c.danger, fontSize: 12),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(ax.radii.md), borderSide: BorderSide(color: c.outline)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ax.radii.md), borderSide: BorderSide(color: c.outline)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(ax.radii.md),
+        borderSide: BorderSide(color: c.outline),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(ax.radii.md),
+        borderSide: BorderSide(color: c.outline),
+      ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(ax.radii.md),
         borderSide: BorderSide(color: c.accent, width: 2),
       ),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(ax.radii.md), borderSide: BorderSide(color: c.danger)),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(ax.radii.md),
+        borderSide: BorderSide(color: c.danger),
+      ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.transparent,

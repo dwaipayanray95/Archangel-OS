@@ -97,7 +97,8 @@ class VpsSetupService {
 
   /// Writes the Admin mode grant. Used by first-time setup, where Admin
   /// mode is on by default.
-  static const _sudoersGrantScript = '''
+  static const _sudoersGrantScript =
+      '''
 echo "$_sudoersGrant" | sudo tee /etc/sudoers.d/archangel > /dev/null
 sudo chmod 440 /etc/sudoers.d/archangel''';
 
@@ -123,7 +124,8 @@ if [ -d /etc/systemd/system ] && command -v docker >/dev/null 2>&1; then
   printf '[Unit]\\nAfter=wg-quick@wg0.service\\nWants=wg-quick@wg0.service\\n' | sudo tee /etc/systemd/system/docker.service.d/archangel-wg.conf > /dev/null
 fi''';
 
-  static const _sudoersRefreshScript = '''
+  static const _sudoersRefreshScript =
+      '''
 if sudo test -f /etc/sudoers.d/archangel; then
 $_sudoersGrantScript
 fi''';
@@ -195,8 +197,10 @@ fi''';
     final arch = switch (unameResult.stdout.trim()) {
       'x86_64' => 'amd64',
       'aarch64' || 'arm64' => 'arm64',
-      final other =>
-        throw VpsSetupException('detect', 'Unsupported server architecture "$other" - only x86_64/aarch64 servers are supported.'),
+      final other => throw VpsSetupException(
+        'detect',
+        'Unsupported server architecture "$other" - only x86_64/aarch64 servers are supported.',
+      ),
     };
 
     final aptResult = await _exec('command -v apt-get');
@@ -227,7 +231,8 @@ fi''';
   Stream<SetupProgress> _installBinary(String arch, VpsSetupConfig config) async* {
     final baseUrl = 'https://github.com/${config.githubRepoSlug}/releases/latest/download';
     final url = '$baseUrl/archangeld-$arch';
-    final prepScript = '''
+    final prepScript =
+        '''
 set -e
 sudo id -u archangel >/dev/null 2>&1 || sudo useradd --system --create-home --home-dir /home/archangel --shell /bin/bash archangel
 sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
@@ -306,7 +311,8 @@ sudo chown root:root /opt/archangel/archangeld
     }
 
     final name = 'archangeld-$arch';
-    final verifyScript = '''
+    final verifyScript =
+        '''
 LINE=\$(grep " $name\\\$" "$sumsPath") || { echo "SHA256SUMS has no entry for $name" >&2; exit 1; }
 echo "\$LINE" | sed 's|$name\$|$filePath|' | sudo sha256sum -c -
 ''';
@@ -339,7 +345,8 @@ echo "\$LINE" | sed 's|$name\$|$filePath|' | sudo sha256sum -c -
     }
 
     final wgServerIp = '${config.wgSubnet}.1';
-    final configYaml = '''
+    final configYaml =
+        '''
 bind_addr: "$wgServerIp"
 port: ${config.appPort}
 public_endpoint: "$publicIp:${config.wgPort}"
@@ -358,7 +365,8 @@ files_root: "/home/archangel"
     final tmpPath = '$_remoteScriptDir/config.yaml';
     await _ssh.uploadFile(tmpPath, Uint8List.fromList(utf8.encode(configYaml)));
 
-    final script = '''
+    final script =
+        '''
 set -e
 sudo mv $tmpPath /etc/archangel/config.yaml
 sudo chown root:archangel /etc/archangel/config.yaml
@@ -372,7 +380,8 @@ sudo chmod 640 /etc/archangel/config.yaml
   }
 
   Future<void> _installService() async {
-    final script = '''
+    final script =
+        '''
 set -e
 sudo mv $_remoteScriptDir/archangel.service /etc/systemd/system/archangel.service
 sudo systemctl daemon-reload
@@ -392,7 +401,8 @@ sudo systemctl is-active --quiet archangel
   }
 
   Future<void> _openAppPort(VpsSetupConfig config) async {
-    final script = '''
+    final script =
+        '''
 set -e
 sudo ufw allow in on wg0 to any port ${config.appPort} proto tcp || true
 bash $_remoteScriptDir/allow_port_before_reject.sh ${config.appPort} tcp
@@ -473,7 +483,8 @@ bash $_remoteScriptDir/ensure_boot_fw_fixup.sh ${config.appPort} tcp
     );
     yield verified ? _checksumOk : _checksumSkipped;
 
-    final downloadScript = '''
+    final downloadScript =
+        '''
 set -e
 sudo chmod 755 /opt/archangel/archangeld.new
 sudo chown root:root /opt/archangel/archangeld.new
@@ -497,7 +508,8 @@ sudo ln -sf /opt/archangel/archangeld /usr/local/bin/archangeld
     yield const SetupProgress('sync', 'Updating service definition and permissions...');
     // Upload and sync the latest bundled archangel.service asset
     await _uploadScripts();
-    final syncScript = '''
+    final syncScript =
+        '''
 set -e
 sudo id -u archangel >/dev/null 2>&1 || sudo useradd --system --create-home --home-dir /home/archangel --shell /bin/bash archangel
 sudo mkdir -p /home/archangel /opt/archangel /etc/archangel
@@ -588,7 +600,8 @@ sudo systemctl daemon-reload
     yield const SetupProgress('upload', 'Assets uploaded.', stageComplete: true);
 
     yield const SetupProgress('sync', 'Applying service configuration and sudo permissions...');
-    final syncScript = '''
+    final syncScript =
+        '''
 set -e
 sudo id -u archangel >/dev/null 2>&1 || sudo useradd --system --create-home --home-dir /home/archangel --shell /bin/bash archangel
 sudo mkdir -p /home/archangel /opt/archangel /etc/archangel

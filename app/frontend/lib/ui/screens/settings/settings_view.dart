@@ -167,11 +167,10 @@ class _SettingsViewState extends State<SettingsView> {
                     section: SettingsSectionId.about,
                     selected: false,
                     chevron: true,
-                    onTap:
-                        () => setState(() {
-                          _selected = SettingsSectionId.about;
-                          _opened = true;
-                        }),
+                    onTap: () => setState(() {
+                      _selected = SettingsSectionId.about;
+                      _opened = true;
+                    }),
                   ),
                 ),
                 SizedBox(height: ax.space.sm),
@@ -186,11 +185,10 @@ class _SettingsViewState extends State<SettingsView> {
                           section: s,
                           selected: false,
                           chevron: true,
-                          onTap:
-                              () => setState(() {
-                                _selected = s;
-                                _opened = true;
-                              }),
+                          onTap: () => setState(() {
+                            _selected = s;
+                            _opened = true;
+                          }),
                         ),
                     ],
                   ),
@@ -207,11 +205,10 @@ class _SettingsViewState extends State<SettingsView> {
                           section: s,
                           selected: false,
                           chevron: true,
-                          onTap:
-                              () => setState(() {
-                                _selected = s;
-                                _opened = true;
-                              }),
+                          onTap: () => setState(() {
+                            _selected = s;
+                            _opened = true;
+                          }),
                         ),
                     ],
                   ),
@@ -238,7 +235,9 @@ class _SettingsViewState extends State<SettingsView> {
               child: AxButton.ghost(label: 'All settings', icon: Icons.chevron_left, onPressed: () => setState(() => _opened = false)),
             ),
           ),
-          Expanded(child: AxPage(title: section.label, child: section.content)),
+          Expanded(
+            child: AxPage(title: section.label, child: section.content),
+          ),
         ],
       ),
     );
@@ -281,7 +280,12 @@ class _NavRow extends StatelessWidget {
                 Icon(section.icon, size: 20, color: selected ? c.accent : c.textMuted),
                 SizedBox(width: ax.space.md),
                 Expanded(
-                  child: Text(section.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: ax.typo.label.copyWith(color: fg)),
+                  child: Text(
+                    section.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ax.typo.label.copyWith(color: fg),
+                  ),
                 ),
                 if (chevron) Icon(Icons.chevron_right, size: 20, color: c.textMuted),
               ],

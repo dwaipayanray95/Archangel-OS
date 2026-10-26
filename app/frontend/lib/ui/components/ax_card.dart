@@ -33,14 +33,16 @@ class AxCard extends StatelessWidget {
         side: BorderSide(color: borderColor ?? (selected ? c.accent : c.glassBorder), width: selected ? 1.5 : 1),
       ),
       clipBehavior: Clip.antiAlias,
-      child:
-          onTap == null
-              ? inner
-              : InkWell(
-                onTap: onTap,
-                borderRadius: radius,
-                child: ConstrainedBox(constraints: BoxConstraints(minHeight: axMinTarget(context)), child: inner),
+      child: onTap == null
+          ? inner
+          : InkWell(
+              onTap: onTap,
+              borderRadius: radius,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: axMinTarget(context)),
+                child: inner,
               ),
+            ),
     );
     if (onTap == null) {
       return semanticsLabel == null ? card : Semantics(container: true, label: semanticsLabel, child: card);

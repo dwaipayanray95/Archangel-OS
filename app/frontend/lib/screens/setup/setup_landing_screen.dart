@@ -25,15 +25,14 @@ class SetupLandingScreen extends StatelessWidget {
     return AxBackdrop(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        appBar:
-            canCancel
-                ? AppBar(
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  title: Text('Add a server', style: ax.typo.title.copyWith(color: c.text)),
-                )
-                : null,
+        appBar: canCancel
+            ? AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                title: Text('Add a server', style: ax.typo.title.copyWith(color: c.text)),
+              )
+            : null,
         body: SafeArea(
           child: SetupFrame(
             child: Column(
@@ -46,7 +45,10 @@ class SetupLandingScreen extends StatelessWidget {
                 ],
                 Text('Welcome to Archangel OS', style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 13)),
                 SizedBox(height: ax.space.sm),
-                Semantics(header: true, child: Text('Do you have a server?', style: ax.typo.display.copyWith(color: c.text))),
+                Semantics(
+                  header: true,
+                  child: Text('Do you have a server?', style: ax.typo.display.copyWith(color: c.text)),
+                ),
                 SizedBox(height: ax.space.sm),
                 Text(
                   'Archangel turns a small rented server into your own private cloud, guarded 24/7. Pick the option that fits you.',
@@ -74,18 +76,14 @@ class SetupLandingScreen extends StatelessWidget {
                   icon: Icons.cloud_outlined,
                   title: 'Not yet — show me how to get one',
                   body: 'What a server is, what it costs, and guides for getting one in a few minutes.',
-                  onTap:
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder:
-                              (ctx) => GetServerScreen(
-                                onHaveServer:
-                                    () => Navigator.of(
-                                      ctx,
-                                    ).pushReplacement(MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen())),
-                              ),
-                        ),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (ctx) => GetServerScreen(
+                        onHaveServer: () =>
+                            Navigator.of(ctx).pushReplacement(MaterialPageRoute<void>(builder: (_) => const SetupWizardScreen())),
                       ),
+                    ),
+                  ),
                 ),
               ],
             ),

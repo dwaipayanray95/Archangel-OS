@@ -58,21 +58,21 @@ class ArchangelApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UpdateCheckService()..loadCache()),
       ],
       child: Consumer<AppState>(
-        builder:
-            (context, app, _) => MaterialApp(
-              title: 'Archangel OS',
-              debugShowCheckedModeBanner: false,
-              theme: buildTheme(Brightness.light, app.accentChoice),
-              darkTheme: buildTheme(Brightness.dark, app.accentChoice),
-              themeMode: app.themeMode,
-              scrollBehavior: _NoOverscrollBehavior(),
-              // The start-up animation plays over everything while the app
-              // bootstraps underneath, scaled for elegant desktop viewing.
-              builder:
-                  (context, child) =>
-                      AxScaledCanvas(scaleFactor: app.uiScaleFactor, child: BootGate(child: child ?? const SizedBox.shrink())),
-              home: const _RootRouter(),
-            ),
+        builder: (context, app, _) => MaterialApp(
+          title: 'Archangel OS',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(Brightness.light, app.accentChoice),
+          darkTheme: buildTheme(Brightness.dark, app.accentChoice),
+          themeMode: app.themeMode,
+          scrollBehavior: _NoOverscrollBehavior(),
+          // The start-up animation plays over everything while the app
+          // bootstraps underneath, scaled for elegant desktop viewing.
+          builder: (context, child) => AxScaledCanvas(
+            scaleFactor: app.uiScaleFactor,
+            child: BootGate(child: child ?? const SizedBox.shrink()),
+          ),
+          home: const _RootRouter(),
+        ),
       ),
     );
   }
@@ -94,7 +94,10 @@ class _RootRouter extends StatelessWidget {
     final registry = context.watch<ServerRegistry>();
 
     if (!wg.isBootstrapped || !backend.isLoaded || !registry.isLoaded) {
-      return Scaffold(backgroundColor: context.ax.colors.bg, body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: context.ax.colors.bg,
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (registry.isEmpty && !wg.isPaired && !backend.isPaired) {

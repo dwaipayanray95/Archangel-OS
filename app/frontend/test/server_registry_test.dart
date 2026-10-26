@@ -382,7 +382,12 @@ void main() {
         backend: backend,
         bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')),
       );
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')));
+      await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')),
+      );
       expect(r.profiles, hasLength(2));
       final gen = backend.pairingGeneration;
       await switchToServer(a.id, registry: r, wg: wg, backend: backend);
@@ -395,9 +400,18 @@ void main() {
       await r.load();
       final wg = WireGuardController();
       final backend = ArchangeldConnection();
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(pub: 'pubA')));
+      await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(pub: 'pubA')),
+      );
       expect(wg.isPaired, isTrue);
-      await activateProfile(_profile('x', 'h9:1').copyWith(wgConfig: ''), wg: wg, backend: backend);
+      await activateProfile(
+        _profile('x', 'h9:1').copyWith(wgConfig: ''),
+        wg: wg,
+        backend: backend,
+      );
       expect(wg.isPaired, isFalse);
       expect(backend.host, 'h9:1');
     });
@@ -416,7 +430,12 @@ void main() {
       // fail only the first pair() call (the new server), allow the restore
       final failing = _OnceFailing(backend);
       await expectLater(
-        pairNewServer(registry: r, wg: wg, backend: failing, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB'))),
+        pairNewServer(
+          registry: r,
+          wg: wg,
+          backend: failing,
+          bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')),
+        ),
         throwsStateError,
       );
       expect(r.profiles.map((p) => p.id), [a.id]);
@@ -435,7 +454,12 @@ void main() {
         backend: backend,
         bundle: PairingBundle.parse(_bundleCode(token: 'ta', pub: 'pubA')),
       );
-      await pairNewServer(registry: r, wg: wg, backend: backend, bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')));
+      await pairNewServer(
+        registry: r,
+        wg: wg,
+        backend: backend,
+        bundle: PairingBundle.parse(_bundleCode(token: 'tb', pub: 'pubB')),
+      );
       await switchToServer(a.id, registry: r, wg: wg, backend: backend);
       expect(wg.connects, 0);
     });

@@ -58,12 +58,11 @@ Future<TerminalHarness> pumpWorkspace(
     sessions.add(s);
     channels.add(c);
   }
-  final h =
-      TerminalHarness(sessions, channels, backend: backend)
-        ..adminModeEnabled = adminModeEnabled
-        ..serverName = serverName
-        ..showAccessoryBar = showAccessoryBar
-        ..onOpenAdminMode = onOpenAdminMode;
+  final h = TerminalHarness(sessions, channels, backend: backend)
+    ..adminModeEnabled = adminModeEnabled
+    ..serverName = serverName
+    ..showAccessoryBar = showAccessoryBar
+    ..onOpenAdminMode = onOpenAdminMode;
 
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
@@ -73,39 +72,38 @@ Future<TerminalHarness> pumpWorkspace(
     MaterialApp(
       theme: buildTheme(brightness),
       home: StatefulBuilder(
-        builder:
-            (context, setState) => Scaffold(
-              body: TerminalWorkspace(
-                sessions: h.sessions,
-                selected: h.selected,
-                controllerFor: (s) => h.controllers.putIfAbsent(s, TerminalController.new),
-                fontSize: h.fontSize,
-                onSelect: (i) => setState(() => h.selected = i),
-                onDetach: (i) => h.events.add('detach $i'),
-                onEnd: (i) => h.events.add('end $i'),
-                onNew: () => h.events.add('new'),
-                onShowSessions: () => h.events.add('sessions'),
-                onFontSize: (v) => setState(() => h.fontSize = v),
-                onCopy: () => h.events.add('copy'),
-                onPaste: () => h.events.add('paste'),
-                adminModeEnabled: h.adminModeEnabled,
-                onToggleAdminMode: (v) {
-                  setState(() => h.adminModeEnabled = v);
-                  h.events.add('toggle-admin $v');
-                },
-                serverName: h.serverName,
-                showAccessoryBar: h.showAccessoryBar,
-                onOpenAdminMode: h.onOpenAdminMode ?? () => h.events.add('open-admin'),
-                onReorderSessions: (oldIndex, newIndex) {
-                  setState(() {
-                    final cur = h.sessions[h.selected];
-                    final s = h.sessions.removeAt(oldIndex);
-                    h.sessions.insert(newIndex, s);
-                    h.selected = h.sessions.indexOf(cur);
-                  });
-                },
-              ),
-            ),
+        builder: (context, setState) => Scaffold(
+          body: TerminalWorkspace(
+            sessions: h.sessions,
+            selected: h.selected,
+            controllerFor: (s) => h.controllers.putIfAbsent(s, TerminalController.new),
+            fontSize: h.fontSize,
+            onSelect: (i) => setState(() => h.selected = i),
+            onDetach: (i) => h.events.add('detach $i'),
+            onEnd: (i) => h.events.add('end $i'),
+            onNew: () => h.events.add('new'),
+            onShowSessions: () => h.events.add('sessions'),
+            onFontSize: (v) => setState(() => h.fontSize = v),
+            onCopy: () => h.events.add('copy'),
+            onPaste: () => h.events.add('paste'),
+            adminModeEnabled: h.adminModeEnabled,
+            onToggleAdminMode: (v) {
+              setState(() => h.adminModeEnabled = v);
+              h.events.add('toggle-admin $v');
+            },
+            serverName: h.serverName,
+            showAccessoryBar: h.showAccessoryBar,
+            onOpenAdminMode: h.onOpenAdminMode ?? () => h.events.add('open-admin'),
+            onReorderSessions: (oldIndex, newIndex) {
+              setState(() {
+                final cur = h.sessions[h.selected];
+                final s = h.sessions.removeAt(oldIndex);
+                h.sessions.insert(newIndex, s);
+                h.selected = h.sessions.indexOf(cur);
+              });
+            },
+          ),
+        ),
       ),
     ),
   );
@@ -333,10 +331,9 @@ void main() {
         MaterialApp(
           theme: buildTheme(Brightness.dark),
           home: Builder(
-            builder:
-                (context) => Scaffold(
-                  body: TextButton(onPressed: () async => onResult(await confirmEndSession(context, 'main')), child: const Text('open')),
-                ),
+            builder: (context) => Scaffold(
+              body: TextButton(onPressed: () async => onResult(await confirmEndSession(context, 'main')), child: const Text('open')),
+            ),
           ),
         ),
       );

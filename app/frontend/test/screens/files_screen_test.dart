@@ -174,7 +174,10 @@ Future<void> _pump(WidgetTester tester, _FakeFiles svc, Size size, {Brightness b
         ChangeNotifierProvider.value(value: backend),
         ChangeNotifierProvider<FilesService>.value(value: svc),
       ],
-      child: MaterialApp(theme: buildTheme(b), home: const Scaffold(body: FilesScreen(restoreSortOnStart: false))),
+      child: MaterialApp(
+        theme: buildTheme(b),
+        home: const Scaffold(body: FilesScreen(restoreSortOnStart: false)),
+      ),
     ),
   );
   await tester.pump(const Duration(milliseconds: 100));

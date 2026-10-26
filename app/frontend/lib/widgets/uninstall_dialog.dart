@@ -21,7 +21,11 @@ const kUninstallConfirmWord = 'UNINSTALL';
 ///
 /// [connector] exists for tests; the app uses real SSH.
 Future<void> showUninstallDialog(BuildContext context, {SshConnector? connector}) {
-  return showDialog<void>(context: context, barrierDismissible: false, builder: (context) => UninstallDialog(connector: connector));
+  return showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => UninstallDialog(connector: connector),
+  );
 }
 
 class UninstallDialog extends StatefulWidget {
@@ -165,7 +169,9 @@ class _UninstallDialogState extends State<UninstallDialog> {
         children: [
           Icon(Icons.warning_amber_rounded, color: c.danger),
           SizedBox(width: ax.space.sm),
-          Expanded(child: Text('Uninstall from server', style: ax.typo.title.copyWith(color: c.danger))),
+          Expanded(
+            child: Text('Uninstall from server', style: ax.typo.title.copyWith(color: c.danger)),
+          ),
         ],
       ),
       content: ConstrainedBox(

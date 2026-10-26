@@ -53,18 +53,17 @@ class _ContainersScreenState extends State<ContainersScreen> {
         onRetry: () => svc.fetchContainers(),
       );
     } else if (!dockerUp) {
-      body =
-          svc.error != null && overview.engineVersion == 'unreachable'
-              ? ErrorState(title: 'Could not reach your server', message: svc.error!, onRetry: () => svc.fetchContainers())
-              : EmptyState(
-                icon: Icons.sailing_outlined,
-                title: 'Docker isn’t running',
-                message:
-                    'Apps run on Docker, which is switched off on this server right now. '
-                    'You can start it in Services.',
-                actionLabel: 'Go to Services',
-                onAction: () => context.read<AppState>().go(AxSection.services),
-              );
+      body = svc.error != null && overview.engineVersion == 'unreachable'
+          ? ErrorState(title: 'Could not reach your server', message: svc.error!, onRetry: () => svc.fetchContainers())
+          : EmptyState(
+              icon: Icons.sailing_outlined,
+              title: 'Docker isn’t running',
+              message:
+                  'Apps run on Docker, which is switched off on this server right now. '
+                  'You can start it in Services.',
+              actionLabel: 'Go to Services',
+              onAction: () => context.read<AppState>().go(AxSection.services),
+            );
     } else if (containers.isEmpty) {
       body = EmptyState(
         icon: Icons.apps_rounded,
@@ -78,7 +77,10 @@ class _ContainersScreenState extends State<ContainersScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (svc.error != null)
-            Padding(padding: EdgeInsets.only(bottom: context.ax.space.lg), child: _Banner(message: 'Could not refresh: ${svc.error}')),
+            Padding(
+              padding: EdgeInsets.only(bottom: context.ax.space.lg),
+              child: _Banner(message: 'Could not refresh: ${svc.error}'),
+            ),
           _AppList(apps: containers, host: host, service: svc, onOpen: _openDetail),
         ],
       );
@@ -119,7 +121,9 @@ class _Banner extends StatelessWidget {
         children: [
           Icon(Icons.warning_amber_rounded, color: c.warning),
           SizedBox(width: ax.space.sm),
-          Expanded(child: Text(message, style: ax.typo.body.copyWith(color: c.text))),
+          Expanded(
+            child: Text(message, style: ax.typo.body.copyWith(color: c.text)),
+          ),
         ],
       ),
     );
@@ -152,16 +156,15 @@ class _AppListState extends State<_AppList> {
     final c = ax.colors;
     final running = widget.apps.where((a) => a.running).length;
     final stopped = widget.apps.length - running;
-    final shown =
-        widget.apps
-            .where(
-              (a) => switch (_filter) {
-                _Filter.all => true,
-                _Filter.running => a.running,
-                _Filter.stopped => !a.running,
-              },
-            )
-            .toList();
+    final shown = widget.apps
+        .where(
+          (a) => switch (_filter) {
+            _Filter.all => true,
+            _Filter.running => a.running,
+            _Filter.stopped => !a.running,
+          },
+        )
+        .toList();
     return LayoutBuilder(
       builder: (context, box) {
         final wide = box.maxWidth >= 760;
@@ -192,40 +195,41 @@ class _AppListState extends State<_AppList> {
             SizedBox(height: ax.space.md),
             AxCard(
               padding: EdgeInsets.zero,
-              child:
-                  shown.isEmpty
-                      ? Padding(
-                        padding: EdgeInsets.all(ax.space.lg),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: c.textMuted),
-                            SizedBox(width: ax.space.md),
-                            Expanded(child: Text('No apps here.', style: ax.typo.body.copyWith(color: c.textMuted))),
-                          ],
-                        ),
-                      )
-                      : Column(
+              child: shown.isEmpty
+                  ? Padding(
+                      padding: EdgeInsets.all(ax.space.lg),
+                      child: Row(
                         children: [
-                          for (final (i, a) in shown.indexed) ...[
-                            if (i > 0) Divider(height: 1, color: c.border),
-                            wide
-                                ? _WideRow(
+                          Icon(Icons.info_outline, color: c.textMuted),
+                          SizedBox(width: ax.space.md),
+                          Expanded(
+                            child: Text('No apps here.', style: ax.typo.body.copyWith(color: c.textMuted)),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        for (final (i, a) in shown.indexed) ...[
+                          if (i > 0) Divider(height: 1, color: c.border),
+                          wide
+                              ? _WideRow(
                                   app: a,
                                   index: widget.apps.indexOf(a),
                                   host: widget.host,
                                   service: widget.service,
                                   onOpen: () => widget.onOpen(a),
                                 )
-                                : _NarrowRow(
+                              : _NarrowRow(
                                   app: a,
                                   index: widget.apps.indexOf(a),
                                   host: widget.host,
                                   service: widget.service,
                                   onOpen: () => widget.onOpen(a),
                                 ),
-                          ],
                         ],
-                      ),
+                      ],
+                    ),
             ),
             SizedBox(height: ax.space.md),
             Row(
@@ -325,8 +329,16 @@ class _NarrowRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(app.name, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
-                      Text(app.image, style: ax.typo.caption.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
+                      Text(
+                        app.name,
+                        style: ax.typo.label.copyWith(color: c.text),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        app.image,
+                        style: ax.typo.caption.copyWith(color: c.textMuted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
@@ -407,15 +419,32 @@ class _WideRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(app.name, style: ax.typo.label.copyWith(color: c.text), overflow: TextOverflow.ellipsis),
-                  Text(app.image, style: ax.typo.caption.copyWith(color: c.textMuted), overflow: TextOverflow.ellipsis),
+                  Text(
+                    app.name,
+                    style: ax.typo.label.copyWith(color: c.text),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    app.image,
+                    style: ax.typo.caption.copyWith(color: c.textMuted),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
-            SizedBox(width: 130, child: Align(alignment: Alignment.centerLeft, child: appStatusBadge(app))),
-            SizedBox(width: 110, child: Text(_portText(app), style: mono, overflow: TextOverflow.ellipsis)),
+            SizedBox(
+              width: 130,
+              child: Align(alignment: Alignment.centerLeft, child: appStatusBadge(app)),
+            ),
+            SizedBox(
+              width: 110,
+              child: Text(_portText(app), style: mono, overflow: TextOverflow.ellipsis),
+            ),
             SizedBox(width: 70, child: Text(appCpuText(app), style: mono)),
-            SizedBox(width: 90, child: Text(appMemoryText(app), style: mono, overflow: TextOverflow.ellipsis)),
+            SizedBox(
+              width: 90,
+              child: Text(appMemoryText(app), style: mono, overflow: TextOverflow.ellipsis),
+            ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [

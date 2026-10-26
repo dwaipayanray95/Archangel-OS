@@ -119,7 +119,10 @@ class _SaveSnippetDialogState extends State<_SaveSnippetDialog> {
           ],
         ),
       ),
-      actions: [AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()), AxButton(label: 'Save', onPressed: _submit)],
+      actions: [
+        AxButton.ghost(label: 'Cancel', onPressed: () => Navigator.of(context).pop()),
+        AxButton(label: 'Save', onPressed: _submit),
+      ],
     );
   }
 }
@@ -153,7 +156,10 @@ class SnippetsView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Snippets', style: ax.typo.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: inSheet ? c.text : tp.text)),
+          Text(
+            'Snippets',
+            style: ax.typo.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: inSheet ? c.text : tp.text),
+          ),
           const SizedBox(height: 2),
           Text(
             'Tap to insert on command line.',

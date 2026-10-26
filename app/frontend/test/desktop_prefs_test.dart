@@ -34,35 +34,33 @@ void main() {
   });
 
   test('the dock reserves space on its own edge; auto-hide keeps only a strip', () {
-    final p =
-        DesktopPrefs()
-          ..dockPosition = DockPosition.left
-          ..dockSize = DockSize.large;
+    final p = DesktopPrefs()
+      ..dockPosition = DockPosition.left
+      ..dockSize = DockSize.large;
     expect(p.reserve, EdgeInsets.only(left: DockSize.large.button + 44));
     p.autoHide = true;
     expect(p.reserve, const EdgeInsets.only(left: kDockHotZone));
   });
 
   test('round-trips through JSON and ignores unknown values', () {
-    final p =
-        DesktopPrefs()
-          ..wallpaper = DeskWallpaper.sunrise
-          ..dockPosition = DockPosition.right
-          ..dockSize = DockSize.small
-          ..autoHide = true
-          ..showWidget = false
-          ..showWallpaperWordmark = false
-          ..showWallpaperSubtitle = false
-          ..togglePin(AxSection.files);
+    final p = DesktopPrefs()
+      ..wallpaper = DeskWallpaper.sunrise
+      ..dockPosition = DockPosition.right
+      ..dockSize = DockSize.small
+      ..autoHide = true
+      ..showWidget = false
+      ..showWallpaperWordmark = false
+      ..showWallpaperSubtitle = false
+      ..togglePin(AxSection.files);
     final q = DesktopPrefs()..applyJson(p.toJson());
     expect(q.toJson(), p.toJson());
 
-    final r =
-        DesktopPrefs()..applyJson({
-          'wallpaper': 'neon',
-          'dock': 'top',
-          'pinned': ['home', 'nope'],
-        });
+    final r = DesktopPrefs()
+      ..applyJson({
+        'wallpaper': 'neon',
+        'dock': 'top',
+        'pinned': ['home', 'nope'],
+      });
     expect(r.wallpaper, DeskWallpaper.halo);
     expect(r.dockPosition, DockPosition.bottom);
     expect(r.showWallpaperWordmark, isTrue);
@@ -71,13 +69,12 @@ void main() {
   });
 
   test('reset puts everything back', () {
-    final p =
-        DesktopPrefs()
-          ..wallpaper = DeskWallpaper.graphite
-          ..showWallpaperWordmark = false
-          ..showWallpaperSubtitle = false
-          ..togglePin(AxSection.home)
-          ..reset();
+    final p = DesktopPrefs()
+      ..wallpaper = DeskWallpaper.graphite
+      ..showWallpaperWordmark = false
+      ..showWallpaperSubtitle = false
+      ..togglePin(AxSection.home)
+      ..reset();
     expect(p.wallpaper, DeskWallpaper.halo);
     expect(p.showWallpaperWordmark, isTrue);
     expect(p.showWallpaperSubtitle, isTrue);

@@ -7,7 +7,10 @@ import 'package:archangel/ui/ui.dart';
 
 Widget _host(Widget child, {Brightness brightness = Brightness.dark, TargetPlatform? platform}) {
   final theme = buildTheme(brightness);
-  return MaterialApp(theme: platform == null ? theme : theme.copyWith(platform: platform), home: Scaffold(body: Center(child: child)));
+  return MaterialApp(
+    theme: platform == null ? theme : theme.copyWith(platform: platform),
+    home: Scaffold(body: Center(child: child)),
+  );
 }
 
 void main() {
@@ -17,20 +20,19 @@ void main() {
       await tester.pumpWidget(
         _host(
           Builder(
-            builder:
-                (context) => AxButton(
-                  label: 'Open',
-                  onPressed: () async {
-                    result = await showConfirmDialog(
-                      context,
-                      title: 'Remove web-app?',
-                      message: 'The app and its data on the server will be deleted. This cannot be undone.',
-                      confirmLabel: 'Remove',
-                      danger: danger,
-                      typeToConfirm: typeToConfirm,
-                    );
-                  },
-                ),
+            builder: (context) => AxButton(
+              label: 'Open',
+              onPressed: () async {
+                result = await showConfirmDialog(
+                  context,
+                  title: 'Remove web-app?',
+                  message: 'The app and its data on the server will be deleted. This cannot be undone.',
+                  confirmLabel: 'Remove',
+                  danger: danger,
+                  typeToConfirm: typeToConfirm,
+                );
+              },
+            ),
           ),
         ),
       );
@@ -46,18 +48,15 @@ void main() {
       await tester.pumpWidget(
         _host(
           Builder(
-            builder:
-                (context) => AxButton(
-                  label: 'Open',
-                  onPressed:
-                      () async =>
-                          result = await showConfirmDialog(
-                            context,
-                            title: 'Reboot?',
-                            message: 'Your server will be unavailable for a minute.',
-                            confirmLabel: 'Reboot',
-                          ),
-                ),
+            builder: (context) => AxButton(
+              label: 'Open',
+              onPressed: () async => result = await showConfirmDialog(
+                context,
+                title: 'Reboot?',
+                message: 'Your server will be unavailable for a minute.',
+                confirmLabel: 'Reboot',
+              ),
+            ),
           ),
         ),
       );
@@ -75,11 +74,10 @@ void main() {
       await tester.pumpWidget(
         _host(
           Builder(
-            builder:
-                (context) => AxButton(
-                  label: 'Open',
-                  onPressed: () async => result = await showConfirmDialog(context, title: 'Stop?', message: 'm', confirmLabel: 'Stop'),
-                ),
+            builder: (context) => AxButton(
+              label: 'Open',
+              onPressed: () async => result = await showConfirmDialog(context, title: 'Stop?', message: 'm', confirmLabel: 'Stop'),
+            ),
           ),
         ),
       );
@@ -184,7 +182,10 @@ void main() {
           _host(
             Column(
               mainAxisSize: MainAxisSize.min,
-              children: [AxButton(label: 'Go', onPressed: () {}), AxIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: () {})],
+              children: [
+                AxButton(label: 'Go', onPressed: () {}),
+                AxIconButton(icon: Icons.refresh, tooltip: 'Refresh', onPressed: () {}),
+              ],
             ),
             platform: p,
           ),
@@ -222,7 +223,10 @@ void main() {
     testWidgets('AxListTile is at least one touch target tall and taps', (tester) async {
       var taps = 0;
       await tester.pumpWidget(
-        _host(AxListTile(title: 'Settings', subtitle: 'Everything', onTap: () => taps++), platform: TargetPlatform.android),
+        _host(
+          AxListTile(title: 'Settings', subtitle: 'Everything', onTap: () => taps++),
+          platform: TargetPlatform.android,
+        ),
       );
       expect(tester.getSize(find.byType(ListTile)).height, greaterThanOrEqualTo(48));
       await tester.tap(find.text('Settings'));
@@ -321,7 +325,9 @@ void main() {
       addTearDown(ctl.dispose);
       await tester.pumpWidget(
         _host(
-          SingleChildScrollView(child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false, errorText: 'Could not connect')),
+          SingleChildScrollView(
+            child: SshCredentialsForm(controller: ctl, restoreSavedOnStart: false, errorText: 'Could not connect'),
+          ),
         ),
       );
       expect(find.text('Could not connect'), findsOneWidget);
