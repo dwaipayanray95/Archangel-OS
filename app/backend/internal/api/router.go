@@ -42,8 +42,9 @@ func NewRouter(verify auth.Verifier) http.Handler {
 	mux.Handle("GET /api/v1/system/admin-mode", auth.Middleware(verify, http.HandlerFunc(adminmode.GetHandler)))
 	mux.Handle("POST /api/v1/system/admin-mode", auth.Middleware(verify, http.HandlerFunc(adminmode.SetHandler)))
 
-	// System metrics, processes, and live stats stream
+	// System metrics, processes, disk breakdown, and live stats stream
 	mux.Handle("GET /api/v1/system/metrics", auth.Middleware(verify, http.HandlerFunc(system.MetricsHandler)))
+	mux.Handle("GET /api/v1/system/disk-breakdown", auth.Middleware(verify, http.HandlerFunc(system.DiskBreakdownHandler)))
 	mux.Handle("GET /api/v1/system/processes", auth.Middleware(verify, http.HandlerFunc(system.ProcessesHandler)))
 	mux.Handle("POST /api/v1/system/processes/{pid}/kill", auth.Middleware(verify, http.HandlerFunc(system.ProcessKillHandler)))
 	mux.Handle("POST /api/v1/system/processes/{pid}/renice", auth.Middleware(verify, http.HandlerFunc(system.ProcessReniceHandler)))

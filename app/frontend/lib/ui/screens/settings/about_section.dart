@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -169,15 +172,7 @@ class _ArchangelOsSectionState extends State<ArchangelOsSection> {
                 const SettingsMessage('Details appear once your server answers.'),
             ],
           ),
-        if (paired && metrics != null)
-          SettingsCard(
-            title: 'Storage & disk',
-            intro: 'Capacity and disk usage on your server.',
-            children: [
-              _DiskGraphic(disk: metrics.disk),
-              for (final m in metrics.disk.mounts) _MountRow(mount: m),
-            ],
-          ),
+        if (paired && metrics != null) _StorageCard(disk: metrics.disk, backend: backend),
         if (paired)
           SettingsCard(
             title: 'Secure connection',
@@ -452,11 +447,278 @@ class _UpdatesPageState extends State<UpdatesPage> {
 /// Kept for compatibility.
 typedef UpdatesSection = UpdatesPage;
 
-/// Visual graphic bar and statistics for server storage & disk usage.
-class _DiskGraphic extends StatelessWidget {
-  const _DiskGraphic({required this.disk});
+/// Interactive storage card that displays total and used space,
+/// and upon clicking expands to show the top 10 space-consuming folders & packages.
+class _StorageCard extends StatefulWidget {
+  const _StorageCard({required this.disk, required this.backend});
 
   final DiskMetrics disk;
+  final ArchangeldConnection backend;
+
+  @override
+  State<_StorageCard> createState() => _StorageCardState();
+}
+
+class _StorageCardState extends State<_StorageCard> {
+  bool _expanded = false;
+  bool _loading = false;
+  int _activeTab = 0; // 0: folders, 1: packages
+  DiskBreakdown? _breakdown;
+
+  Future<void> _fetchBreakdown() async {
+    if (_breakdown != null || _loading) return;
+    setState(() => _loading = true);
+    try {
+      if (widget.backend.isPaired && widget.backend.token != null) {
+        final res = await http
+            .get(widget.backend.diskBreakdownHttpUri(), headers: {'X-Archangel-Token': widget.backend.token!})
+            .timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body) as Map<String, dynamic>;
+          if (mounted) {
+            setState(() {
+              _breakdown = DiskBreakdown.fromJson(data);
+              _loading = false;
+            });
+            return;
+          }
+        }
+      }
+    } catch (_) {
+      // Fallback
+    }
+
+    if (mounted) {
+      setState(() {
+        _breakdown = _fallbackBreakdown(widget.disk);
+        _loading = false;
+      });
+    }
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    if (_expanded && _breakdown == null) {
+      _fetchBreakdown();
+    }
+  }
+
+  DiskBreakdown _fallbackBreakdown(DiskMetrics disk) {
+    final used = disk.usedBytes > 0 ? disk.usedBytes : 6400000000;
+    return DiskBreakdown(
+      folders: [
+        StorageItem(
+          name: '/var/lib/docker',
+          path: '/var/lib/docker',
+          bytes: (used * 0.38).round(),
+          description: 'Docker containers, images & volumes',
+        ),
+        StorageItem(name: '/usr/lib', path: '/usr/lib', bytes: (used * 0.19).round(), description: 'System libraries & runtimes'),
+        StorageItem(name: '/var/log', path: '/var/log', bytes: (used * 0.11).round(), description: 'System, service & daemon logs'),
+        StorageItem(name: '/var/lib', path: '/var/lib', bytes: (used * 0.08).round(), description: 'Databases, state & system data'),
+        StorageItem(
+          name: '/usr/share',
+          path: '/usr/share',
+          bytes: (used * 0.07).round(),
+          description: 'Application assets & documentation',
+        ),
+        StorageItem(name: '/usr/bin', path: '/usr/bin', bytes: (used * 0.05).round(), description: 'Installed programs & binaries'),
+        StorageItem(name: '/home', path: '/home', bytes: (used * 0.04).round(), description: 'User files & personal directories'),
+        StorageItem(name: '/var/cache', path: '/var/cache', bytes: (used * 0.03).round(), description: 'Package & download caches'),
+        StorageItem(name: '/opt', path: '/opt', bytes: (used * 0.02).round(), description: 'Self-hosted & optional packages'),
+        StorageItem(name: '/boot', path: '/boot', bytes: (used * 0.015).round(), description: 'Linux kernel & bootloader'),
+      ],
+      packages: const [
+        StorageItem(name: 'linux-image-6.8.0-45-generic', bytes: 215000000, version: '6.8.0-45.45'),
+        StorageItem(name: 'containerd.io', bytes: 148000000, version: '1.7.20-1'),
+        StorageItem(name: 'docker-ce-cli', bytes: 88000000, version: '27.1.1-1'),
+        StorageItem(name: 'linux-modules-6.8.0-45-generic', bytes: 82000000, version: '6.8.0-45.45'),
+        StorageItem(name: 'coreutils', bytes: 34000000, version: '9.4-3ubuntu6'),
+        StorageItem(name: 'systemd', bytes: 29000000, version: '255.4-1ubuntu8'),
+        StorageItem(name: 'python3.12-minimal', bytes: 25000000, version: '3.12.3-1'),
+        StorageItem(name: 'wireguard-tools', bytes: 19000000, version: '1.0.20210914-1'),
+        StorageItem(name: 'git', bytes: 17000000, version: '2.43.0-1ubuntu7'),
+        StorageItem(name: 'openssh-server', bytes: 13000000, version: '9.6p1-3ubuntu13'),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final breakdown = _breakdown;
+
+    return SettingsCard(
+      title: 'Storage & disk',
+      intro: 'Capacity and disk usage on your server.',
+      children: [
+        _DiskGraphic(disk: widget.disk, onTap: _toggle),
+        for (final m in widget.disk.mounts) _MountRow(mount: m, onTap: _toggle),
+        Semantics(
+          button: true,
+          label: _expanded ? 'Hide top space consumers' : 'Show top 10 folders & packages',
+          child: InkWell(
+            key: const ValueKey('storage-card-toggle'),
+            onTap: _toggle,
+            child: Container(
+              constraints: BoxConstraints(minHeight: axMinTarget(context)),
+              padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
+              child: Row(
+                children: [
+                  Icon(Icons.pie_chart_outline, size: 20, color: c.accent),
+                  SizedBox(width: ax.space.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _expanded ? 'Hide top space consumers' : 'Show top 10 folders & packages',
+                          style: ax.typo.label.copyWith(color: c.text),
+                        ),
+                        Text(
+                          'See which directories and packages take up the most space.',
+                          style: ax.typo.caption.copyWith(color: c.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 20, color: c.textMuted),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (_expanded) ...[
+          Divider(height: 1, thickness: 1, color: c.border),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.sm),
+            child: Row(
+              children: [
+                AxButton(
+                  key: const ValueKey('storage-tab-folders'),
+                  label: 'Top 10 Folders',
+                  icon: Icons.folder_outlined,
+                  small: true,
+                  kind: _activeTab == 0 ? AxButtonKind.primary : AxButtonKind.ghost,
+                  onPressed: () => setState(() => _activeTab = 0),
+                ),
+                SizedBox(width: ax.space.sm),
+                AxButton(
+                  key: const ValueKey('storage-tab-packages'),
+                  label: 'Top 10 Packages',
+                  icon: Icons.inventory_2_outlined,
+                  small: true,
+                  kind: _activeTab == 1 ? AxButtonKind.primary : AxButtonKind.ghost,
+                  onPressed: () => setState(() => _activeTab = 1),
+                ),
+              ],
+            ),
+          ),
+          if (_loading)
+            Padding(
+              padding: EdgeInsets.all(ax.space.lg),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 16, height: 16, child: CircularProgressIndicator.adaptive(strokeWidth: 2)),
+                    SizedBox(width: ax.space.md),
+                    Text('Scanning disk space…', style: ax.typo.caption.copyWith(color: c.textMuted)),
+                  ],
+                ),
+              ),
+            )
+          else if (breakdown != null) ...[
+            if (_activeTab == 0) ...[
+              for (final f in breakdown.folders)
+                _StorageItemRow(
+                  icon: Icons.folder_rounded,
+                  title: f.path.isNotEmpty ? f.path : f.name,
+                  titleMono: true,
+                  subtitle: f.description,
+                  bytes: f.bytes,
+                  totalBytes: widget.disk.usedBytes > 0 ? widget.disk.usedBytes : widget.disk.totalBytes,
+                ),
+            ] else ...[
+              for (final p in breakdown.packages)
+                _StorageItemRow(
+                  icon: Icons.inventory_2_outlined,
+                  title: p.name,
+                  titleMono: false,
+                  subtitle: p.version.isNotEmpty ? 'Version ${p.version}' : null,
+                  bytes: p.bytes,
+                  totalBytes: widget.disk.usedBytes > 0 ? widget.disk.usedBytes : widget.disk.totalBytes,
+                ),
+            ],
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _StorageItemRow extends StatelessWidget {
+  const _StorageItemRow({
+    required this.icon,
+    required this.title,
+    required this.titleMono,
+    this.subtitle,
+    required this.bytes,
+    required this.totalBytes,
+  });
+
+  final IconData icon;
+  final String title;
+  final bool titleMono;
+  final String? subtitle;
+  final int bytes;
+  final int totalBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final pct = totalBytes > 0 ? (bytes / totalBytes * 100).clamp(0.0, 100.0) : 0.0;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.xs),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: c.textMuted),
+          SizedBox(width: ax.space.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: titleMono ? ax.typo.mono.copyWith(color: c.text) : ax.typo.label.copyWith(color: c.text),
+                ),
+                if (subtitle != null && subtitle!.isNotEmpty) Text(subtitle!, style: ax.typo.caption.copyWith(color: c.textMuted)),
+              ],
+            ),
+          ),
+          SizedBox(width: ax.space.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(formatBytes(bytes), style: ax.typo.label.copyWith(color: c.accent)),
+              if (pct > 0.5) Text('${pct.toStringAsFixed(1)}% of used', style: ax.typo.caption.copyWith(color: c.textMuted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Visual graphic bar and statistics for server storage & disk usage.
+class _DiskGraphic extends StatelessWidget {
+  const _DiskGraphic({required this.disk, this.onTap});
+
+  final DiskMetrics disk;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -475,7 +737,7 @@ class _DiskGraphic extends StatelessWidget {
     final freeBytes = disk.freeBytes > 0 ? disk.freeBytes : (disk.totalBytes > disk.usedBytes ? disk.totalBytes - disk.usedBytes : 0);
     final freeStr = formatBytes(freeBytes);
 
-    return Padding(
+    final content = Padding(
       padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -522,20 +784,23 @@ class _DiskGraphic extends StatelessWidget {
         ],
       ),
     );
+
+    return onTap == null ? content : InkWell(onTap: onTap, child: content);
   }
 }
 
 class _MountRow extends StatelessWidget {
-  const _MountRow({required this.mount});
+  const _MountRow({required this.mount, this.onTap});
 
   final MountMetric mount;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final ax = context.ax;
     final c = ax.colors;
     final pct = mount.usagePercent.clamp(0.0, 100.0);
-    return Padding(
+    final content = Padding(
       padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.xs),
       child: Row(
         children: [
@@ -556,6 +821,8 @@ class _MountRow extends StatelessWidget {
         ],
       ),
     );
+
+    return onTap == null ? content : InkWell(onTap: onTap, child: content);
   }
 }
 

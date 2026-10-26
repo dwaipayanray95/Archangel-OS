@@ -222,7 +222,7 @@ class ArchangeldConnection extends ChangeNotifier {
     if (!isPaired) {
       throw StateError('Not paired with a backend');
     }
-    return Uri.parse('ws://$_host/ws/terminal').replace(queryParameters: {'token': _token, if (session != null) 'session': session});
+    return Uri.parse('ws://$_host/ws/terminal').replace(queryParameters: {'token': _token, 'session': ?session});
   }
 
   /// `ws://<host>/ws/stats?token=...` - real-time metrics stream.
@@ -239,6 +239,14 @@ class ArchangeldConnection extends ChangeNotifier {
       throw StateError('Not paired with a backend');
     }
     return Uri.parse('http://$_host/api/v1/system/metrics');
+  }
+
+  /// `http://<host>/api/v1/system/disk-breakdown`
+  Uri diskBreakdownHttpUri() {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    return Uri.parse('http://$_host/api/v1/system/disk-breakdown');
   }
 
   /// `http://<host>/api/v1/system/processes`

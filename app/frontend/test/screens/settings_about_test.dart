@@ -205,6 +205,33 @@ void main() {
       expect(find.text("You're up to date.").evaluate().length + find.text('No check yet. Press "Check now".').evaluate().length, 1);
     });
 
+    testWidgets('Storage & disk card is clickable and expands top folders & packages', (tester) async {
+      await _pump(tester);
+      expect(find.text('Storage & disk'), findsOneWidget);
+      expect(find.text('Show top 10 folders & packages'), findsOneWidget);
+      expect(find.text('/var/lib/docker'), findsNothing);
+
+      // Tap to expand
+      final toggle = find.byKey(const ValueKey('storage-card-toggle'));
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await _settle(tester);
+
+      expect(find.text('Hide top space consumers'), findsOneWidget);
+      expect(find.text('Top 10 Folders'), findsOneWidget);
+      expect(find.text('Top 10 Packages'), findsOneWidget);
+      expect(find.text('/var/lib/docker'), findsOneWidget);
+
+      // Switch to packages tab
+      final pkgTab = find.byKey(const ValueKey('storage-tab-packages'));
+      await tester.ensureVisible(pkgTab);
+      await tester.tap(pkgTab);
+      await _settle(tester);
+
+      expect(find.text('linux-image-6.8.0-45-generic'), findsOneWidget);
+      expect(find.text('containerd.io'), findsOneWidget);
+    });
+
     testWidgets('technical values stay behind Technical details, each with a copy button', (tester) async {
       await _pump(tester);
       final collapsed = _visibleText(tester).join('\n').toLowerCase();

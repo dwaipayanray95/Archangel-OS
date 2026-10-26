@@ -178,6 +178,36 @@ class DiskMetrics {
   double get availableGb => (availableBytes > 0 ? availableBytes : freeBytes) / (1024 * 1024 * 1024);
 }
 
+class StorageItem {
+  final String name;
+  final String path;
+  final int bytes;
+  final String description;
+  final String version;
+
+  const StorageItem({required this.name, this.path = '', required this.bytes, this.description = '', this.version = ''});
+
+  factory StorageItem.fromJson(Map<String, dynamic> json) => StorageItem(
+    name: json['name'] as String? ?? '',
+    path: json['path'] as String? ?? '',
+    bytes: (json['bytes'] as num?)?.toInt() ?? 0,
+    description: json['description'] as String? ?? '',
+    version: json['version'] as String? ?? '',
+  );
+}
+
+class DiskBreakdown {
+  final List<StorageItem> folders;
+  final List<StorageItem> packages;
+
+  const DiskBreakdown({required this.folders, required this.packages});
+
+  factory DiskBreakdown.fromJson(Map<String, dynamic> json) => DiskBreakdown(
+    folders: (json['folders'] as List<dynamic>?)?.map((e) => StorageItem.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+    packages: (json['packages'] as List<dynamic>?)?.map((e) => StorageItem.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+  );
+}
+
 class NetInterfaceMetric {
   final String name;
   final double rxBytesPerSec;
