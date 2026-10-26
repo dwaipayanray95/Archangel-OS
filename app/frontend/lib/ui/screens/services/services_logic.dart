@@ -43,3 +43,22 @@ StatusBadge rowStatusBadge(DevRowModel row) {
   }
   return StatusBadge.neutral(row.status, icon: Icons.stop_circle_outlined);
 }
+
+/// A script name must end in .sh and use only letters, digits, dot, dash and
+/// underscore. It can't start with a dot or a dash and is at most 64 characters.
+/// Returns an explanation of what is wrong, or null when the name is fine.
+String? validateScriptName(String raw) {
+  final name = raw.trim();
+  if (name.isEmpty) return 'Give the script a name, for example deploy.sh.';
+  if (!name.endsWith('.sh')) return 'The name must end with .sh, for example deploy.sh.';
+  if (name.length > 64) return 'Use 64 characters or fewer.';
+  if (name.startsWith('.') || name.startsWith('-')) return "The name can't start with a dot or a dash.";
+  if (name == '.sh') return 'Add a name before .sh, for example deploy.sh.';
+  if (!RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(name)) {
+    return 'Use only letters, numbers, dots, dashes and underscores (no spaces or slashes).';
+  }
+  return null;
+}
+
+/// True when a refusal means Admin mode has to be switched on first.
+bool isAdminModeRefusal(String? message, int? status) => status == 403 || (message?.toLowerCase().contains('admin mode') ?? false);

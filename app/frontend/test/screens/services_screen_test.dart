@@ -132,7 +132,10 @@ Future<void> _pump(
         ChangeNotifierProvider<ArchangeldConnection>(create: (_) => _FakeConn(paired: paired)),
         ChangeNotifierProvider<DevopsService>.value(value: svc),
       ],
-      child: MaterialApp(theme: buildTheme(brightness), home: const Scaffold(body: DevopsScreen())),
+      child: MaterialApp(
+        theme: buildTheme(brightness),
+        home: const Scaffold(body: DevopsScreen()),
+      ),
     ),
   );
   await tester.pump(const Duration(milliseconds: 50));
@@ -390,12 +393,11 @@ void main() {
     });
 
     testWidgets('Empty state per tab shows exact wording', (tester) async {
-      final svc =
-          _FakeDevops()
-            ..customServices = []
-            ..customScheduled = []
-            ..customProxy = []
-            ..customDeployments = [];
+      final svc = _FakeDevops()
+        ..customServices = []
+        ..customScheduled = []
+        ..customProxy = []
+        ..customDeployments = [];
       await _pump(tester, svc);
 
       // Background empty
@@ -418,10 +420,9 @@ void main() {
     });
 
     testWidgets('Loading skeleton rows when loading and not hasLoaded', (tester) async {
-      final svc =
-          _FakeDevops()
-            ..fakeLoading = true
-            ..fakeLoaded = false;
+      final svc = _FakeDevops()
+        ..fakeLoading = true
+        ..fakeLoaded = false;
       await _pump(tester, svc);
 
       expect(find.byType(ServicesLoadingSkeleton), findsOneWidget);
