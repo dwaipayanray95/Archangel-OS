@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -10,11 +11,13 @@ import 'package:provider/provider.dart';
 import '../../data/app_state.dart';
 import '../../main.dart' show ArchangelApp;
 import '../../services/archangeld_connection.dart';
+import '../../services/hotkey_service.dart';
 import '../../services/monitoring_service.dart';
 import '../../services/server_registry.dart';
 import '../../services/window_service.dart';
 import '../screens/home/home_logic.dart';
 import '../components/ax_glass.dart';
+import '../components/ax_icon_button.dart';
 import '../components/status_badge.dart';
 import '../components/ax_wordmark.dart';
 import '../components/confirm_dialog.dart';
@@ -24,6 +27,7 @@ import 'desktop_prefs.dart';
 import 'destinations.dart';
 import 'server_switcher.dart';
 import 'status_strip.dart';
+import 'terminal_focus_marker.dart';
 
 /// Height of Desktop mode's top bar.
 const double kDeskTopBarHeight = 42;
@@ -560,8 +564,12 @@ class _DesktopModeViewState extends State<DesktopModeView> {
       }
     }
 
+    // Leave Tab and Alt/Ctrl+arrow shortcuts alone while a terminal has focus
+    // (word jumps, tmux, vim) or a dialog is on top. F11 below still works.
+    final yieldsKeys = TerminalFocusMarker.isFocusInside() || (ModalRoute.of(context)?.isCurrent == false);
+
     // 2. Trigger App Switcher HUD (Cmd+Tab, Alt+Tab, Ctrl+Tab)
-    if (event.logicalKey == LogicalKeyboardKey.tab && (isMeta || isAlt || isCtrl)) {
+    if (!yieldsKeys && event.logicalKey == LogicalKeyboardKey.tab && (isMeta || isAlt || isCtrl)) {
       final openWindows = widget.windows.stacked.reversed.toList();
       if (openWindows.isEmpty) return false;
 
@@ -578,16 +586,12 @@ class _DesktopModeViewState extends State<DesktopModeView> {
     }
 
     // 3. Window Snapping via Keyboard
-    final isSnapModifier = (isAlt && (isMeta || isCtrl));
-    final isPlainAltSnap = isAlt && !isMeta && !isCtrl;
+    // Cmd+Alt on macOS, Ctrl+Alt elsewhere. Plain Alt+arrow is never taken.
+    final isMac = defaultTargetPlatform == TargetPlatform.macOS;
+    final isSnapModifier = isAlt && (isMac ? isMeta : isCtrl);
     final front = widget.windows.front;
 
-    if (front != null && (isSnapModifier || isPlainAltSnap)) {
-      if (isPlainAltSnap) {
-        final focusedWidget = FocusManager.instance.primaryFocus?.context?.widget;
-        if (focusedWidget is EditableText) return false;
-      }
-
+    if (!yieldsKeys && front != null && isSnapModifier) {
       if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
         widget.windows.snapWindow(front, isShift ? DeskSnap.thirdLeft : DeskSnap.left);
         widget.onFocus(front);
@@ -1214,6 +1218,10 @@ class _TopBar extends StatelessWidget {
                   const Expanded(child: StatusStrip(showServerName: false, compact: true)),
                   SizedBox(width: ax.space.sm),
                   const _Clock(),
+                  if (showWindowControls(fullScreen: context.select<AppState, bool>((s) => s.fullScreen))) ...[
+                    SizedBox(width: ax.space.sm),
+                    const _WindowControls(),
+                  ],
                 ],
               ),
             ),
@@ -1221,6 +1229,73 @@ class _TopBar extends StatelessWidget {
         ),
       ),
     ).withBottomLine(c.border);
+  }
+}
+
+/// Windowed mode on Windows and Linux has no native title bar (it is hidden),
+/// so the top bar carries minimize / maximize / close. macOS keeps its own
+/// traffic lights, and fullscreen needs none.
+@visibleForTesting
+bool showWindowControls({required bool fullScreen}) {
+  if (fullScreen) return false;
+  return defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux;
+}
+
+class _WindowControls extends StatefulWidget {
+  const _WindowControls();
+
+  @override
+  State<_WindowControls> createState() => _WindowControlsState();
+}
+
+class _WindowControlsState extends State<_WindowControls> {
+  bool _maximized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WindowService.isMaximized().then((v) {
+      if (mounted) setState(() => _maximized = v);
+    });
+  }
+
+  Future<void> _toggleMaximize() async {
+    final was = await WindowService.isMaximized();
+    if (was) {
+      await WindowService.unmaximize();
+    } else {
+      await WindowService.maximize();
+    }
+    if (mounted) setState(() => _maximized = !was);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.ax.colors;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AxIconButton(
+          key: const ValueKey('window-minimize'),
+          icon: Icons.minimize_rounded,
+          tooltip: 'Minimize',
+          onPressed: WindowService.minimize,
+        ),
+        AxIconButton(
+          key: const ValueKey('window-maximize'),
+          icon: _maximized ? Icons.filter_none_rounded : Icons.crop_square_rounded,
+          tooltip: _maximized ? 'Restore' : 'Maximize',
+          onPressed: _toggleMaximize,
+        ),
+        AxIconButton(
+          key: const ValueKey('window-close'),
+          icon: Icons.close_rounded,
+          tooltip: 'Close',
+          color: c.danger,
+          onPressed: WindowService.requestClose,
+        ),
+      ],
+    );
   }
 }
 
@@ -1275,7 +1350,7 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
       DeskMenuItem('switch_server', 'Switch Server…', Icons.dns_outlined, trailing: activeServer),
       if (isPaired) const DeskMenuItem('restart_server', 'Restart Server…', Icons.restart_alt_rounded),
       const DeskMenuItem.divider(),
-      const DeskMenuItem('restart_app', 'Restart App…', Icons.refresh_rounded),
+      const DeskMenuItem('restart_app', 'Reload interface…', Icons.refresh_rounded),
       DeskMenuItem('quit_app', 'Quit Archangel OS', Icons.power_settings_new_rounded, danger: true, trailing: isMac ? '⌘Q' : null),
     ]);
 
@@ -1330,15 +1405,19 @@ class _ArchangelSystemMenuState extends State<_ArchangelSystemMenu> {
   Future<void> _confirmRestartApp(BuildContext context) async {
     final ok = await showConfirmDialog(
       context,
-      title: 'Restart Archangel OS?',
+      title: 'Reload the interface?',
       message: 'This reloads the app and resets running desktop windows.',
-      confirmLabel: 'Restart',
+      confirmLabel: 'Reload',
     );
     if (!ok) return;
     _restartApp();
   }
 
+  /// Re-runs the app in the same isolate, so statics survive. Clear the ones
+  /// that point into the old widget tree first.
   void _restartApp() {
+    HotkeyService.resetCallbacks();
+    WindowService.onCloseRequested = null;
     if (!Platform.environment.containsKey('FLUTTER_TEST')) {
       runApp(const ArchangelApp());
     }

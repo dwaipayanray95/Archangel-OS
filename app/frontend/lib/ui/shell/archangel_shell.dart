@@ -131,15 +131,23 @@ class _ArchangelShellState extends State<ArchangelShell> {
     super.dispose();
   }
 
+  bool _quitDialogShowing = false;
+
   Future<void> _handleWindowClose() async {
-    if (!mounted) return;
-    final ok = await showConfirmDialog(
-      context,
-      title: 'Quit Archangel OS?',
-      message: 'Are you sure you want to exit the application?',
-      confirmLabel: 'Quit',
-      danger: true,
-    );
+    if (!mounted || _quitDialogShowing) return;
+    _quitDialogShowing = true;
+    final bool ok;
+    try {
+      ok = await showConfirmDialog(
+        context,
+        title: 'Quit Archangel OS?',
+        message: 'Are you sure you want to exit the application?',
+        confirmLabel: 'Quit',
+        danger: true,
+      );
+    } finally {
+      _quitDialogShowing = false;
+    }
     if (ok) {
       await WindowService.destroy();
     }

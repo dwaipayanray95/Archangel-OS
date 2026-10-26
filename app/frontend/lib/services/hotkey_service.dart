@@ -19,6 +19,13 @@ class HotkeyService {
   static VoidCallback? onQuickTerminal;
   static VoidCallback? onSwitchServer;
 
+  /// Drops the action callbacks (they point into a widget tree that is going away).
+  static void resetCallbacks() {
+    onSummon = null;
+    onQuickTerminal = null;
+    onSwitchServer = null;
+  }
+
   /// Registered hotkeys.
   static HotKey? _summonHotKey;
   static HotKey? _terminalHotKey;

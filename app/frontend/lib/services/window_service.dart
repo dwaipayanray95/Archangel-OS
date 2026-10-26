@@ -118,6 +118,27 @@ class WindowService {
     } catch (_) {}
   }
 
+  /// True when the native window is maximized.
+  static Future<bool> isMaximized() async {
+    if (!isDesktop) return false;
+    try {
+      return await windowManager.isMaximized();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Asks to close the window: goes through the Quit confirmation when the
+  /// shell is listening, otherwise quits.
+  static Future<void> requestClose() async {
+    final cb = onCloseRequested;
+    if (cb != null) {
+      cb();
+    } else {
+      await destroy();
+    }
+  }
+
   /// Quits and closes the native OS application completely.
   static Future<void> destroy() async {
     if (!isDesktop) {

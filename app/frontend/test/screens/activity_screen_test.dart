@@ -10,6 +10,7 @@ import 'package:archangel/services/archangeld_connection.dart';
 import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/ui/components/status_badge.dart';
 import 'package:archangel/ui/screens/activity/activity_logic.dart';
+import 'package:archangel/ui/screens/activity/activity_widgets.dart';
 import 'package:archangel/ui/theme.dart';
 
 class FakeMonitoring extends MonitoringService {
@@ -366,15 +367,17 @@ void main() {
     testWidgets('Stop dialog exact wording, Cancel does nothing, confirm calls killProcess', (tester) async {
       final mon = await pumpActivity(tester);
 
-      await tester.tap(find.byTooltip('More for dockerd'));
+      await tester.tap(find.byTooltip('More for php-fpm'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Stop'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Stop dockerd?'), findsOneWidget);
+      expect(find.text('Stop php-fpm?'), findsOneWidget);
       expect(
-        find.text("This asks it to close. Whatever it's doing stops, and apps that rely on it may stop working until it runs again."),
+        find.text(
+          "This asks it to close. Whatever it's doing stops, and apps that rely on it may stop working until it runs again. $kStopWarning",
+        ),
         findsOneWidget,
       );
 
@@ -384,7 +387,7 @@ void main() {
       expect(mon.kills, isEmpty);
 
       // Re-open and confirm Stop
-      await tester.tap(find.byTooltip('More for dockerd'));
+      await tester.tap(find.byTooltip('More for php-fpm'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Stop'));
       await tester.pumpAndSettle();
@@ -392,30 +395,75 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Stop'));
       await tester.pumpAndSettle();
 
+      expect(mon.kills, [(202, false)]);
+      expect(find.text('php-fpm stopped'), findsOneWidget);
+    });
+
+    testWidgets('Critical process (dockerd) needs its name typed before Stop', (tester) async {
+      final mon = await pumpActivity(tester);
+
+      await tester.tap(find.byTooltip('More for dockerd'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Stop'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Stopping this can cut you off from your server'), findsOneWidget);
+      expect(find.textContaining(kStopWarning), findsOneWidget);
+      FilledButton confirm() => tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Stop'));
+      expect(confirm().onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField).last, 'dockerd');
+      await tester.pumpAndSettle();
+      expect(confirm().onPressed, isNotNull);
+      await tester.tap(find.widgetWithText(FilledButton, 'Stop'));
+      await tester.pumpAndSettle();
       expect(mon.kills, [(101, false)]);
-      expect(find.text('dockerd stopped'), findsOneWidget);
+    });
+
+    testWidgets('Critical process Force stop stays blocked until the name matches', (tester) async {
+      final mon = await pumpActivity(tester);
+
+      await tester.tap(find.byTooltip('More for archangeld'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Force stop'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).last, 'archang');
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Force stop')).onPressed, isNull);
+      expect(mon.kills, isEmpty);
+    });
+
+    test('isCriticalProcess predicate', () {
+      expect(isCriticalProcess(1, 'init'), isTrue);
+      for (final n in ['systemd', 'sshd', 'sshd: ray@pts/0', 'archangeld', 'wg-quick', 'wireguard-go', 'dockerd', 'containerd', 'SSHD']) {
+        expect(isCriticalProcess(500, n), isTrue, reason: n);
+      }
+      for (final n in ['php-fpm', 'postgres', 'caddy', 'jellyfin', 'docker-proxy']) {
+        expect(isCriticalProcess(500, n), isFalse, reason: n);
+      }
     });
 
     testWidgets('Force stop dialog exact wording and danger action', (tester) async {
       final mon = await pumpActivity(tester);
 
-      await tester.tap(find.byTooltip('More for dockerd'));
+      await tester.tap(find.byTooltip('More for php-fpm'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Force stop'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Force stop dockerd?'), findsOneWidget);
+      expect(find.text('Force stop php-fpm?'), findsOneWidget);
       expect(
-        find.text("Use this only if Stop didn't work. It ends the program at once, so anything it hadn't saved is lost."),
+        find.text("Use this only if Stop didn't work. It ends the program at once, so anything it hadn't saved is lost. $kStopWarning"),
         findsOneWidget,
       );
 
       await tester.tap(find.widgetWithText(FilledButton, 'Force stop'));
       await tester.pumpAndSettle();
 
-      expect(mon.kills, [(101, true)]);
-      expect(find.text('dockerd stopped'), findsOneWidget);
+      expect(mon.kills, [(202, true)]);
+      expect(find.text('php-fpm stopped'), findsOneWidget);
     });
 
     testWidgets('Change priority dialog wording and Higher disabled when Admin mode is off', (tester) async {

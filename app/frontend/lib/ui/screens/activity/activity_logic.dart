@@ -166,3 +166,15 @@ List<LiveProcessInfo> filterAndSortPrograms(List<LiveProcessInfo> processes, {St
   }
   return filtered;
 }
+
+/// Programs that keep the server reachable. Stopping one can cut the person
+/// off from their own server, so the stop dialogs make them type its name.
+const List<String> kCriticalProcessNames = ['systemd', 'sshd', 'archangeld', 'wg-quick', 'wireguard', 'dockerd', 'containerd'];
+
+/// True for PID 1 and for programs whose name contains one of
+/// [kCriticalProcessNames] (case-insensitive, so `sshd: user@pts/0` counts).
+bool isCriticalProcess(int pid, String name) {
+  if (pid == 1) return true;
+  final n = name.toLowerCase();
+  return kCriticalProcessNames.any(n.contains);
+}
