@@ -51,7 +51,9 @@ A useful overview of this server. Cards, in order:
    (`(vx.y.z build)`, server guard status or "No server yet", and update readiness
    indicator), and actions:
    - **Updates**: opens the dedicated in-settings Updates subpage.
-   - **Changelog**: opens the release notes / changelog on GitHub.
+   - **Changelog**: opens the in-app Changelog dialog with latest release notes and GitHub release links.
+   - **License**: opens the in-app License dialog (The Awesome License v1 and open-source notices).
+   - **GitHub**: opens the official repository.
 2. **This server** (paired only): "A quick look at the server you are using."
    - Server name (mono) with the health sentence (`evaluateHealth`) and a
      health chip (Healthy / Needs attention / Offline / Connecting).
@@ -59,7 +61,11 @@ A useful overview of this server. Cards, in order:
    - Operating system in plain words ("Ubuntu 24.04").
    - Size ("4 CPU cores · 8 GB memory · 80 GB disk").
    - Until the server answers: "Details appear once your server answers."
-3. **Secure connection** (paired only): "Everything between this device and your
+3. **Storage & disk** (paired only): "Capacity and disk usage on your server."
+   - Visual segmented disk graphic: usage bar, headline (`<used> of <total> · <pct>% used`), health status badge (`Healthy`, `Getting full`, or `Critical`).
+   - Legend with used, free, total space, and live read/write I/O activity rate.
+   - Mount list with mount points, device paths, and per-mount usage figures.
+4. **Secure connection** (paired only): "Everything between this device and your
    server is encrypted."
    - Connection: the shell's words (`connectionText`) and a chip (Encrypted,
      Connecting…, Not answering, Not connected).
@@ -82,6 +88,7 @@ it automatically triggers a fresh check against GitHub releases.
   - Status chip ("Up to date" or "Update available — <v>").
   - If an update is available: **Update** button (running existing server/app update flow).
   - Result line in words ("You're up to date.", "An update is ready.", "Checking for updates…", or "No check yet. Press "Check now".") with "Last checked <date>" and the **Check now** button.
+  - Release notes card: when an update is available and GitHub provides release notes, shows the formatted release notes from the release's description.
   - Footnote: "Every update is checked before it installs, and rolls itself back if anything goes wrong."
 
 ## Servers

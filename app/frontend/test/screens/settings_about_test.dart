@@ -176,8 +176,27 @@ void main() {
       expect(find.text('10.10.0.7'), findsOneWidget);
       expect(find.text('Last checked 7s ago'), findsOneWidget);
       expect(find.text('(v${AppVersion.current} build ${AppVersion.build})'), findsOneWidget);
+      expect(find.text('Storage & disk'), findsOneWidget);
+      expect(find.text('20 GB used of 80 GB'), findsOneWidget);
       expect(find.text('Changelog'), findsOneWidget);
+      expect(find.text('License'), findsOneWidget);
+      expect(find.text('GitHub'), findsOneWidget);
       expect(find.text('Updates'), findsOneWidget);
+
+      // License dialog opens
+      await tester.tap(find.text('License'));
+      await _settle(tester);
+      expect(find.textContaining('The Awesome License v1'), findsOneWidget);
+      expect(find.text('Open-source notices'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await _settle(tester);
+
+      // Changelog dialog opens
+      await tester.tap(find.text('Changelog'));
+      await _settle(tester);
+      expect(find.text('View all releases on GitHub'), findsOneWidget);
+      await tester.tap(find.text('Close'));
+      await _settle(tester);
 
       await tester.tap(find.text('Updates'));
       await _settle(tester);

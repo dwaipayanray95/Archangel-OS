@@ -96,6 +96,14 @@ class UpdateCheckService extends ChangeNotifier {
   String? _releaseUrl;
   String? get releaseUrl => _releaseUrl;
 
+  /// The markdown/text release notes published with the latest release on GitHub.
+  String? _releaseNotes;
+  String? get releaseNotes => _releaseNotes;
+
+  /// The title or name of the latest release on GitHub (e.g. "Archangel OS 0.9.0").
+  String? _releaseName;
+  String? get releaseName => _releaseName;
+
   DateTime? _lastChecked;
   DateTime? get lastChecked => _lastChecked;
 
@@ -114,6 +122,8 @@ class UpdateCheckService extends ChangeNotifier {
       final m = data['manifest'];
       _manifest = UpdateManifest.fromJson(m is Map ? Map<String, dynamic>.from(m) : data);
       _releaseUrl = data['releaseUrl'] as String?;
+      _releaseNotes = data['releaseNotes'] as String?;
+      _releaseName = data['releaseName'] as String?;
       final checkedAt = data['checkedAt'] as String?;
       if (checkedAt != null) _lastChecked = DateTime.tryParse(checkedAt);
       notifyListeners();
@@ -157,11 +167,19 @@ class UpdateCheckService extends ChangeNotifier {
       final manifest = jsonDecode(manifestRes.body) as Map<String, dynamic>;
       _manifest = UpdateManifest.fromJson(manifest);
       _releaseUrl = release['html_url'] as String?;
+      _releaseNotes = release['body'] as String?;
+      _releaseName = release['name'] as String?;
       _lastChecked = DateTime.now();
 
       await _store.write(
         _kCacheKey,
-        jsonEncode({'manifest': manifest, 'releaseUrl': _releaseUrl, 'checkedAt': _lastChecked!.toIso8601String()}),
+        jsonEncode({
+          'manifest': manifest,
+          'releaseUrl': _releaseUrl,
+          'releaseNotes': _releaseNotes,
+          'releaseName': _releaseName,
+          'checkedAt': _lastChecked!.toIso8601String(),
+        }),
       );
     } catch (e) {
       debugPrint('Update check failed: $e');

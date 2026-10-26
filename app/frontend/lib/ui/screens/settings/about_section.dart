@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../models/system_metrics.dart';
 import '../../../services/app_version.dart';
 import '../../../services/archangeld_connection.dart';
 import '../../../services/monitoring_service.dart';
@@ -12,6 +13,7 @@ import '../../../services/wireguard_controller.dart';
 import '../../../widgets/backend_update_dialog.dart';
 import '../../shell/connection_state.dart';
 import '../../ui.dart';
+import '../activity/activity_logic.dart' show formatBytes;
 import '../home/home_logic.dart';
 import 'diagnostics_report.dart';
 import 'settings_parts.dart';
@@ -126,10 +128,21 @@ class _ArchangelOsSectionState extends State<ArchangelOsSection> {
                     label: 'Changelog',
                     icon: Icons.article_outlined,
                     small: true,
-                    onPressed: () => launchUrl(
-                      Uri.parse(updates.releaseUrl ?? 'https://github.com/$kGithubRepoSlug/releases'),
-                      mode: LaunchMode.externalApplication,
-                    ),
+                    onPressed: () => _showChangelogDialog(context, updates),
+                  ),
+                  AxButton.ghost(
+                    key: const ValueKey('about-license-btn'),
+                    label: 'License',
+                    icon: Icons.policy_outlined,
+                    small: true,
+                    onPressed: () => _showLicenseDialog(context),
+                  ),
+                  AxButton.ghost(
+                    key: const ValueKey('about-github-btn'),
+                    label: 'GitHub',
+                    icon: Icons.open_in_new,
+                    small: true,
+                    onPressed: () => launchUrl(Uri.parse('https://github.com/$kGithubRepoSlug'), mode: LaunchMode.externalApplication),
                   ),
                 ],
               ),
@@ -154,6 +167,15 @@ class _ArchangelOsSectionState extends State<ArchangelOsSection> {
                 AxListTile(title: 'Size', subtitle: capacitySummary(metrics)),
               ] else
                 const SettingsMessage('Details appear once your server answers.'),
+            ],
+          ),
+        if (paired && metrics != null)
+          SettingsCard(
+            title: 'Storage & disk',
+            intro: 'Capacity and disk usage on your server.',
+            children: [
+              _DiskGraphic(disk: metrics.disk),
+              for (final m in metrics.disk.mounts) _MountRow(mount: m),
             ],
           ),
         if (paired)
@@ -336,6 +358,8 @@ class _UpdatesPageState extends State<UpdatesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
     final updates = context.watch<UpdateCheckService>();
     final backend = context.watch<ArchangeldConnection>();
     final serverVersion = backend.backendVersion;
@@ -401,6 +425,25 @@ class _UpdatesPageState extends State<UpdatesPage> {
             ),
           ],
         ),
+        if (available && updates.releaseNotes != null && updates.releaseNotes!.trim().isNotEmpty)
+          SettingsCard(
+            title: updates.releaseName ?? 'What\'s new in v$latest',
+            intro: 'Release notes from GitHub for this version.',
+            children: [
+              Padding(
+                padding: EdgeInsets.all(ax.space.md),
+                child: Container(
+                  padding: EdgeInsets.all(ax.space.md),
+                  decoration: BoxDecoration(
+                    color: c.surfaceAlt,
+                    borderRadius: BorderRadius.circular(ax.radii.sm),
+                    border: Border.all(color: c.border),
+                  ),
+                  child: SelectableText(updates.releaseNotes!.trim(), style: ax.typo.body.copyWith(color: c.text, height: 1.45)),
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -408,3 +451,245 @@ class _UpdatesPageState extends State<UpdatesPage> {
 
 /// Kept for compatibility.
 typedef UpdatesSection = UpdatesPage;
+
+/// Visual graphic bar and statistics for server storage & disk usage.
+class _DiskGraphic extends StatelessWidget {
+  const _DiskGraphic({required this.disk});
+
+  final DiskMetrics disk;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final pct = disk.usagePercent.clamp(0.0, 100.0);
+    final isWarn = pct >= 80;
+    final isCrit = pct >= 90;
+    final barColor = isCrit ? c.danger : (isWarn ? c.warning : c.accent);
+    final badge = isCrit
+        ? StatusBadge.error('Critical (${pct.round()}%)')
+        : (isWarn ? StatusBadge.warning('Getting full (${pct.round()}%)') : StatusBadge.ok('${pct.round()}% used'));
+
+    final totalStr = formatBytes(disk.totalBytes);
+    final usedStr = formatBytes(disk.usedBytes);
+    final freeBytes = disk.freeBytes > 0 ? disk.freeBytes : (disk.totalBytes > disk.usedBytes ? disk.totalBytes - disk.usedBytes : 0);
+    final freeStr = formatBytes(freeBytes);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('$usedStr used of $totalStr', style: ax.typo.label.copyWith(color: c.text)),
+              ),
+              badge,
+            ],
+          ),
+          SizedBox(height: ax.space.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(ax.radii.pill),
+            child: Container(
+              height: 12,
+              color: c.surfaceHigh,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: (pct / 100.0).clamp(0.02, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(color: barColor, borderRadius: BorderRadius.circular(ax.radii.pill)),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: ax.space.sm),
+          Wrap(
+            spacing: ax.space.md,
+            runSpacing: ax.space.xs,
+            children: [
+              Text('Free: $freeStr', style: ax.typo.caption.copyWith(color: c.textMuted)),
+              Text('Total: $totalStr', style: ax.typo.caption.copyWith(color: c.textMuted)),
+              if (disk.totalMbPerSec > 0.05)
+                Text(
+                  'Activity: ${disk.readMbPerSec.toStringAsFixed(1)} MB/s read · ${disk.writeMbPerSec.toStringAsFixed(1)} MB/s write',
+                  style: ax.typo.caption.copyWith(color: c.textMuted),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MountRow extends StatelessWidget {
+  const _MountRow({required this.mount});
+
+  final MountMetric mount;
+
+  @override
+  Widget build(BuildContext context) {
+    final ax = context.ax;
+    final c = ax.colors;
+    final pct = mount.usagePercent.clamp(0.0, 100.0);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: ax.space.lg, vertical: ax.space.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(mount.mountPoint, style: ax.typo.mono.copyWith(color: c.text)),
+                if (mount.device.isNotEmpty) Text(mount.device, style: ax.typo.caption.copyWith(color: c.textMuted)),
+              ],
+            ),
+          ),
+          SizedBox(width: ax.space.sm),
+          Text(
+            '${formatBytes(mount.usedBytes)} / ${formatBytes(mount.totalBytes)} (${pct.round()}%)',
+            style: ax.typo.caption.copyWith(color: c.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showLicenseDialog(BuildContext context) {
+  final ax = context.ax;
+  final c = ax.colors;
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: c.surface,
+      scrollable: true,
+      title: Row(
+        children: [
+          Icon(Icons.policy_outlined, size: 22, color: c.accent),
+          SizedBox(width: ax.space.sm),
+          Text('License', style: ax.typo.title.copyWith(color: c.text)),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: EdgeInsets.all(ax.space.md),
+              decoration: BoxDecoration(
+                color: c.surfaceAlt,
+                borderRadius: BorderRadius.circular(ax.radii.sm),
+                border: Border.all(color: c.border),
+              ),
+              child: SelectableText(_kLicenseText, style: ax.typo.caption.copyWith(color: c.text, height: 1.45)),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        AxButton.secondary(
+          label: 'Open-source notices',
+          icon: Icons.description_outlined,
+          small: true,
+          onPressed: () => showLicensePage(context: context, applicationName: 'Archangel OS', applicationVersion: AppVersion.full),
+        ),
+        AxButton.ghost(label: 'Close', small: true, onPressed: () => Navigator.of(ctx).pop()),
+      ],
+    ),
+  );
+}
+
+void _showChangelogDialog(BuildContext context, UpdateCheckService updates) {
+  final ax = context.ax;
+  final c = ax.colors;
+  final notes = updates.releaseNotes?.trim();
+  final hasNotes = notes != null && notes.isNotEmpty;
+
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: c.surface,
+      scrollable: true,
+      title: Row(
+        children: [
+          Icon(Icons.article_outlined, size: 22, color: c.accent),
+          SizedBox(width: ax.space.sm),
+          Text('Changelog', style: ax.typo.title.copyWith(color: c.text)),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 580),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Archangel OS ${AppVersion.full}', style: ax.typo.label.copyWith(color: c.text)),
+            SizedBox(height: ax.space.xs),
+            Text(
+              hasNotes
+                  ? (updates.releaseName ?? 'Latest release notes:')
+                  : 'For a complete release history and detailed commit logs, visit the official releases on GitHub.',
+              style: ax.typo.body.copyWith(color: c.textMuted),
+            ),
+            if (hasNotes) ...[
+              SizedBox(height: ax.space.sm),
+              Container(
+                padding: EdgeInsets.all(ax.space.md),
+                decoration: BoxDecoration(
+                  color: c.surfaceAlt,
+                  borderRadius: BorderRadius.circular(ax.radii.sm),
+                  border: Border.all(color: c.border),
+                ),
+                child: SelectableText(notes, style: ax.typo.caption.copyWith(color: c.text, height: 1.45)),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        AxButton.secondary(
+          label: 'View all releases on GitHub',
+          icon: Icons.open_in_new,
+          small: true,
+          onPressed: () => launchUrl(
+            Uri.parse(updates.releaseUrl ?? 'https://github.com/$kGithubRepoSlug/releases'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+        AxButton.ghost(label: 'Close', small: true, onPressed: () => Navigator.of(ctx).pop()),
+      ],
+    ),
+  );
+}
+
+const _kLicenseText = '''The Awesome License v1 (TALv1)
+Copyright (c) 2026 dwaipayanray95
+Contact: https://github.com/dwaipayanray95
+
+THE VIBE (PREAMBLE)
+This code is meant to be shared, learned from, and built upon. You are free to use it to create amazing things. However, if you are turning a profit from my hard work, it is only fair that we share the success or keep the open-source ecosystem thriving.
+
+THE RULES (PERMISSIONS & CONDITIONS)
+1. Free for Open & Non-Profit Use:
+   You may use, copy, modify, merge, publish, and distribute the Software freely for personal, educational, or open-source projects where no revenue is generated.
+
+2. The Commercial Catch:
+   If you use this Software in a revenue-generating project or within a for-profit entity, you must choose ONE of:
+   • Option A (Pay It Forward): Release the entire source code of your project publicly under an OSI-approved open source license.
+   • Option B (Pay the Piper): Contact the author to negotiate a commercial license, revenue cut, or flat fee before deployment.
+
+3. Credit Where It's Due (Attribution):
+   You must provide clear, public credit to the original author (for example, in an "About" page, "Credits" screen, or README).
+
+4. No Trademark Rights:
+   No trademark, branding, or endorsement rights are granted beyond plain attribution.
+
+5. Termination:
+   Rights terminate automatically upon failure to comply with commercial conditions.
+
+THE BEERWARE CLAUSE
+As long as you retain this notice, you can do whatever you want with this stuff, subject strictly to the rules above. If you like my work and use my work, you owe me a beer whenever we meet.''';

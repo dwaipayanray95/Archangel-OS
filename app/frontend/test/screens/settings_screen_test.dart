@@ -63,14 +63,17 @@ class _Fake implements SshTransport {
 /// An UpdateCheckService that already "knows" the newest version, without
 /// any network or storage.
 class _KnownUpdates extends UpdateCheckService {
-  _KnownUpdates(this.latest);
+  _KnownUpdates(this.latest, {this.notes});
   final String latest;
+  final String? notes;
   @override
   String? get latestVersion => latest;
   @override
   String? get releaseTag => 'v$latest';
   @override
   String? get releaseUrl => 'https://example.com/release';
+  @override
+  String? get releaseNotes => notes;
   @override
   bool get appBehind => isUpdateAvailable(current: AppVersion.current, latest: latest);
   @override
@@ -634,6 +637,16 @@ void main() {
       expect(find.text('Update'), findsOneWidget);
       expect(find.text('Up to date'), findsNothing);
       expect(find.text('App $current · Server 99.0.0'), findsOneWidget);
+    });
+
+    testWidgets('app behind: shows release notes when available from GitHub', (tester) async {
+      await _pumpSettings(tester, updates: _KnownUpdates('99.0.0', notes: 'Major redesign and security upgrades included.'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+      await _open(tester, SettingsSectionId.about);
+      await tester.tap(find.byKey(const ValueKey('about-updates-btn')));
+      await _settle(tester);
+
+      expect(find.text('Major redesign and security upgrades included.'), findsOneWidget);
     });
 
     testWidgets('server behind: Update opens the server update dialog', (tester) async {
