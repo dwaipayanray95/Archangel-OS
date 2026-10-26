@@ -608,6 +608,8 @@ void main() {
       await _pumpSettings(tester, paired: paired, serverVersion: serverVersion, updates: _KnownUpdates(latest));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await _open(tester, SettingsSectionId.about);
+      await tester.tap(find.byKey(const ValueKey('about-updates-btn')));
+      await _settle(tester);
     }
 
     testWidgets('one row with the one version, Check now and the footnote', (tester) async {

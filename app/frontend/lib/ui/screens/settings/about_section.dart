@@ -21,22 +21,42 @@ import 'settings_parts.dart';
 const _kInterfaceName = 'archangel';
 
 /// About: an overview of this server (health, size, secure connection), the
-/// Updates card, and the technical values tucked away behind a toggle.
-class ArchangelOsSection extends StatelessWidget {
+/// Archangel OS banner with build number, Changelog and Updates buttons, and
+/// the technical values tucked away behind a toggle.
+class ArchangelOsSection extends StatefulWidget {
   const ArchangelOsSection({super.key});
 
   @override
+  State<ArchangelOsSection> createState() => _ArchangelOsSectionState();
+}
+
+class _ArchangelOsSectionState extends State<ArchangelOsSection> {
+  bool _showUpdatesPage = false;
+
+  @override
   Widget build(BuildContext context) {
+    if (_showUpdatesPage) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) setState(() => _showUpdatesPage = false);
+        },
+        child: UpdatesPage(onBack: () => setState(() => _showUpdatesPage = false)),
+      );
+    }
+
     final ax = context.ax;
     final c = ax.colors;
     final backend = context.watch<ArchangeldConnection>();
     final registry = context.watch<ServerRegistry>();
     final monitoring = context.watch<MonitoringService>();
     final wireguard = context.watch<WireGuardController>();
+    final updates = context.watch<UpdateCheckService>();
 
     final metrics = monitoring.metrics;
     final paired = backend.isPaired;
     final serverName = registry.active?.name;
+    final updateAvailable = updates.updateAvailable(serverVersion: backend.backendVersion);
     final phase = deriveConnectionPhase(
       paired: paired,
       tunnel: wireguard.status,
@@ -65,21 +85,52 @@ class ArchangelOsSection extends StatelessWidget {
     return SettingsStack(
       children: [
         AxCard(
-          padding: EdgeInsets.symmetric(horizontal: ax.space.xl, vertical: ax.space.lg),
+          padding: EdgeInsets.symmetric(horizontal: ax.space.xl, vertical: ax.space.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AxWordmark(size: 32),
+              const AxWordmark(size: 34),
               SizedBox(height: ax.space.xs),
-              Text('Your private cloud, guarded 24/7.', style: ax.typo.caption.copyWith(color: c.textMuted)),
+              Text('Your private cloud, guarded 24/7.', style: ax.typo.body.copyWith(color: c.textMuted)),
               SizedBox(height: ax.space.md),
               Wrap(
                 spacing: ax.space.sm,
                 runSpacing: ax.space.xs,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  StatusBadge.neutral('Version ${AppVersion.current}', icon: Icons.tag_rounded),
-                  if (!paired) const StatusBadge.neutral('No server yet', icon: Icons.cloud_off_outlined),
+                  StatusBadge.neutral('(v${AppVersion.current} build ${AppVersion.build})', icon: Icons.tag_rounded),
+                  if (paired)
+                    const StatusBadge.ok('Guarded 24/7', icon: Icons.verified_user_outlined)
+                  else
+                    const StatusBadge.neutral('No server yet', icon: Icons.cloud_off_outlined),
+                  if (updateAvailable && updates.latestVersion != null)
+                    StatusBadge.info('Update ready: v${updates.latestVersion}', icon: Icons.download_rounded),
+                ],
+              ),
+              SizedBox(height: ax.space.lg),
+              Wrap(
+                spacing: ax.space.sm,
+                runSpacing: ax.space.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  AxButton(
+                    key: const ValueKey('about-updates-btn'),
+                    label: 'Updates',
+                    icon: Icons.sync_rounded,
+                    small: true,
+                    kind: updateAvailable ? AxButtonKind.primary : AxButtonKind.secondary,
+                    onPressed: () => setState(() => _showUpdatesPage = true),
+                  ),
+                  AxButton.ghost(
+                    key: const ValueKey('about-changelog-btn'),
+                    label: 'Changelog',
+                    icon: Icons.article_outlined,
+                    small: true,
+                    onPressed: () => launchUrl(
+                      Uri.parse(updates.releaseUrl ?? 'https://github.com/$kGithubRepoSlug/releases'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -141,7 +192,6 @@ class ArchangelOsSection extends StatelessWidget {
               ),
             ],
           ),
-        const UpdatesSection(),
       ],
     );
   }
@@ -239,13 +289,32 @@ class _TechRow extends StatelessWidget {
   }
 }
 
-/// The one Archangel OS version, and checking for a newer one.
+/// The one Archangel OS version, and checking for a newer one on a dedicated
+/// Updates page opened from the Archangel banner card.
 ///
+/// Automatically checks for fresh updates from GitHub upon opening.
 /// There is a single version for the app and the server program. One
 /// "Update" button does whatever is needed: update the server first when it
 /// is behind, then open the download for the app when that is behind too.
-class UpdatesSection extends StatelessWidget {
-  const UpdatesSection({super.key});
+class UpdatesPage extends StatefulWidget {
+  const UpdatesPage({super.key, this.onBack});
+
+  final VoidCallback? onBack;
+
+  @override
+  State<UpdatesPage> createState() => _UpdatesPageState();
+}
+
+class _UpdatesPageState extends State<UpdatesPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<UpdateCheckService>().checkForUpdates(force: true);
+      }
+    });
+  }
 
   Future<void> _update(BuildContext context) async {
     final updates = context.read<UpdateCheckService>();
@@ -293,33 +362,42 @@ class UpdatesSection extends StatelessWidget {
       result = "You're up to date.";
     }
 
-    return SettingsCard(
-      title: 'Updates',
-      intro: 'The app and your server share one version.',
-      footnote: 'Every update is checked before it installs, and rolls itself back if anything goes wrong.',
+    return SettingsStack(
       children: [
-        AxListTile(
-          leading: const AxTileIcon(Icons.download_outlined),
-          title: 'Archangel OS ${AppVersion.full}',
-          subtitle: differ,
-          controls: [
-            if (!available)
-              const StatusBadge.ok('Up to date', icon: Icons.check)
-            else ...[
-              StatusBadge.info('Update available — $latest'),
-              AxButton(label: 'Update', small: true, onPressed: () => _update(context)),
-            ],
-          ],
-        ),
-        AxListTile(
-          title: result,
-          subtitle: checked == null ? null : 'Last checked ${formatSettingsDate(checked)}',
-          controls: [
-            AxButton.secondary(
-              label: 'Check now',
-              small: true,
-              loading: updates.checking,
-              onPressed: () => updates.checkForUpdates(force: true),
+        if (widget.onBack != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AxButton.ghost(label: 'Back to About', icon: Icons.chevron_left, onPressed: widget.onBack),
+          ),
+        SettingsCard(
+          title: 'Updates',
+          intro: 'The app and your server share one version.',
+          footnote: 'Every update is checked before it installs, and rolls itself back if anything goes wrong.',
+          children: [
+            AxListTile(
+              leading: const AxTileIcon(Icons.download_outlined),
+              title: 'Archangel OS ${AppVersion.full}',
+              subtitle: differ,
+              controls: [
+                if (!available)
+                  const StatusBadge.ok('Up to date', icon: Icons.check)
+                else ...[
+                  StatusBadge.info('Update available — $latest'),
+                  AxButton(label: 'Update', small: true, onPressed: () => _update(context)),
+                ],
+              ],
+            ),
+            AxListTile(
+              title: result,
+              subtitle: checked == null ? null : 'Last checked ${formatSettingsDate(checked)}',
+              controls: [
+                AxButton.secondary(
+                  label: 'Check now',
+                  small: true,
+                  loading: updates.checking,
+                  onPressed: () => updates.checkForUpdates(force: true),
+                ),
+              ],
             ),
           ],
         ),
@@ -327,3 +405,6 @@ class UpdatesSection extends StatelessWidget {
     );
   }
 }
+
+/// Kept for compatibility.
+typedef UpdatesSection = UpdatesPage;

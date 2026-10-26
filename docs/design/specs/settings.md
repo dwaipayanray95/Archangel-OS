@@ -46,8 +46,12 @@ Hide Devices and Admin mode while no server is paired.
 
 A useful overview of this server. Cards, in order:
 
-1. **Header**: the wordmark, "Your private cloud, guarded 24/7.", an
-   `App <version>` chip (and "No server yet" when unpaired).
+1. **Header**: taller Archangel OS banner card featuring the wordmark (size 34),
+   tagline "Your private cloud, guarded 24/7.", status chips
+   (`(vx.y.z build)`, server guard status or "No server yet", and update readiness
+   indicator), and actions:
+   - **Updates**: opens the dedicated in-settings Updates subpage.
+   - **Changelog**: opens the release notes / changelog on GitHub.
 2. **This server** (paired only): "A quick look at the server you are using."
    - Server name (mono) with the health sentence (`evaluateHealth`) and a
      health chip (Healthy / Needs attention / Offline / Connecting).
@@ -66,17 +70,19 @@ A useful overview of this server. Cards, in order:
      version, connection endpoint, tunnel address, allowed addresses,
      interface name and both ports. Each value has a copy button (tooltip
      "Copy <label>"). Empty values are left out. The private key is never shown.
-4. **Updates**: "Keep the app and your server on the latest version."
-   - Archangel OS app: "Version x", chip "Up to date", or "<v> ready" and
-     **Download**.
-   - Server program (paired only): "Version x", "Up to date", or "<v> ready"
-     and **Update** (the existing update dialog). Version unknown: "Can't check
-     right now" and a neutral "Not answering" chip.
-   - A result line in words ("You're up to date.", "An update is ready.",
-     "Checking for updates…", or "No check yet. Press "Check now".") with
-     "Last checked <date>" and the **Check now** button.
-   - Footnote: "Every update is checked before it installs, and rolls itself
-     back if anything goes wrong."
+
+### Updates (subpage inside Settings)
+
+Opened from the **Updates** button in the Archangel OS header card. Upon opening,
+it automatically triggers a fresh check against GitHub releases.
+
+- Back button: **Back to About** returns to the main About view.
+- Card "Updates": "The app and your server share one version."
+  - Archangel OS headline row (`Archangel OS <version> (build <n>)`, with server version diff when they differ).
+  - Status chip ("Up to date" or "Update available — <v>").
+  - If an update is available: **Update** button (running existing server/app update flow).
+  - Result line in words ("You're up to date.", "An update is ready.", "Checking for updates…", or "No check yet. Press "Check now".") with "Last checked <date>" and the **Check now** button.
+  - Footnote: "Every update is checked before it installs, and rolls itself back if anything goes wrong."
 
 ## Servers
 
