@@ -24,7 +24,7 @@ You need:
 | Tool | Version |
 |---|---|
 | Go | 1.24 (`go.mod` says 1.24.7) |
-| Flutter | 3.29.3 (stable). This is what CI uses. |
+| Flutter | 3.47.8 (stable). This is what CI uses. |
 | `shellcheck` | optional, for script changes |
 
 Then:
@@ -70,7 +70,7 @@ flutter test
 |---|---|
 | `backend` | `go vet ./...`, `go test ./...`, `gofmt -l .` is empty |
 | `scripts` | Bundled setup assets match `infra/scripts` (`scripts/sync_setup_assets.sh --check`), plus `shellcheck` (warnings only, does not fail the build) |
-| `frontend` | `flutter pub get`, `flutter analyze --no-fatal-infos`, `flutter test` (Flutter 3.29.3) |
+| `frontend` | `flutter pub get`, `flutter analyze --no-fatal-infos`, `flutter test` (Flutter 3.47.8) |
 
 ## Setup scripts: one source
 

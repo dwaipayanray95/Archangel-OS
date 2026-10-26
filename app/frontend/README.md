@@ -43,7 +43,7 @@ Switching servers disconnects the current tunnel, brings up the other server's t
 
 ## Run it
 
-You need Flutter 3.29.3 (what CI uses).
+You need Flutter 3.47.8 (what CI uses).
 
 ```bash
 cd app/frontend
