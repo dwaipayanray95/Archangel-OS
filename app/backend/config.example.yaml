@@ -36,6 +36,10 @@ public_endpoint: ""
 # rather than defaulting to allowing the whole filesystem. e.g. "/home/ubuntu".
 files_root: ""
 
+# Largest single file the Files tab may upload, in bytes. 0 or unset means
+# the default: 2147483648 (2 GiB).
+upload_max_bytes: 0
+
 # Unix socket of the tmux server that hosts the Terminal tab's persistent
 # shells. The tmux server runs under the archangel user's systemd user
 # manager (outside archangel.service's sandbox, memory cap and restarts),

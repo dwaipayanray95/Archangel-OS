@@ -1,7 +1,47 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../../services/files_service.dart';
 import '../../ui.dart';
+
+/// Opens the system picker (several files allowed). Files are streamed from
+/// the picked file when uploading, never read into memory here.
+Future<List<UploadFileItem>> pickFilesToUpload() async {
+  final picked = await openFiles();
+  final items = <UploadFileItem>[];
+  for (final f in picked) {
+    items.add(UploadFileItem(name: f.name, sizeBytes: await f.length(), openRead: f.openRead));
+  }
+  return items;
+}
+
+/// Asks "Replace [name]?" with Replace / Skip / Keep both. Null if dismissed.
+Future<UploadConflictChoice?> showUploadConflictDialog(BuildContext context, String name) {
+  return showDialog<UploadConflictChoice>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      final ax = context.ax;
+      return AlertDialog(
+        scrollable: true,
+        title: Text('Replace $name?', style: ax.typo.title.copyWith(color: ax.colors.text)),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Text(
+            'A file with that name is already in this folder. Replace it, skip this one, or keep both.',
+            style: ax.typo.body.copyWith(color: ax.colors.textMuted),
+          ),
+        ),
+        actionsOverflowButtonSpacing: ax.space.sm,
+        actions: [
+          AxButton.ghost(label: 'Skip', onPressed: () => Navigator.of(context).pop(UploadConflictChoice.skip)),
+          AxButton.ghost(label: 'Keep both', onPressed: () => Navigator.of(context).pop(UploadConflictChoice.keepBoth)),
+          AxButton(label: 'Replace', onPressed: () => Navigator.of(context).pop(UploadConflictChoice.replace)),
+        ],
+      );
+    },
+  );
+}
 
 /// Progress card shown while files are uploading into a folder.
 class UploadProgressCard extends StatelessWidget {
@@ -12,6 +52,7 @@ class UploadProgressCard extends StatelessWidget {
     required this.onCancel,
     this.errorMessage,
     this.onRetry,
+    this.onDismiss,
   });
 
   final String folderName;
@@ -19,6 +60,7 @@ class UploadProgressCard extends StatelessWidget {
   final VoidCallback onCancel;
   final String? errorMessage;
   final VoidCallback? onRetry;
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +88,13 @@ class UploadProgressCard extends StatelessWidget {
             Text(errorMessage!, style: ax.typo.caption.copyWith(color: c.danger)),
             if (onRetry != null) ...[
               SizedBox(height: ax.space.sm),
-              Align(alignment: Alignment.centerLeft, child: AxButton(label: 'Try again', small: true, onPressed: onRetry)),
+              Wrap(
+                spacing: ax.space.sm,
+                children: [
+                  AxButton(label: 'Try again', small: true, onPressed: onRetry),
+                  if (onDismiss != null) AxButton.ghost(label: 'Dismiss', small: true, onPressed: onDismiss),
+                ],
+              ),
             ],
           ] else ...[
             ClipRRect(

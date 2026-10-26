@@ -297,6 +297,17 @@ class ArchangeldConnection extends ChangeNotifier {
     return Uri.parse('http://$_host/api/v1/files/download').replace(queryParameters: {'path': path});
   }
 
+  /// `http://<host>/api/v1/files/upload?dir=...&name=...[&overwrite=true]`
+  /// (POST, raw file bytes as the body).
+  Uri filesUploadHttpUri(String dir, String name, {bool overwrite = false}) {
+    if (!isPaired) {
+      throw StateError('Not paired with a backend');
+    }
+    return Uri.parse(
+      'http://$_host/api/v1/files/upload',
+    ).replace(queryParameters: {'dir': dir, 'name': name, if (overwrite) 'overwrite': 'true'});
+  }
+
   /// `http://<host>/api/v1/docker/containers`
   Uri dockerContainersHttpUri() {
     if (!isPaired) {

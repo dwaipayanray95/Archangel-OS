@@ -18,7 +18,11 @@ class FilesWorkspace extends StatefulWidget {
     required this.onBackToRoot,
     this.sort = FilesSortChoice.name,
     this.onSortChanged,
+    this.pickFiles,
   });
+
+  /// Opens the file picker; defaults to [pickFilesToUpload]. A test seam.
+  final Future<List<UploadFileItem>> Function()? pickFiles;
 
   final FilesService files;
   final void Function(String dir) onOpenTerminal;
@@ -36,9 +40,13 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
   late FilesSortChoice _sort;
   FileEntryModel? _selectedFile;
 
-  // Upload progress simulation/tracking
+  // Upload tracking: the card shows while [_uploadProgress] is set.
   UploadProgress? _uploadProgress;
   String? _uploadError;
+  UploadCancelToken? _uploadCancel; // set only while a request is running
+  String? _uploadFolder;
+  List<UploadFileItem> _uploadQueue = const [];
+  int _uploadDone = 0; // files of [_uploadQueue] already uploaded or skipped
 
   @override
   void initState() {
@@ -56,6 +64,7 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
 
   @override
   void dispose() {
+    _uploadCancel?.cancel();
     _filterController.dispose();
     super.dispose();
   }
@@ -80,45 +89,84 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
   }
 
   Future<void> _handleUpload(String currentFolder) async {
-    // Ray adds the upload endpoint to backend. When not supported yet, show snackbar.
-    if (!widget.files.supportsUpload) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload is not supported yet')));
+    if (!widget.files.supportsUpload) return; // the buttons are hidden then
+    if (_uploadCancel != null) return; // one upload at a time
+
+    final List<UploadFileItem> picked;
+    try {
+      picked = await (widget.pickFiles ?? pickFilesToUpload)();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Couldn't open the file picker. Try again.")));
       return;
     }
+    if (!mounted || picked.isEmpty) return;
+    await _runUpload(currentFolder, picked);
+  }
 
-    // Simulate / invoke upload for selected files
-    final dummyFiles = [const UploadFileItem(name: 'upload1.txt', sizeBytes: 1024)];
+  /// Uploads [queue] (from index [from]) into [folder], showing the progress
+  /// card. A failure keeps the card with "Try again", which resumes after the
+  /// files that are already done. The service reloads the listing.
+  Future<void> _runUpload(String folder, List<UploadFileItem> queue, {int from = 0}) async {
+    if (_uploadCancel != null || from >= queue.length) return;
+    final token = UploadCancelToken();
+    final work = queue.sublist(from);
     setState(() {
+      _uploadCancel = token;
+      _uploadFolder = folder;
+      _uploadQueue = queue;
+      _uploadDone = from;
       _uploadError = null;
       _uploadProgress = UploadProgress(
         fileIndex: 0,
-        totalFiles: dummyFiles.length,
-        currentFileName: dummyFiles.first.name,
+        totalFiles: work.length,
+        currentFileName: work.first.name,
         bytesSent: 0,
-        totalBytes: 1024,
+        totalBytes: work.first.sizeBytes,
       );
     });
 
     final res = await widget.files.upload(
-      currentFolder,
-      dummyFiles,
+      folder,
+      work,
+      cancel: token,
       onProgress: (p) {
         if (mounted) setState(() => _uploadProgress = p);
+      },
+      onConflict: (name) async {
+        if (!mounted) return UploadConflictChoice.skip;
+        return await showUploadConflictDialog(context, name) ?? UploadConflictChoice.skip;
       },
     );
 
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _uploadCancel = null;
+      _uploadDone = from + res.processedCount;
+    });
     if (res.ok) {
       setState(() => _uploadProgress = null);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Uploaded ${res.uploadedCount} ${res.uploadedCount == 1 ? 'file' : 'files'}')));
-      widget.files.loadDirectory(currentFolder, forceRefresh: true);
+      final n = res.uploadedCount;
+      final s = res.skippedCount;
+      final text = n == 0 ? 'Nothing was uploaded' : 'Uploaded $n ${n == 1 ? 'file' : 'files'}${s > 0 ? ' ($s skipped)' : ''}';
+      messenger.showSnackBar(SnackBar(content: Text(text)));
+    } else if (res.cancelled) {
+      setState(() => _uploadProgress = null);
+      messenger.showSnackBar(
+        SnackBar(content: Text(res.uploadedCount > 0 ? 'Upload cancelled. ${res.uploadedCount} uploaded.' : 'Upload cancelled')),
+      );
     } else {
-      setState(() {
-        _uploadError = res.error ?? 'Upload failed';
-      });
+      setState(() => _uploadError = res.error ?? 'Upload failed');
     }
+  }
+
+  static String _folderNameOf(String path, String rootPath) {
+    final clean = path.replaceFirst(RegExp(r'/+$'), '');
+    final i = clean.lastIndexOf('/');
+    final name = i >= 0 ? clean.substring(i + 1) : clean;
+    if (name.isNotEmpty) return name;
+    return rootPath.isEmpty ? '/' : rootPath;
   }
 
   Future<void> _handleDownloadFile(FileEntryModel entry) async {
@@ -185,8 +233,10 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
                 tooltip: 'Open terminal here',
                 onPressed: () => widget.onOpenTerminal(effectivePath),
               ),
-              SizedBox(width: ax.space.xs),
-              AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
+              if (files.supportsUpload) ...[
+                SizedBox(width: ax.space.xs),
+                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
+              ],
             ],
           ),
           SizedBox(height: ax.space.md),
@@ -198,11 +248,12 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           // Upload card if uploading
           if (_uploadProgress != null) ...[
             UploadProgressCard(
-              folderName: parentBaseNameOf(effectivePath, rootPath: rootPath),
+              folderName: _folderNameOf(_uploadFolder ?? effectivePath, rootPath),
               progress: _uploadProgress!,
               errorMessage: _uploadError,
-              onCancel: () => setState(() => _uploadProgress = null),
-              onRetry: () => _handleUpload(effectivePath),
+              onCancel: () => _uploadCancel?.cancel(),
+              onRetry: () => _runUpload(_uploadFolder ?? effectivePath, _uploadQueue, from: _uploadDone),
+              onDismiss: () => setState(() => _uploadProgress = null),
             ),
             SizedBox(height: ax.space.md),
           ],
@@ -297,8 +348,10 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
                 tooltip: 'Open terminal here',
                 onPressed: () => widget.onOpenTerminal(effectivePath),
               ),
-              SizedBox(width: ax.space.xs),
-              AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
+              if (files.supportsUpload) ...[
+                SizedBox(width: ax.space.xs),
+                AxIconButton(icon: Icons.upload_rounded, tooltip: 'Upload', color: c.accent, onPressed: () => _handleUpload(effectivePath)),
+              ],
             ],
           ),
           SizedBox(height: ax.space.md),
@@ -310,11 +363,12 @@ class _FilesWorkspaceState extends State<FilesWorkspace> {
           // Upload card if uploading
           if (_uploadProgress != null) ...[
             UploadProgressCard(
-              folderName: parentBaseNameOf(effectivePath, rootPath: rootPath),
+              folderName: _folderNameOf(_uploadFolder ?? effectivePath, rootPath),
               progress: _uploadProgress!,
               errorMessage: _uploadError,
-              onCancel: () => setState(() => _uploadProgress = null),
-              onRetry: () => _handleUpload(effectivePath),
+              onCancel: () => _uploadCancel?.cancel(),
+              onRetry: () => _runUpload(_uploadFolder ?? effectivePath, _uploadQueue, from: _uploadDone),
+              onDismiss: () => setState(() => _uploadProgress = null),
             ),
             SizedBox(height: ax.space.md),
           ],

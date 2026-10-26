@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -38,7 +39,11 @@ class UploadFileItem {
   final int sizeBytes;
   final Uint8List? bytes;
   final String? path;
-  const UploadFileItem({required this.name, this.sizeBytes = 0, this.bytes, this.path});
+
+  /// Opens the content as a stream (e.g. a picked file, which on Android is
+  /// not a plain path). Needs [sizeBytes]. Wins over [bytes] and [path].
+  final Stream<List<int>> Function()? openRead;
+  const UploadFileItem({required this.name, this.sizeBytes = 0, this.bytes, this.path, this.openRead});
 }
 
 class UploadProgress {
@@ -56,14 +61,55 @@ class UploadProgress {
   });
 }
 
+/// What to do when the server already has a file with the same name.
+enum UploadConflictChoice { replace, skip, keepBoth }
+
+/// Lets the UI stop an upload in progress (the Cancel button).
+class UploadCancelToken {
+  final Completer<void> _done = Completer<void>();
+  bool get isCancelled => _done.isCompleted;
+  Future<void> get whenCancelled => _done.future;
+  void cancel() {
+    if (!_done.isCompleted) _done.complete();
+  }
+}
+
+/// Shown when the server answers 404 to the upload route: it is too old.
+const String kUploadNeedsUpdateMessage = 'Update your server to upload files (Settings → About → Update)';
+
 class UploadResult {
   final bool ok;
   final bool supported;
+  final bool cancelled;
   final int uploadedCount;
+  final int skippedCount;
+
+  /// How many files from the start of the list are finished (uploaded or
+  /// skipped). After a failure or cancel, "try again" resumes after these.
+  final int processedCount;
   final String? error;
-  const UploadResult.unsupported([this.error = 'Upload is not supported yet']) : ok = false, supported = false, uploadedCount = 0;
-  const UploadResult.success(this.uploadedCount) : ok = true, supported = true, error = null;
-  const UploadResult.failed(this.error) : ok = false, supported = true, uploadedCount = 0;
+  const UploadResult.unsupported([this.error = 'Upload is not supported yet'])
+    : ok = false,
+      supported = false,
+      cancelled = false,
+      uploadedCount = 0,
+      skippedCount = 0,
+      processedCount = 0;
+  const UploadResult.success(this.uploadedCount, {this.skippedCount = 0})
+    : ok = true,
+      supported = true,
+      cancelled = false,
+      processedCount = uploadedCount + skippedCount,
+      error = null;
+  const UploadResult.failed(this.error, {this.uploadedCount = 0, this.skippedCount = 0, this.processedCount = 0})
+    : ok = false,
+      supported = true,
+      cancelled = false;
+  const UploadResult.cancelled({this.uploadedCount = 0, this.skippedCount = 0, this.processedCount = 0})
+    : ok = false,
+      supported = true,
+      cancelled = true,
+      error = null;
 }
 
 class PrivateLinkResult {
@@ -77,6 +123,12 @@ class PrivateLinkResult {
 }
 
 class FilesService extends ChangeNotifier {
+  /// [client] is only used for uploads (a test seam); other calls use the
+  /// default client.
+  FilesService({http.Client? client}) : _client = client;
+
+  final http.Client? _client;
+
   // Empty means "wherever the server's configured files_root is" - the
   // backend maps an empty path query param to that root itself (see
   // ListHandler). A hardcoded path like '/var/log' would 403 on first
@@ -310,12 +362,206 @@ class FilesService extends ChangeNotifier {
     return null;
   }
 
-  bool get supportsUpload => false;
+  /// Uploads need a paired server. Servers that are too old answer 404 to
+  /// the upload route, which [upload] turns into [kUploadNeedsUpdateMessage].
+  bool get supportsUpload {
+    final b = _backend;
+    return b != null && b.isPaired && b.token != null;
+  }
+
   bool get supportsPrivateLink => false;
 
-  /// Upload placeholder: reports unsupported until backend endpoints land.
-  Future<UploadResult> upload(String dir, List<UploadFileItem> files, {void Function(UploadProgress progress)? onProgress}) async {
-    return const UploadResult.unsupported();
+  /// Uploads [files] into [dir], one after another, streaming each from disk
+  /// (never fully loaded into memory). Reports progress per file, stops when
+  /// [cancel] is cancelled, and asks [onConflict] when the server already has
+  /// a file with that name (no callback means skip). Reloads the listing
+  /// afterwards. Stops at the first failure and says how many files were
+  /// finished ([UploadResult.processedCount]) so a retry can resume.
+  Future<UploadResult> upload(
+    String dir,
+    List<UploadFileItem> files, {
+    void Function(UploadProgress progress)? onProgress,
+    UploadCancelToken? cancel,
+    Future<UploadConflictChoice> Function(String name)? onConflict,
+  }) async {
+    final backend = _backend;
+    if (!supportsUpload || backend == null) return const UploadResult.unsupported();
+
+    var uploaded = 0;
+    var skipped = 0;
+    var processed = 0;
+    UploadResult? result;
+    try {
+      for (var i = 0; i < files.length; i++) {
+        if (cancel?.isCancelled ?? false) {
+          result = UploadResult.cancelled(uploadedCount: uploaded, skippedCount: skipped, processedCount: processed);
+          break;
+        }
+        final item = files[i];
+        var name = item.name;
+        var overwrite = false;
+        final taken = <String>{};
+        _SendOutcome? failure;
+        var skip = false;
+        for (var attempt = 0; attempt < 100; attempt++) {
+          final out = await _sendOne(backend, dir, item, name, overwrite, i, files.length, onProgress, cancel);
+          if (out.kind == _SendKind.ok) break;
+          if (out.kind == _SendKind.conflict) {
+            final choice = onConflict == null ? UploadConflictChoice.skip : await onConflict(name);
+            if (cancel?.isCancelled ?? false) {
+              failure = const _SendOutcome.cancelled();
+              break;
+            }
+            if (choice == UploadConflictChoice.replace) {
+              overwrite = true;
+              continue;
+            }
+            if (choice == UploadConflictChoice.keepBoth) {
+              taken.add(name);
+              name = uniqueFileName(item.name, taken.contains);
+              overwrite = false;
+              continue;
+            }
+            skip = true;
+            break;
+          }
+          failure = out;
+          break;
+        }
+        if (failure != null) {
+          result = failure.kind == _SendKind.cancelled
+              ? UploadResult.cancelled(uploadedCount: uploaded, skippedCount: skipped, processedCount: processed)
+              : UploadResult.failed(
+                  files.length > 1 ? '${item.name}: ${failure.message}' : failure.message,
+                  uploadedCount: uploaded,
+                  skippedCount: skipped,
+                  processedCount: processed,
+                );
+          break;
+        }
+        if (skip) {
+          skipped++;
+        } else {
+          uploaded++;
+        }
+        processed++;
+      }
+      result ??= UploadResult.success(uploaded, skippedCount: skipped);
+    } finally {
+      // Whatever happened, the folder may have changed.
+      _dirCache.clear();
+      if (uploaded > 0) await loadDirectory(_currentPath, forceRefresh: true);
+    }
+    return result;
+  }
+
+  Future<_SendOutcome> _sendOne(
+    ArchangeldConnection backend,
+    String dir,
+    UploadFileItem item,
+    String name,
+    bool overwrite,
+    int index,
+    int total,
+    void Function(UploadProgress progress)? onProgress,
+    UploadCancelToken? cancel,
+  ) async {
+    final Stream<List<int>> source;
+    final int size;
+    try {
+      if (item.openRead != null) {
+        size = item.sizeBytes;
+        source = item.openRead!();
+      } else if (item.bytes != null) {
+        size = item.bytes!.length;
+        source = Stream.value(item.bytes!);
+      } else if (item.path != null) {
+        final f = File(item.path!);
+        size = await f.length();
+        source = f.openRead();
+      } else {
+        return _SendOutcome.error("Couldn't read ${item.name}");
+      }
+    } catch (_) {
+      return _SendOutcome.error("Couldn't read ${item.name}");
+    }
+
+    void report(int sent) =>
+        onProgress?.call(UploadProgress(fileIndex: index, totalFiles: total, currentFileName: name, bytesSent: sent, totalBytes: size));
+
+    final abort = Completer<void>();
+    if (cancel != null) {
+      unawaited(
+        cancel.whenCancelled.then((_) {
+          if (!abort.isCompleted) abort.complete();
+        }),
+      );
+    }
+
+    final client = _client ?? http.Client();
+    try {
+      final req = http.AbortableStreamedRequest(
+        'POST',
+        backend.filesUploadHttpUri(dir, name, overwrite: overwrite),
+        abortTrigger: abort.future,
+      );
+      req.headers['X-Archangel-Token'] = backend.token!;
+      req.headers['Content-Type'] = 'application/octet-stream';
+      req.contentLength = size;
+
+      var stop = false;
+      var sent = 0;
+      Stream<List<int>> counted() async* {
+        await for (final chunk in source) {
+          if (stop) return;
+          sent += chunk.length;
+          yield chunk;
+          report(sent);
+        }
+      }
+
+      report(0);
+      final sending = client.send(req);
+      // addStream applies back-pressure, so progress follows the network
+      // rather than the disk. Errors here surface through [sending].
+      unawaited(
+        req.sink.addStream(counted()).then<void>((_) => req.sink.close()).catchError((Object _) {
+          try {
+            req.sink.close();
+          } catch (_) {}
+        }),
+      );
+
+      final streamed = await sending;
+      stop = true; // the server may answer (e.g. 409) before reading everything
+      final res = await http.Response.fromStream(streamed);
+      if (res.statusCode == 200) return const _SendOutcome.ok();
+      if (res.statusCode == 404 && !_isUploadApiBody(res.body)) return const _SendOutcome.error(kUploadNeedsUpdateMessage);
+      if (res.statusCode == 409 && serverMessage(res, '').toLowerCase().contains('file with that name already exists')) {
+        return const _SendOutcome.conflict();
+      }
+      if (res.statusCode == 413) return _SendOutcome.error(serverMessage(res, 'That file is too big to upload'));
+      return _SendOutcome.error(serverMessage(res, 'Upload failed (HTTP ${res.statusCode})'));
+    } on http.RequestAbortedException {
+      return const _SendOutcome.cancelled();
+    } catch (e) {
+      if (cancel?.isCancelled ?? false) return const _SendOutcome.cancelled();
+      debugPrint('Error uploading $name to $dir: $e');
+      return const _SendOutcome.error("Your server didn't answer. Check that it's online, then try again.");
+    } finally {
+      if (_client == null) client.close();
+    }
+  }
+
+  /// True when [body] is archangeld's own JSON error (`{"success":false,...}`),
+  /// as opposed to the router's plain "404 page not found" from an old server.
+  static bool _isUploadApiBody(String body) {
+    try {
+      final d = jsonDecode(body);
+      return d is Map && d.containsKey('success');
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Private-link placeholder: reports unsupported until backend endpoints land.
@@ -341,4 +587,15 @@ class FilesService extends ChangeNotifier {
       return DownloadResult.failed('Could not save the file: $e');
     }
   }
+}
+
+enum _SendKind { ok, conflict, cancelled, error }
+
+class _SendOutcome {
+  final _SendKind kind;
+  final String message;
+  const _SendOutcome.ok() : kind = _SendKind.ok, message = '';
+  const _SendOutcome.conflict() : kind = _SendKind.conflict, message = '';
+  const _SendOutcome.cancelled() : kind = _SendKind.cancelled, message = '';
+  const _SendOutcome.error(this.message) : kind = _SendKind.error;
 }
