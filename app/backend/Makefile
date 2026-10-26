@@ -5,9 +5,10 @@
 # binary is being able to scp one file to the server with zero runtime
 # dependencies, so this isn't optional.
 
-# Root VERSION file has two lines ("BACKEND x.y.z" / "FRONTEND x.y.z") -
-# only the backend's own line matters here.
-VERSION ?= $(shell awk '/^BACKEND/ {print $$2}' ../../VERSION 2>/dev/null)
+# One version for the whole product: the semver part of `version:` in
+# app/frontend/pubspec.yaml (e.g. "0.8.0+2" -> "0.8.0"). Override with
+# `make build-linux-amd64 VERSION=1.2.3`.
+VERSION ?= $(shell sed -n -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' ../frontend/pubspec.yaml 2>/dev/null)
 LDFLAGS = -ldflags "-X 'github.com/dwaipayanray95/project-archangel/backend/internal/version.Version=$(VERSION)'"
 
 # AMD Micro box (Archangel-Mk1)

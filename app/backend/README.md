@@ -19,7 +19,7 @@ Everything is real (no mock data).
 
 ## Versioning
 
-The version comes from the `BACKEND` line in the root [`VERSION`](../../VERSION) file, baked in at build time with `-ldflags` (see `Makefile` and `internal/version`). It is shown by `archangeld version` and returned by `/api/v1/health`. The app uses it to show "Backend version" and to detect when an update is available.
+There is one version for the whole product. The backend takes the semver part of `version:` in [`app/frontend/pubspec.yaml`](../frontend/pubspec.yaml) (for `0.8.0+2` that is `0.8.0`) and bakes it in at build time with `-ldflags` (see `Makefile` and `internal/version`). It is shown by `archangeld version` (for example `archangeld v0.8.0`) and returned by `/api/v1/health`. The app compares it with the latest release to detect when an update is available. Override with `make build-linux-amd64 VERSION=1.2.3`; a plain `go build` reports `0.0.0-dev`.
 
 ## API
 
@@ -145,12 +145,4 @@ and send `{"type":"resize","cols":100,"rows":30}`, then `{"type":"stdin","data":
 
 ## Releases
 
-One workflow, [`.github/workflows/release.yml`](../../.github/workflows/release.yml), picks scope from the tag:
-
-| Tag | Builds |
-|---|---|
-| `vX.Y.Z-b` | backend only (`archangeld-amd64`, `archangeld-arm64`, `SHA256SUMS`) |
-| `vX.Y.Z-f` | app only |
-| `vX.Y.Z` | both |
-
-It can also be started manually from the Actions tab. Every run publishes `version-manifest.json`, which the app reads to show "update available". A backend-only release keeps the app's reported version frozen, and vice versa. See [CONTRIBUTING.md](../../CONTRIBUTING.md#releases).
+One workflow, [`.github/workflows/release.yml`](../../.github/workflows/release.yml), builds the server program and all the apps for every release, tagged `vX.Y.Z` from the pubspec version. Start it from the Actions tab (or push the tag). Every run publishes `version-manifest.json`, which the app reads to show "update available". See [CONTRIBUTING.md](../../CONTRIBUTING.md#releases).

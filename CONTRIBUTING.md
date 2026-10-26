@@ -15,7 +15,7 @@ Security problems: please don't open a public issue. See [SECURITY.md](SECURITY.
 | `infra/scripts/` | The server setup scripts. This is the **single source of truth**. |
 | `app/frontend/assets/setup_scripts/` | Copies of those scripts bundled into the app. Don't edit by hand. |
 | `docs/` | User docs. `docs/dev/` holds plans for contributors. |
-| `VERSION` | Version numbers (`ARCHANGEL`, `FRONTEND`, `BACKEND`). |
+| `scripts/` | Repo helper scripts, including `bump_version.sh` (see Releases). |
 
 ## Dev setup
 
@@ -97,30 +97,21 @@ flutter build macos --dart-define=ARCHANGEL_REPO=you/your-fork
 
 ## Releases
 
-Versions live in the root [`VERSION`](VERSION) file:
+There is **one version** for the whole product (the app and the server program). It lives in one place: `version:` in [`app/frontend/pubspec.yaml`](app/frontend/pubspec.yaml), written `MAJOR.MINOR.PATCH+BUILD`, for example `0.8.0+2`.
 
-```
-BACKEND 0.4.0
-FRONTEND 0.5.0
-ARCHANGEL 0.6.0
-```
+- `MAJOR.MINOR.PATCH` is the release name and the tag (`v0.8.0`). It is baked into `archangeld` at build time (the Makefile reads it from the pubspec), and shown in the app as "Archangel OS 0.8.0 (build 2)".
+- `BUILD` goes up by 1 on every release, even when the semver part doesn't change.
+- Release builds pass the version to the app with `--dart-define=APP_VERSION=...` and `APP_BUILD=...`. A local `flutter run` has no defines and shows the fallback constants in [`app_version.dart`](app/frontend/lib/services/app_version.dart). `scripts/bump_version.sh` keeps those in step with the pubspec, and a test fails if they drift.
 
-- `BACKEND` is baked into `archangeld` at build time. `FRONTEND` is synced into the app by `app/frontend/scripts/sync_version.sh`. `ARCHANGEL` is the release label.
-- Bump the lines you changed in a pull request.
-- The release workflow ([`release.yml`](.github/workflows/release.yml)) is chosen by the tag:
+### How to release
 
-| Tag | Builds |
-|---|---|
-| `vX.Y.Z-b` | backend only (`archangeld-amd64`, `archangeld-arm64`, `SHA256SUMS`) |
-| `vX.Y.Z-f` | app only (macOS `.dmg`, Windows installer, Android `.apk`) |
-| `vX.Y.Z` | both |
+1. Run `scripts/bump_version.sh <major|minor|patch|build>` from the repo root. It bumps the chosen part (lower parts reset to 0), always adds 1 to the build number, and prints the old and new version.
+2. Commit the change and push it to the branch you release from.
+3. In GitHub, go to **Actions → Release Archangel → Run workflow**. The workflow reads the pubspec, fails straight away if the tag `vX.Y.Z` already exists, creates the tag, and builds everything: `archangeld` (amd64 and arm64, with `SHA256SUMS`), the macOS `.dmg`, the Windows installer and the Android `.apk`. It also publishes `version-manifest.json`.
 
-Two ways to start one:
+Pushing the tag yourself (`git tag v0.8.0 && git push origin v0.8.0`) works too, if the tag matches the pubspec version at that commit.
 
-1. Push a tag: `git tag v0.6.0 && git push origin v0.6.0`
-2. In GitHub, go to **Actions → Release Archangel → Run workflow**, and pick `both`, `backend` or `frontend`. The tag is made from the `ARCHANGEL` line of `VERSION` (plus `-b` or `-f`). It fails if that tag already exists, so bump `ARCHANGEL` first.
-
-Each run also publishes `version-manifest.json`, which the app reads to show "update available".
+The app reads `version-manifest.json` from the latest release to show "update available". It looks like `{"version": "0.8.0", "build": 2, "tag": "v0.8.0"}`, plus a few legacy keys (`archangel`, `frontend`, `backend`, `frontend_tag`, `backend_tag`, all set from the same version and tag) so apps installed before the single version still see the update. Don't remove them until those apps are gone.
 
 ## Code style
 

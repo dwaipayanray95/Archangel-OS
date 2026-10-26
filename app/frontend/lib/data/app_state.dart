@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/local_kv_store.dart';
 import '../services/window_service.dart';
@@ -8,6 +9,7 @@ const _kAccentKey = 'appearance_accent';
 const _kLayoutKey = 'appearance_layout';
 const _kUiScaleKey = 'appearance_ui_scale';
 const _kFullScreenKey = 'appearance_full_screen';
+const _kStartupSoundKey = 'appearance_startup_sound';
 
 /// UI canvas scaling on desktop/wide displays.
 enum AxUiScale {
@@ -126,6 +128,22 @@ class AppState extends ChangeNotifier {
     fullScreen = !_fullScreen;
   }
 
+  /// Whether the start-up chime plays. On by default on computers, off on
+  /// phones and tablets running Android or iOS.
+  bool _startupSound = _defaultStartupSound();
+  bool get startupSound => _startupSound;
+  set startupSound(bool v) {
+    if (_startupSound == v) return;
+    _startupSound = v;
+    notifyListeners();
+    _save(_kStartupSoundKey, v.toString());
+  }
+
+  static bool _defaultStartupSound() =>
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux;
+
   int _bootReplay = 0;
   BootKind _bootReplayKind = BootKind.short;
 
@@ -149,6 +167,8 @@ class AppState extends ChangeNotifier {
       final layout = await store.read(_kLayoutKey);
       final scale = await store.read(_kUiScaleKey);
       final fullScreen = await store.read(_kFullScreenKey);
+      final sound = await store.read(_kStartupSoundKey);
+      if (sound != null) _startupSound = sound == 'true';
       if (layout != null) {
         _layout = AxLayout.values.firstWhere((l) => l.name == layout, orElse: () => AxLayout.desktop);
       }

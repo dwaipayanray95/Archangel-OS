@@ -85,4 +85,4 @@ The scripts the wizard uploads are copies in `assets/setup_scripts/`. The origin
 
 ## Versions and releases
 
-`scripts/sync_version.sh` copies the `FRONTEND` line of the root [`VERSION`](../../VERSION) into `pubspec.yaml` and `lib/services/app_version.dart`. Run it after bumping `VERSION`; CI runs it before every release build. Release builds (macOS `.dmg`, Windows installer, Android arm64 `.apk`) come from the tag-driven pipeline. See [CONTRIBUTING.md](../../CONTRIBUTING.md#releases).
+The version is `version:` in `pubspec.yaml` (`X.Y.Z+BUILD`), the same for the app and the server program. Change it with `scripts/bump_version.sh` at the repo root. Release builds pass it to the app with `--dart-define=APP_VERSION=... --dart-define=APP_BUILD=...`; a local `flutter run` shows the fallback constants in `lib/services/app_version.dart` (the bump script updates them too). Release builds (macOS `.dmg`, Windows installer, Android arm64 `.apk`) come from the release workflow. See [CONTRIBUTING.md](../../CONTRIBUTING.md#releases).

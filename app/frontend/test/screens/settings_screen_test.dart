@@ -19,6 +19,7 @@ import 'package:archangel/services/monitoring_service.dart';
 import 'package:archangel/services/server_registry.dart';
 import 'package:archangel/services/ssh_credentials.dart';
 import 'package:archangel/services/ssh_transport.dart';
+import 'package:archangel/services/semver.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/ui/screens/settings/settings_view.dart';
@@ -59,6 +60,23 @@ class _Fake implements SshTransport {
   Future<void> close() async {}
 }
 
+/// An UpdateCheckService that already "knows" the newest version, without
+/// any network or storage.
+class _KnownUpdates extends UpdateCheckService {
+  _KnownUpdates(this.latest);
+  final String latest;
+  @override
+  String? get latestVersion => latest;
+  @override
+  String? get releaseTag => 'v$latest';
+  @override
+  String? get releaseUrl => 'https://example.com/release';
+  @override
+  bool get appBehind => isUpdateAvailable(current: AppVersion.current, latest: latest);
+  @override
+  bool serverBehind(String? serverVersion) => isUpdateAvailable(current: serverVersion, latest: latest);
+}
+
 class _Harness {
   _Harness(this.app, this.registry, this.backend, this.devicesRequests, {DesktopPrefs? desktopPrefs})
     : desktopPrefs = desktopPrefs ?? DesktopPrefs();
@@ -87,10 +105,12 @@ Future<_Harness> _pumpSettings(
   MonitoringService? monitoring,
   DesktopPrefs? desktopPrefs,
   Widget Function(Widget child)? wrap,
+  String serverVersion = '0.5.0',
+  UpdateCheckService? updates,
 }) async {
   final registry = ServerRegistry();
   final requests = <http.Request>[];
-  final backend = ArchangeldConnection(client: MockClient((_) async => _json({'version': '0.5.0'})));
+  final backend = ArchangeldConnection(client: MockClient((_) async => _json({'version': serverVersion})));
   final app = AppState();
   final prefs = desktopPrefs ?? DesktopPrefs();
   await tester.runAsync(() async {
@@ -127,7 +147,7 @@ Future<_Harness> _pumpSettings(
         ChangeNotifierProvider<MonitoringService>(create: (_) => monitoring ?? MonitoringService()),
         ChangeNotifierProvider(create: (_) => DevicesService(client: devicesClient)),
         ChangeNotifierProvider(create: (_) => AdminModeService(client: adminClient)),
-        ChangeNotifierProvider(create: (_) => UpdateCheckService()),
+        ChangeNotifierProvider<UpdateCheckService>(create: (_) => updates ?? UpdateCheckService()),
         ChangeNotifierProvider<DesktopPrefs>.value(value: prefs),
       ],
       child: MaterialApp(
@@ -192,7 +212,7 @@ void main() {
         expect(find.byKey(ValueKey('settings-nav-${id.name}')), findsOneWidget, reason: id.name);
       }
       expect(find.text('Settings'), findsNothing);
-      expect(find.text('Archangel v${AppVersion.archangel}'), findsNothing);
+      expect(find.text('Archangel v${AppVersion.current}'), findsNothing);
       expect(find.byType(AxWordmark), findsWidgets);
       expect(find.text('This server'), findsOneWidget);
       expect(find.text('Updates'), findsOneWidget);
@@ -582,24 +602,70 @@ void main() {
   });
 
   group('updates', () {
-    testWidgets('shows both versions, Check now and the footnote', (tester) async {
-      await _pumpSettings(tester);
+    final current = AppVersion.current;
+
+    Future<void> openUpdates(WidgetTester tester, {bool paired = true, required String serverVersion, required String latest}) async {
+      await _pumpSettings(tester, paired: paired, serverVersion: serverVersion, updates: _KnownUpdates(latest));
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
       await _open(tester, SettingsSectionId.about);
-      expect(find.text('Archangel OS app'), findsOneWidget);
-      expect(find.text('Version ${AppVersion.current}'), findsOneWidget);
-      expect(find.text('Server program'), findsOneWidget);
-      expect(find.text('Version 0.5.0'), findsOneWidget);
+    }
+
+    testWidgets('one row with the one version, Check now and the footnote', (tester) async {
+      await openUpdates(tester, serverVersion: current, latest: current);
+      expect(find.text('Archangel OS ${AppVersion.full}'), findsOneWidget);
+      expect(find.text('Archangel OS app'), findsNothing);
+      expect(find.text('Server program'), findsNothing);
       expect(find.text('Check now'), findsOneWidget);
       expect(find.textContaining('rolls itself back if anything goes wrong'), findsOneWidget);
     });
 
-    testWidgets('the Server program row is hidden when unpaired', (tester) async {
-      await _pumpSettings(tester, paired: false);
-      await _open(tester, SettingsSectionId.about);
-      expect(find.text('Archangel OS app'), findsOneWidget);
-      expect(find.text('Server program'), findsNothing);
+    testWidgets('up to date: badge, no Update button, no App/Server line', (tester) async {
+      await openUpdates(tester, serverVersion: current, latest: current);
+      expect(find.text('Up to date'), findsOneWidget);
+      expect(find.text('Update'), findsNothing);
+      expect(find.textContaining('App $current'), findsNothing);
     });
+
+    testWidgets('app behind: Update available with the new version and one Update button', (tester) async {
+      await openUpdates(tester, serverVersion: '99.0.0', latest: '99.0.0');
+      expect(find.text('Update available — 99.0.0'), findsOneWidget);
+      expect(find.text('Update'), findsOneWidget);
+      expect(find.text('Up to date'), findsNothing);
+      expect(find.text('App $current · Server 99.0.0'), findsOneWidget);
+    });
+
+    testWidgets('server behind: Update opens the server update dialog', (tester) async {
+      await openUpdates(tester, serverVersion: '0.0.1', latest: current);
+      expect(find.text('Update available — $current'), findsOneWidget);
+      expect(find.text('App $current · Server 0.0.1'), findsOneWidget);
+      await tester.tap(find.text('Update'));
+      await _settle(tester);
+      expect(find.text('Update your server to v$current'), findsOneWidget);
+    });
+
+    testWidgets('both behind: still one Update button, and it starts with the server', (tester) async {
+      await openUpdates(tester, serverVersion: '0.0.1', latest: '99.0.0');
+      expect(find.text('Update available — 99.0.0'), findsOneWidget);
+      expect(find.text('Update'), findsOneWidget);
+      await tester.tap(find.text('Update'));
+      await _settle(tester);
+      expect(find.text('Update your server to v99.0.0'), findsOneWidget);
+    });
+
+    testWidgets('unpaired: no server line, the app alone decides', (tester) async {
+      await openUpdates(tester, paired: false, serverVersion: current, latest: current);
+      expect(find.text('Archangel OS ${AppVersion.full}'), findsOneWidget);
+      expect(find.text('Up to date'), findsOneWidget);
+    });
+
+    for (final size in [const Size(340, 600), const Size(390, 844)]) {
+      testWidgets('Update available: no overflow at ${size.width.toInt()}', (tester) async {
+        await _pumpSettings(tester, size: size, serverVersion: '0.0.1', updates: _KnownUpdates('99.0.0'));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+        await _open(tester, SettingsSectionId.about);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('system', () {

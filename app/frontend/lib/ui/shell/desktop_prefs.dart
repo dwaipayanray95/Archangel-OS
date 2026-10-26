@@ -78,6 +78,7 @@ class DesktopPrefs extends ChangeNotifier {
   bool _showWidget = true;
   bool _showWallpaperWordmark = true;
   bool _showWallpaperSubtitle = true;
+  bool _snapToEdges = true;
   List<AxSection> _pinned = List.of(AxSection.values);
 
   DeskWallpaper get wallpaper => _wallpaper;
@@ -87,6 +88,9 @@ class DesktopPrefs extends ChangeNotifier {
   bool get showWidget => _showWidget;
   bool get showWallpaperWordmark => _showWallpaperWordmark;
   bool get showWallpaperSubtitle => _showWallpaperSubtitle;
+
+  /// Whether dragging a window to a screen edge snaps it (keyboard snapping is always on).
+  bool get snapToEdges => _snapToEdges;
 
   /// The dock's apps, in order.
   List<AxSection> get pinned => List.unmodifiable(_pinned);
@@ -98,6 +102,7 @@ class DesktopPrefs extends ChangeNotifier {
   set showWidget(bool v) => _set(() => _showWidget = v);
   set showWallpaperWordmark(bool v) => _set(() => _showWallpaperWordmark = v);
   set showWallpaperSubtitle(bool v) => _set(() => _showWallpaperSubtitle = v);
+  set snapToEdges(bool v) => _set(() => _snapToEdges = v);
 
   bool isPinned(AxSection s) => _pinned.contains(s);
 
@@ -123,6 +128,7 @@ class DesktopPrefs extends ChangeNotifier {
     _showWidget = true;
     _showWallpaperWordmark = true;
     _showWallpaperSubtitle = true;
+    _snapToEdges = true;
     _pinned = List.of(AxSection.values);
   });
 
@@ -151,6 +157,7 @@ class DesktopPrefs extends ChangeNotifier {
     'widget': _showWidget,
     'showWordmark': _showWallpaperWordmark,
     'showSubtitle': _showWallpaperSubtitle,
+    'snap': _snapToEdges,
     'pinned': [for (final s in _pinned) s.name],
   };
 
@@ -163,6 +170,7 @@ class DesktopPrefs extends ChangeNotifier {
     _showWidget = j['widget'] != false;
     _showWallpaperWordmark = j['showWordmark'] != false;
     _showWallpaperSubtitle = j['showSubtitle'] != false;
+    _snapToEdges = j['snap'] != false;
     final pins = j['pinned'];
     if (pins is List) {
       _pinned = [

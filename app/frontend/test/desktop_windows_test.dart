@@ -74,10 +74,13 @@ void main() {
     expect(d.launcherOpen, isFalse);
   });
 
-  test('dragging to an edge previews and then snaps; dragging away restores', () {
+  testWidgets('dragging to an edge previews after a dwell and then snaps; dragging away restores', (tester) async {
     final d = desk()..open(AxSection.apps);
     final before = d.windowFor(AxSection.apps)!.rect;
+    d.startMove(AxSection.apps);
     d.move(AxSection.apps, const Offset(-10, 0), pointer: const Offset(5, 300));
+    expect(d.snap, DeskSnap.none, reason: 'no preview before the dwell');
+    await tester.pump(kDeskSnapDwell);
     expect(d.snap, DeskSnap.left);
     expect(d.snapPreview, isNotNull);
     d.endMove(AxSection.apps);
@@ -92,6 +95,7 @@ void main() {
     expect(d.windowFor(AxSection.apps)!.rect.width, closeTo((1000 - 12) / 2, 0.01));
 
     // Pulling it away gives back its old size.
+    d.startMove(AxSection.apps);
     d.move(AxSection.apps, const Offset(40, 40), pointer: const Offset(400, 200));
     expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
     expect(d.windowFor(AxSection.apps)!.rect.size, before.size);
@@ -99,12 +103,13 @@ void main() {
     expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
   });
 
-  test('top edge maximizes, right edge takes the right half', () {
+  testWidgets('top edge maximizes, right edge takes the right half', (tester) async {
     final d = desk()..open(AxSection.files);
     expect(d.snapAt(const Offset(600, 2)), DeskSnap.maximize);
     expect(d.snapAt(const Offset(1195, 300)), DeskSnap.right);
     expect(d.snapAt(const Offset(600, 300)), DeskSnap.none);
     d.move(AxSection.files, Offset.zero, pointer: const Offset(1195, 300));
+    await tester.pump(kDeskSnapDwell);
     d.endMove(AxSection.files);
     expect(d.windowFor(AxSection.files)!.rect.right, closeTo(1200 - 4, 0.01));
   });
@@ -128,23 +133,23 @@ void main() {
     final d = desk();
     // Top-left corner:
     expect(d.snapAt(const Offset(5, 5)), DeskSnap.topLeft);
-    expect(d.snapAt(const Offset(40, 5)), DeskSnap.topLeft);
-    expect(d.snapAt(const Offset(5, 40)), DeskSnap.topLeft);
+    expect(d.snapAt(const Offset(20, 5)), DeskSnap.topLeft);
+    expect(d.snapAt(const Offset(5, 20)), DeskSnap.topLeft);
 
     // Top-right corner:
     expect(d.snapAt(const Offset(1195, 5)), DeskSnap.topRight);
-    expect(d.snapAt(const Offset(1160, 5)), DeskSnap.topRight);
-    expect(d.snapAt(const Offset(1195, 40)), DeskSnap.topRight);
+    expect(d.snapAt(const Offset(1180, 5)), DeskSnap.topRight);
+    expect(d.snapAt(const Offset(1195, 20)), DeskSnap.topRight);
 
     // Bottom-left corner:
     expect(d.snapAt(const Offset(5, 695)), DeskSnap.bottomLeft);
-    expect(d.snapAt(const Offset(40, 695)), DeskSnap.bottomLeft);
-    expect(d.snapAt(const Offset(5, 660)), DeskSnap.bottomLeft);
+    expect(d.snapAt(const Offset(20, 695)), DeskSnap.bottomLeft);
+    expect(d.snapAt(const Offset(5, 680)), DeskSnap.bottomLeft);
 
     // Bottom-right corner:
     expect(d.snapAt(const Offset(1195, 695)), DeskSnap.bottomRight);
-    expect(d.snapAt(const Offset(1160, 695)), DeskSnap.bottomRight);
-    expect(d.snapAt(const Offset(1195, 660)), DeskSnap.bottomRight);
+    expect(d.snapAt(const Offset(1180, 695)), DeskSnap.bottomRight);
+    expect(d.snapAt(const Offset(1195, 680)), DeskSnap.bottomRight);
 
     // Geometry check:
     final tl = d.snapRect(DeskSnap.topLeft)!;
@@ -214,18 +219,20 @@ void main() {
     expect(d.snapAt(const Offset(1195, 300), altPressed: true), DeskSnap.thirdRight);
   });
 
-  test('corner and third snaps restore when moved away', () {
+  testWidgets('corner and third snaps restore when moved away', (tester) async {
     final d = desk()..open(AxSection.files);
     final initial = d.windowFor(AxSection.files)!.rect;
 
     // Drag to bottom-left corner and release:
     d.move(AxSection.files, Offset.zero, pointer: const Offset(5, 695));
+    await tester.pump(kDeskSnapDwell);
     expect(d.snap, DeskSnap.bottomLeft);
     d.endMove(AxSection.files);
     expect(d.windowFor(AxSection.files)!.maximized, isTrue);
     expect(d.windowFor(AxSection.files)!.snapped, DeskSnap.bottomLeft);
 
     // Drag away restores:
+    d.startMove(AxSection.files);
     d.move(AxSection.files, const Offset(30, 30), pointer: const Offset(300, 300));
     expect(d.windowFor(AxSection.files)!.maximized, isFalse);
     expect(d.windowFor(AxSection.files)!.rect.size, initial.size);
@@ -233,6 +240,7 @@ void main() {
 
     // Drag to middle third and release:
     d.move(AxSection.files, Offset.zero, pointer: const Offset(600, 695));
+    await tester.pump(kDeskSnapDwell);
     expect(d.snap, DeskSnap.thirdCenter);
     d.endMove(AxSection.files);
     expect(d.windowFor(AxSection.files)!.maximized, isTrue);
@@ -307,5 +315,96 @@ void main() {
 
     d.endResize(AxSection.terminal);
     expect(w.isDragging, isFalse);
+  });
+
+  group('deliberate drag snapping', () {
+    testWidgets('a quick flick across an edge never snaps', (tester) async {
+      final d = desk()..open(AxSection.apps);
+      final before = d.windowFor(AxSection.apps)!.rect;
+      d.startMove(AxSection.apps);
+      d.move(AxSection.apps, const Offset(-10, 0), pointer: const Offset(5, 300));
+      await tester.pump(kDeskSnapDwell ~/ 3);
+      d.move(AxSection.apps, const Offset(10, 0), pointer: const Offset(300, 300));
+      expect(d.snap, DeskSnap.none);
+      await tester.pump(kDeskSnapDwell * 2);
+      expect(d.snap, DeskSnap.none, reason: 'leaving the zone cancels the dwell');
+      d.endMove(AxSection.apps);
+      expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+      expect(d.windowFor(AxSection.apps)!.rect.size, before.size);
+    });
+
+    testWidgets('releasing before the dwell ends does not snap', (tester) async {
+      final d = desk()..open(AxSection.apps);
+      d.startMove(AxSection.apps);
+      d.move(AxSection.apps, Offset.zero, pointer: const Offset(1195, 300));
+      await tester.pump(kDeskSnapDwell ~/ 2);
+      d.endMove(AxSection.apps);
+      expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+      await tester.pump(kDeskSnapDwell * 2);
+      expect(d.snap, DeskSnap.none);
+    });
+
+    testWidgets('the window edge reaching the screen edge does not count, only the pointer', (tester) async {
+      final d = desk()..open(AxSection.apps);
+      d.startMove(AxSection.apps);
+      d.move(AxSection.apps, const Offset(-5000, 0), pointer: const Offset(300, 300));
+      await tester.pump(kDeskSnapDwell * 2);
+      d.endMove(AxSection.apps);
+      expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+    });
+
+    testWidgets('dwell in a zone then release snaps', (tester) async {
+      final d = desk()..open(AxSection.apps);
+      d.startMove(AxSection.apps);
+      d.move(AxSection.apps, Offset.zero, pointer: const Offset(5, 300));
+      await tester.pump(kDeskSnapDwell);
+      expect(d.snapPreview, isNotNull);
+      d.endMove(AxSection.apps);
+      expect(d.windowFor(AxSection.apps)!.snapped, DeskSnap.left);
+    });
+
+    testWidgets('a snapped window stays until pulled 16 px, then restores its size and does not re-snap', (tester) async {
+      final d = desk()..open(AxSection.apps);
+      final floating = d.windowFor(AxSection.apps)!.rect.size;
+      d.snapWindow(AxSection.apps, DeskSnap.left);
+      final snappedRect = d.windowFor(AxSection.apps)!.rect;
+      d.startMove(AxSection.apps);
+      d.move(AxSection.apps, const Offset(8, 0), pointer: const Offset(10, 300));
+      expect(d.windowFor(AxSection.apps)!.rect, snappedRect, reason: 'small movements keep it snapped');
+      expect(d.windowFor(AxSection.apps)!.maximized, isTrue);
+      d.move(AxSection.apps, const Offset(10, 0), pointer: const Offset(8, 300));
+      expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+      expect(d.windowFor(AxSection.apps)!.rect.size, floating);
+      // Still in the edge zone: holding there must not snap it again.
+      await tester.pump(kDeskSnapDwell * 2);
+      expect(d.snap, DeskSnap.none);
+      d.endMove(AxSection.apps);
+      expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+    });
+
+    testWidgets('with snapping off, dragging to an edge never snaps; keyboard snapping still works', (tester) async {
+      final d = desk()
+        ..snapEnabled = false
+        ..open(AxSection.apps);
+      d.startMove(AxSection.apps);
+      d.move(AxSection.apps, Offset.zero, pointer: const Offset(5, 300));
+      await tester.pump(kDeskSnapDwell * 2);
+      expect(d.snap, DeskSnap.none);
+      d.endMove(AxSection.apps);
+      expect(d.windowFor(AxSection.apps)!.maximized, isFalse);
+      d.snapWindow(AxSection.apps, DeskSnap.left);
+      expect(d.windowFor(AxSection.apps)!.snapped, DeskSnap.left);
+    });
+
+    test('opening and tidying never snap', () {
+      final d = desk()
+        ..open(AxSection.apps)
+        ..open(AxSection.files);
+      d.tidy();
+      for (final w in d.windows) {
+        expect(w.snapped, DeskSnap.none);
+        expect(w.maximized, isFalse);
+      }
+    });
   });
 }
