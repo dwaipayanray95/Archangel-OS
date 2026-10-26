@@ -5,6 +5,8 @@ import '../data/app_state.dart';
 import '../models/devops_model.dart';
 import '../services/archangeld_connection.dart';
 import '../services/devops_service.dart';
+import '../ui/screens/services/script_editor_page.dart';
+import '../ui/screens/services/script_widgets.dart';
 import '../ui/screens/services/services_logic.dart';
 import '../ui/screens/services/services_widgets.dart';
 import '../ui/ui.dart';
@@ -33,6 +35,9 @@ class _DevopsScreenState extends State<DevopsScreen> {
   final Set<String> _busyRows = {};
   final Set<String> _runningScheduled = {};
   final Set<String> _testingWeb = {};
+  final Set<String> _busyScripts = {};
+  String? _refusal;
+  bool _refusalIsAdmin = false;
   final Map<String, (bool ok, String message)> _webResults = {};
 
   @override
@@ -55,6 +60,20 @@ class _DevopsScreenState extends State<DevopsScreen> {
 
   void _toast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  /// Reports a failed action. Admin-mode refusals get a banner that stays until
+  /// dismissed, with a way to Settings; any other failure is a snackbar.
+  void _reportFailure(DevopsService svc, String fallback) {
+    final msg = svc.lastActionMessage ?? fallback;
+    if (isAdminModeRefusal(msg, svc.lastActionStatus)) {
+      setState(() {
+        _refusal = msg;
+        _refusalIsAdmin = true;
+      });
+    } else {
+      _toast(msg);
+    }
   }
 
   Future<void> _handleServiceAction(DevRowModel row, String action) async {
@@ -91,7 +110,7 @@ class _DevopsScreenState extends State<DevopsScreen> {
         };
         _toast('${row.name} $past.');
       } else {
-        _toast(svc.lastActionMessage ?? 'Could not ${action.toLowerCase()} ${row.name}.');
+        _reportFailure(svc, 'Could not ${action.toLowerCase()} ${row.name}.');
       }
     } finally {
       if (mounted) setState(() => _busyRows.remove(row.name));
@@ -107,7 +126,7 @@ class _DevopsScreenState extends State<DevopsScreen> {
       if (ok) {
         _toast('${row.name} started');
       } else {
-        _toast(svc.lastActionMessage ?? 'Could not run ${row.name}.');
+        _reportFailure(svc, 'Could not run ${row.name}.');
       }
     } finally {
       if (mounted) setState(() => _runningScheduled.remove(row.name));
@@ -140,6 +159,65 @@ class _DevopsScreenState extends State<DevopsScreen> {
     showDeploymentContent(context, name: row.name, content: content ?? '', isWide: isWide);
   }
 
+  Future<void> _runScript(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    final yes = await showConfirmDialog(
+      context,
+      title: 'Run ${row.name}?',
+      message: 'This runs the script on your server as the archangel user.',
+      confirmLabel: 'Run script',
+    );
+    if (!yes || !mounted) return;
+    setState(() => _busyScripts.add(row.name));
+    Map<String, String>? result;
+    try {
+      result = await svc.runDeployment(row.name);
+    } finally {
+      if (mounted) setState(() => _busyScripts.remove(row.name));
+    }
+    if (!mounted) return;
+    if (result == null) {
+      _toast('Could not run ${row.name}. Check your connection and try again.');
+      return;
+    }
+    final ok = result['ok'] == 'true';
+    final message = result['message'] ?? '';
+    final output = result['output'] ?? '';
+    if (!ok && (svc.lastActionStatus == 403 || (output.isEmpty && isAdminModeRefusal(message, null)))) {
+      setState(() {
+        _refusal = message;
+        _refusalIsAdmin = true;
+      });
+      return;
+    }
+    setState(() => _refusal = null);
+    await showRunOutputSheet(context, scriptName: row.name, ok: ok, message: message, output: output);
+  }
+
+  Future<void> _editScript(DevRowModel row) async {
+    final svc = context.read<DevopsService>();
+    setState(() => _busyScripts.add(row.name));
+    String? content;
+    try {
+      content = await svc.getDeploymentContent(row.name);
+    } finally {
+      if (mounted) setState(() => _busyScripts.remove(row.name));
+    }
+    if (!mounted) return;
+    if (content == null) {
+      _toast('Could not open ${row.name}. Check your connection and try again.');
+      return;
+    }
+    final saved = await ScriptEditorPage.open(context, svc, scriptName: row.name, initialContent: content);
+    if (saved && mounted) _toast('${row.name} saved');
+  }
+
+  Future<void> _newScript() async {
+    final svc = context.read<DevopsService>();
+    final saved = await ScriptEditorPage.open(context, svc);
+    if (saved && mounted) _toast('Script saved');
+  }
+
   Future<void> _removeDeployment(DevRowModel row) async {
     final svc = context.read<DevopsService>();
     final yes = await showConfirmDialog(
@@ -158,7 +236,7 @@ class _DevopsScreenState extends State<DevopsScreen> {
       _toast('${row.name} removed');
       svc.fetchAll();
     } else {
-      _toast(svc.lastActionMessage ?? 'Could not remove ${row.name}.');
+      _reportFailure(svc, 'Could not remove ${row.name}.');
     }
   }
 
@@ -204,15 +282,23 @@ class _DevopsScreenState extends State<DevopsScreen> {
               _buildHeader(ax, c, svc, isWide),
               SizedBox(height: ax.space.lg),
 
+              if (_refusal != null) ...[
+                RefusalBanner(
+                  message: _refusal!,
+                  onDismiss: () => setState(() => _refusal = null),
+                  onOpenSettings: _refusalIsAdmin ? () => app.go(AxSection.settings) : null,
+                ),
+                SizedBox(height: ax.space.lg),
+              ],
+
               // Pill Tabs
               ServicesPillTabs(
                 currentTab: _tab,
                 counts: counts,
-                onSelect:
-                    (t) => setState(() {
-                      _tab = t;
-                      _lastTab = t;
-                    }),
+                onSelect: (t) => setState(() {
+                  _tab = t;
+                  _lastTab = t;
+                }),
               ),
               SizedBox(height: ax.space.lg),
 
@@ -245,8 +331,13 @@ class _DevopsScreenState extends State<DevopsScreen> {
             ],
           ),
         ),
-        if (isWide)
+        if (isWide) ...[
+          if (_tab == ServicesTab.deployments && svc.hasLoaded) ...[
+            AxButton(label: 'New script', icon: Icons.add_rounded, onPressed: _newScript),
+            SizedBox(width: ax.space.sm),
+          ],
           AxButton.secondary(label: 'Refresh', icon: Icons.refresh_rounded, loading: svc.loading, onPressed: () => svc.fetchAll()),
+        ],
       ],
     );
   }
@@ -277,27 +368,29 @@ class _DevopsScreenState extends State<DevopsScreen> {
       ServicesTab.deployments => svc.deployments,
     };
 
-    final introWidget =
-        isWide
-            ? Padding(
-              padding: EdgeInsets.all(ax.space.md),
-              child: Row(
-                children: [
-                  Icon(Icons.tune_outlined, size: 20, color: c.accent),
-                  SizedBox(width: ax.space.sm),
-                  Expanded(child: Text(_tab.intro, style: ax.typo.body.copyWith(color: c.text))),
-                ],
-              ),
-            )
-            : null;
+    final introWidget = isWide
+        ? Padding(
+            padding: EdgeInsets.all(ax.space.md),
+            child: Row(
+              children: [
+                Icon(Icons.tune_outlined, size: 20, color: c.accent),
+                SizedBox(width: ax.space.sm),
+                Expanded(
+                  child: Text(_tab.intro, style: ax.typo.body.copyWith(color: c.text)),
+                ),
+              ],
+            ),
+          )
+        : null;
 
-    final listContent =
-        rows.isEmpty
-            ? Padding(
-              padding: EdgeInsets.symmetric(vertical: ax.space.xxl, horizontal: ax.space.lg),
-              child: Center(child: Text(_tab.emptyText, style: ax.typo.body.copyWith(color: c.textMuted))),
-            )
-            : Column(children: [for (final row in rows) _buildRow(ax, c, row, isWide)]);
+    final listContent = rows.isEmpty
+        ? Padding(
+            padding: EdgeInsets.symmetric(vertical: ax.space.xxl, horizontal: ax.space.lg),
+            child: Center(
+              child: Text(_tab.emptyText, style: ax.typo.body.copyWith(color: c.textMuted)),
+            ),
+          )
+        : Column(children: [for (final row in rows) _buildRow(ax, c, row, isWide)]);
 
     if (isWide) {
       return AxCard(
@@ -321,6 +414,13 @@ class _DevopsScreenState extends State<DevopsScreen> {
           child: Text(_tab.intro, style: ax.typo.body.copyWith(color: c.textMuted)),
         ),
         SizedBox(height: ax.space.sm),
+        if (_tab == ServicesTab.deployments) ...[
+          Align(
+            alignment: Alignment.centerRight,
+            child: AxButton(label: 'New script', icon: Icons.add_rounded, onPressed: _newScript),
+          ),
+          SizedBox(height: ax.space.sm),
+        ],
         AxCard(padding: EdgeInsets.zero, child: listContent),
       ],
     );
@@ -352,7 +452,12 @@ class _DevopsScreenState extends State<DevopsScreen> {
         children: [
           Icon(icon, size: 16, color: color),
           SizedBox(width: ax.space.xs + 2),
-          Expanded(child: Text(message, style: ax.typo.caption.copyWith(color: color, fontWeight: FontWeight.w600))),
+          Expanded(
+            child: Text(
+              message,
+              style: ax.typo.caption.copyWith(color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );
@@ -378,7 +483,6 @@ class _DevopsScreenState extends State<DevopsScreen> {
             );
           }
           if (actions.contains('Stop')) {
-            if (btns.isNotEmpty) btns.add(SizedBox(width: ax.space.xs));
             btns.add(AxButton(label: 'Stop', loading: isRowBusy, onPressed: isRowBusy ? null : () => _handleServiceAction(row, 'Stop')));
           }
         } else {
@@ -401,10 +505,12 @@ class _DevopsScreenState extends State<DevopsScreen> {
         return [AxButton(label: tested ? 'Test again' : 'Test', loading: isTesting, onPressed: isTesting ? null : () => _testAddress(row))];
 
       case ServicesTab.deployments:
+        final busy = _busyScripts.contains(row.name);
         return [
-          AxButton.secondary(label: 'View', onPressed: () => _viewDeployment(row, isWide)),
-          SizedBox(width: ax.space.xs),
-          AxButton.danger(label: 'Remove', onPressed: () => _removeDeployment(row)),
+          AxButton(label: 'Run', icon: Icons.play_arrow_rounded, loading: busy, onPressed: busy ? null : () => _runScript(row)),
+          AxButton.secondary(label: 'Edit', icon: Icons.edit_outlined, onPressed: busy ? null : () => _editScript(row)),
+          AxButton.secondary(label: 'View', onPressed: busy ? null : () => _viewDeployment(row, isWide)),
+          AxButton.danger(label: 'Remove', onPressed: busy ? null : () => _removeDeployment(row)),
         ];
     }
   }

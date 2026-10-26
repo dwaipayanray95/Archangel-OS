@@ -137,7 +137,12 @@ class CompactServiceRow extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: Text(row.name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text))),
+                  Expanded(
+                    child: Text(
+                      row.name,
+                      style: ax.typo.mono.copyWith(fontWeight: FontWeight.w600, color: c.text),
+                    ),
+                  ),
                   SizedBox(width: ax.space.xs),
                   FittedBox(fit: BoxFit.scaleDown, child: badge),
                 ],
@@ -145,7 +150,10 @@ class CompactServiceRow extends StatelessWidget {
               // Line 2: Meta
               if (row.meta.isNotEmpty) ...[SizedBox(height: 2), Text(row.meta, style: ax.typo.caption.copyWith(color: c.textMuted))],
               // Line 3: Actions
-              if (actions.isNotEmpty) ...[SizedBox(height: ax.space.sm), Row(mainAxisAlignment: MainAxisAlignment.end, children: actions)],
+              if (actions.isNotEmpty) ...[
+                SizedBox(height: ax.space.sm),
+                Wrap(alignment: WrapAlignment.end, spacing: ax.space.sm, runSpacing: ax.space.sm, children: actions),
+              ],
               if (inlineResult != null) ...[SizedBox(height: ax.space.xs), inlineResult!],
             ],
           ),
@@ -231,7 +239,11 @@ class GroupErrorView extends StatelessWidget {
           children: [
             Icon(Icons.error_outline, size: 48, color: c.danger),
             SizedBox(height: ax.space.md),
-            Text("Couldn't load $groupNameLower", style: ax.typo.headline.copyWith(color: c.text), textAlign: TextAlign.center),
+            Text(
+              "Couldn't load $groupNameLower",
+              style: ax.typo.headline.copyWith(color: c.text),
+              textAlign: TextAlign.center,
+            ),
             SizedBox(height: ax.space.xs),
             Text(
               "Your server didn't answer. Check that it's online, then try again.",
@@ -250,9 +262,16 @@ class GroupErrorView extends StatelessWidget {
 /// Displays the read-only deployment content in a dialog (wide) or full sheet (compact).
 void showDeploymentContent(BuildContext context, {required String name, required String content, required bool isWide}) {
   if (isWide) {
-    showDialog(context: context, builder: (context) => _DeploymentDialog(name: name, content: content));
+    showDialog(
+      context: context,
+      builder: (context) => _DeploymentDialog(name: name, content: content),
+    );
   } else {
-    showModalBottomSheet(context: context, isScrollControlled: true, builder: (context) => _DeploymentSheet(name: name, content: content));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _DeploymentSheet(name: name, content: content),
+    );
   }
 }
 
@@ -279,7 +298,12 @@ class _DeploymentDialog extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text(name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: c.text))),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: ax.typo.mono.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: c.text),
+                    ),
+                  ),
                   const StatusBadge.neutral('Read only'),
                 ],
               ),
@@ -292,7 +316,9 @@ class _DeploymentDialog extends StatelessWidget {
                     borderRadius: BorderRadius.circular(ax.radii.md),
                     border: Border.all(color: c.border),
                   ),
-                  child: SingleChildScrollView(child: SelectableText(content, style: ax.typo.mono.copyWith(fontSize: 12, color: c.text))),
+                  child: SingleChildScrollView(
+                    child: SelectableText(content, style: ax.typo.mono.copyWith(fontSize: 12, color: c.text)),
+                  ),
                 ),
               ),
               SizedBox(height: ax.space.md),
@@ -334,13 +360,21 @@ class _DeploymentSheet extends StatelessWidget {
       heightFactor: 0.85,
       child: Container(
         padding: EdgeInsets.all(ax.space.lg),
-        decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.vertical(top: Radius.circular(ax.radii.lg))),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(ax.radii.lg)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Expanded(child: Text(name, style: ax.typo.mono.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: c.text))),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: ax.typo.mono.copyWith(fontWeight: FontWeight.w700, fontSize: 16, color: c.text),
+                  ),
+                ),
                 const StatusBadge.neutral('Read only'),
               ],
             ),
@@ -353,7 +387,9 @@ class _DeploymentSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(ax.radii.md),
                   border: Border.all(color: c.border),
                 ),
-                child: SingleChildScrollView(child: SelectableText(content, style: ax.typo.mono.copyWith(fontSize: 12, color: c.text))),
+                child: SingleChildScrollView(
+                  child: SelectableText(content, style: ax.typo.mono.copyWith(fontSize: 12, color: c.text)),
+                ),
               ),
             ),
             SizedBox(height: ax.space.md),

@@ -276,6 +276,10 @@ class DevopsService extends ChangeNotifier {
       } catch (_) {
         data = {'message': serverMessage(res, 'The script could not be run.')};
       }
+      _lastActionMessage = res.statusCode == 200
+          ? null
+          : (data['message'] as String? ?? serverMessage(res, 'The script could not be run.'));
+      _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;
       fetchAll();
       return {
         'ok': res.statusCode == 200 ? 'true' : 'false',
@@ -284,6 +288,8 @@ class DevopsService extends ChangeNotifier {
       };
     } catch (e) {
       debugPrint('Error running deployment: $e');
+      _lastActionMessage = 'Could not reach your server: $e';
+      _lastActionStatus = null;
       return {'ok': 'false', 'message': 'Could not reach your server: $e', 'output': ''};
     }
   }
@@ -308,6 +314,8 @@ class DevopsService extends ChangeNotifier {
           message = data['message'] as String;
         }
       } catch (_) {}
+      _lastActionMessage = res.statusCode == 200 ? null : message;
+      _lastActionStatus = res.statusCode == 200 ? null : res.statusCode;
       return {'success': res.statusCode == 200, 'message': message};
     } catch (e) {
       debugPrint('Error saving deployment: $e');
