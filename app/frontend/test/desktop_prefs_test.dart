@@ -87,4 +87,15 @@ void main() {
       expect(w.gradient == null, w == DeskWallpaper.halo);
     }
   });
+
+  test('snapping to screen edges is on by default, saved and reset', () {
+    final p = DesktopPrefs();
+    expect(p.snapToEdges, isTrue);
+    p.snapToEdges = false;
+    final q = DesktopPrefs()..applyJson(p.toJson());
+    expect(q.snapToEdges, isFalse);
+    expect(DesktopPrefs().snapToEdges, isTrue);
+    p.reset();
+    expect(p.snapToEdges, isTrue);
+  });
 }

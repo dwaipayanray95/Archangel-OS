@@ -49,6 +49,7 @@ dependencies:
   fl_chart: ^1.3.0
   window_manager: ^0.5.2
   hotkey_manager: ^0.2.3
+  audioplayers: ^6.8.1
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +85,8 @@ flutter:
     - assets/setup_scripts/ensure_boot_fw_fixup.sh
     - assets/setup_scripts/archangel.service
     - assets/setup_scripts/uninstall.sh
+    - assets/sounds/boot_chime.wav
+    - assets/sounds/boot_chime_short.wav
 
   # To add assets to your application, add an assets section, like this:
   # assets:

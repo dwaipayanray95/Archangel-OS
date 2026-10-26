@@ -412,6 +412,13 @@ class AppearanceSection extends StatelessWidget {
                   controls: [Switch(key: const ValueKey('settings-dock-autohide'), value: p.autoHide, onChanged: (v) => p.autoHide = v)],
                 ),
                 AxListTile(
+                  title: 'Snap windows to screen edges',
+                  subtitle: 'Hold a window by its title bar at the edge of the desktop for a moment to fit it to half the screen.',
+                  controls: [
+                    Switch(key: const ValueKey('settings-snap-windows'), value: p.snapToEdges, onChanged: (v) => p.snapToEdges = v),
+                  ],
+                ),
+                AxListTile(
                   title: 'Health widget',
                   subtitle: 'Shows how busy your server is (processor, memory and disk) on the desktop.',
                   controls: [
@@ -441,6 +448,13 @@ class AppearanceSection extends StatelessWidget {
           title: 'Start-up animation',
           intro: 'The short animation that plays when Archangel opens.',
           children: [
+            AxListTile(
+              title: 'Start-up sound',
+              subtitle: 'A soft chime while the animation plays.',
+              controls: [
+                Switch(key: const ValueKey('settings-startup-sound'), value: app.startupSound, onChanged: (v) => app.startupSound = v),
+              ],
+            ),
             AxListTile(
               title: 'Replay it',
               subtitle: 'Plays every time on tablets and Macs. On phones, the long version plays the first time only.',

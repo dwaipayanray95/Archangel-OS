@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
@@ -9,6 +10,7 @@ import '../../data/app_state.dart';
 import '../../services/local_kv_store.dart';
 import '../components/ax_wordmark.dart';
 import '../theme.dart';
+import 'boot_chime.dart';
 
 /// Set once the long first-launch animation has played on this device.
 const kBootSeenKey = 'boot_first_seen';
@@ -120,6 +122,7 @@ class _BootGateState extends State<BootGate> {
                 : BootSplash(
                     key: ValueKey(_run),
                     kind: _kind!,
+                    sound: context.read<AppState>().startupSound,
                     onDone: () {
                       if (mounted) setState(() => _showing = false);
                     },
@@ -132,9 +135,12 @@ class _BootGateState extends State<BootGate> {
 
 /// The start-up animation itself. Calls [onDone] when finished.
 class BootSplash extends StatefulWidget {
-  const BootSplash({super.key, required this.kind, required this.onDone});
+  const BootSplash({super.key, required this.kind, required this.onDone, this.sound = false});
 
   final BootKind kind;
+
+  /// Whether to play the start-up chime (Settings > Appearance).
+  final bool sound;
   final VoidCallback onDone;
 
   @override
@@ -145,6 +151,8 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
   late final AnimationController _c = AnimationController(vsync: this);
   bool _started = false;
   bool _reduced = false;
+  Timer? _chimeTimer;
+  BootChimePlayer? _chime;
 
   @override
   void didChangeDependencies() {
@@ -156,10 +164,30 @@ class _BootSplashState extends State<BootSplash> with SingleTickerProviderStateM
     _c.forward().whenCompleteOrCancel(() {
       if (mounted) widget.onDone();
     });
+    if (widget.sound) _scheduleChime();
+  }
+
+  /// Starts the chime so its bloom meets the wordmark. Never blocks or breaks
+  /// the animation: any audio problem is ignored.
+  void _scheduleChime() {
+    final long = widget.kind == BootKind.first && !_reduced;
+    final asset = long ? kBootChimeLong : kBootChimeShort;
+    final delay = _reduced ? Duration.zero : (long ? kBootChimeLongDelay : kBootChimeShortDelay);
+    _chimeTimer = Timer(delay, () {
+      try {
+        final player = _chime = BootChime.playerFactory();
+        player.play(asset, kBootChimeVolume).catchError((_) {});
+      } catch (_) {}
+    });
   }
 
   @override
   void dispose() {
+    _chimeTimer?.cancel();
+    try {
+      _chime?.dispose().catchError((_) {});
+    } catch (_) {}
+    _chime = null;
     _c.dispose();
     super.dispose();
   }
