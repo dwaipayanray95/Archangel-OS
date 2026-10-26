@@ -410,6 +410,9 @@ class ServerInfoCard extends StatelessWidget {
   }
 }
 
+/// Shown on every Stop and Force stop confirmation.
+const String kStopWarning = 'Programs you stop may lose unsaved work. System processes can make the server unstable.';
+
 /// Busiest programs card with search, CPU/Memory sort, wide table / compact rows,
 /// and confirmed actions.
 class BusiestProgramsCard extends StatefulWidget {
@@ -440,7 +443,17 @@ class _BusiestProgramsCardState extends State<BusiestProgramsCard> {
             : "This asks it to close. Whatever it's doing stops, and apps that rely on it may stop working until it runs again.";
     final confirmLabel = force ? 'Force stop' : 'Stop';
 
-    final confirmed = await showConfirmDialog(context, title: title, message: body, confirmLabel: confirmLabel, danger: force);
+    final critical = isCriticalProcess(proc.pid, proc.name);
+    final message = [if (critical) 'Stopping this can cut you off from your server.', body, kStopWarning].join(' ');
+
+    final confirmed = await showConfirmDialog(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: confirmLabel,
+      danger: true,
+      typeToConfirm: critical ? proc.name : null,
+    );
 
     if (!confirmed || !mounted) return;
 

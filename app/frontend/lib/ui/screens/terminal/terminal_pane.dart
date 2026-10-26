@@ -5,6 +5,7 @@ import 'package:xterm/xterm.dart';
 import '../../../services/terminal_session.dart';
 import '../../components/ax_button.dart';
 import '../../components/ax_icon_button.dart';
+import '../../shell/terminal_focus_marker.dart';
 import '../../theme.dart';
 import 'terminal_accessory_bar.dart';
 import 'terminal_palette.dart';
@@ -112,31 +113,33 @@ class _TerminalPaneState extends State<TerminalPane> {
                   children: [
                     Opacity(
                       opacity: isDisconnected ? 0.35 : 1.0,
-                      child: TerminalView(
-                        session.terminal,
-                        key: ValueKey('terminal-view-${session.name}-${session.terminalEpoch}'),
-                        controller: widget.controller,
-                        focusNode: widget.focusNode,
-                        autofocus: true,
-                        theme: tp.termTheme,
-                        textStyle: TerminalStyle(
-                          fontSize: widget.fontSize,
-                          height: 1.25,
-                          fontFamily: kMonoFontFamily,
-                          fontFamilyFallback: const [
-                            'Menlo',
-                            'Consolas',
-                            'Liberation Mono',
-                            'Noto Sans Mono',
-                            'Noto Sans Symbols',
-                            'Noto Color Emoji',
-                            'monospace',
-                          ],
+                      child: TerminalFocusMarker(
+                        child: TerminalView(
+                          session.terminal,
+                          key: ValueKey('terminal-view-${session.name}-${session.terminalEpoch}'),
+                          controller: widget.controller,
+                          focusNode: widget.focusNode,
+                          autofocus: true,
+                          theme: tp.termTheme,
+                          textStyle: TerminalStyle(
+                            fontSize: widget.fontSize,
+                            height: 1.25,
+                            fontFamily: kMonoFontFamily,
+                            fontFamilyFallback: const [
+                              'Menlo',
+                              'Consolas',
+                              'Liberation Mono',
+                              'Noto Sans Mono',
+                              'Noto Sans Symbols',
+                              'Noto Color Emoji',
+                              'monospace',
+                            ],
+                          ),
+                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                          deleteDetection: TerminalPane._isTouchPlatform,
+                          keyboardType: TextInputType.text,
+                          cursorType: TerminalCursorType.block,
                         ),
-                        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                        deleteDetection: TerminalPane._isTouchPlatform,
-                        keyboardType: TextInputType.text,
-                        cursorType: TerminalCursorType.block,
                       ),
                     ),
                     if (isConnecting)

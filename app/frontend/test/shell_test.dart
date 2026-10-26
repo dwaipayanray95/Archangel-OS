@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,7 @@ import 'package:archangel/ui/shell/desktop_mode.dart';
 import 'package:archangel/ui/shell/desktop_prefs.dart';
 import 'package:archangel/ui/shell/more_page.dart';
 import 'package:archangel/ui/shell/sidebar.dart';
+import 'package:archangel/ui/shell/terminal_focus_marker.dart';
 
 import 'test_utils.dart';
 
@@ -288,7 +290,7 @@ void main() {
       expect(find.text('Customize Desktop…'), findsOneWidget);
       expect(find.text('Tidy Windows'), findsOneWidget);
       expect(find.text('Switch to Simple Layout'), findsOneWidget);
-      expect(find.text('Restart App…'), findsOneWidget);
+      expect(find.text('Reload interface…'), findsOneWidget);
       expect(find.text('Quit Archangel OS'), findsOneWidget);
 
       await tester.tap(find.text('About Archangel OS'));
@@ -296,19 +298,19 @@ void main() {
       expect(find.byKey(const ValueKey('win-settings')), findsOneWidget);
     });
 
-    testWidgets('Archangel OS menu Restart App and Quit options prompt confirmation', (tester) async {
+    testWidgets('Archangel OS menu Reload interface and Quit options prompt confirmation', (tester) async {
       await pumpAppShell(tester, layout: AxLayout.desktop);
       await _settle(tester);
 
-      // Open menu -> Restart App…
+      // Open menu -> Reload interface…
       await tester.tap(find.byKey(const ValueKey('archangel-os-menu')));
       await _settle(tester);
-      await tester.tap(find.text('Restart App…'));
+      await tester.tap(find.text('Reload interface…'));
       await _settle(tester);
-      expect(find.text('Restart Archangel OS?'), findsOneWidget);
+      expect(find.text('Reload the interface?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await _settle(tester);
-      expect(find.text('Restart Archangel OS?'), findsNothing);
+      expect(find.text('Reload the interface?'), findsNothing);
 
       // Open menu -> Quit Archangel OS
       await tester.tap(find.byKey(const ValueKey('archangel-os-menu')));
@@ -400,7 +402,9 @@ void main() {
       expect(find.byKey(const ValueKey('app-switcher-scrim')), findsNothing);
     });
 
-    testWidgets('keyboard shortcuts snap active window to halves and maximize', (tester) async {
+    testWidgets('keyboard shortcuts snap active window to halves and maximize (Cmd+Alt on macOS)', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       await pumpAppShell(tester, layout: AxLayout.desktop);
       await _settle(tester);
 
@@ -441,6 +445,135 @@ void main() {
       expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
       expect(windows.windowFor(AxSection.home)!.maximized, isFalse);
       expect(windows.windowFor(AxSection.home)!.rect.size, initialRect.size);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    Future<void> chord(WidgetTester tester, List<LogicalKeyboardKey> mods, LogicalKeyboardKey key) async {
+      for (final m in mods) {
+        await tester.sendKeyDownEvent(m);
+      }
+      await tester.sendKeyEvent(key);
+      for (final m in mods.reversed) {
+        await tester.sendKeyUpEvent(m);
+      }
+      await _settle(tester);
+    }
+
+    testWidgets('Windows/Linux snap needs Ctrl+Alt; plain Alt+Arrow is left alone', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+      final windows = tester.widget<DesktopModeView>(find.byType(DesktopModeView)).windows;
+
+      await chord(tester, [LogicalKeyboardKey.altLeft], LogicalKeyboardKey.arrowLeft);
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
+
+      await chord(tester, [LogicalKeyboardKey.altLeft, LogicalKeyboardKey.metaLeft], LogicalKeyboardKey.arrowLeft);
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
+
+      await chord(tester, [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.altLeft], LogicalKeyboardKey.arrowLeft);
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.left);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('shortcut handler yields while a terminal has focus', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+      final windows = tester.widget<DesktopModeView>(find.byType(DesktopModeView)).windows;
+
+      final node = FocusNode(debugLabel: 'fake-terminal');
+      addTearDown(node.dispose);
+      final overlay = Navigator.of(tester.element(find.byType(DesktopModeView))).overlay!;
+      final entry = OverlayEntry(builder: (_) => TerminalFocusMarker(child: Focus(focusNode: node, child: const SizedBox.shrink())));
+      overlay.insert(entry);
+      await tester.pump();
+      node.requestFocus();
+      await tester.pump();
+      expect(TerminalFocusMarker.isFocusInside(), isTrue);
+
+      // Ctrl+Alt+Arrow (tmux/vim) and Ctrl+Tab belong to the terminal.
+      await chord(tester, [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.altLeft], LogicalKeyboardKey.arrowLeft);
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('app-switcher-scrim')), findsNothing);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+
+      // Once focus leaves the terminal the shortcut works again.
+      node.unfocus();
+      await tester.pump();
+      expect(TerminalFocusMarker.isFocusInside(), isFalse);
+      await chord(tester, [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.altLeft], LogicalKeyboardKey.arrowLeft);
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.left);
+      entry.remove();
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('shortcut handler yields while a dialog is open', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await pumpAppShell(tester, layout: AxLayout.desktop);
+      await _settle(tester);
+      final windows = tester.widget<DesktopModeView>(find.byType(DesktopModeView)).windows;
+
+      showDialog<void>(context: tester.element(find.byType(DesktopModeView)), builder: (_) => const AlertDialog(title: Text('Hold on')));
+      await _settle(tester);
+      await chord(tester, [LogicalKeyboardKey.controlLeft, LogicalKeyboardKey.altLeft], LogicalKeyboardKey.arrowLeft);
+      expect(windows.windowFor(AxSection.home)!.snapped, DeskSnap.none);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    group('window controls', () {
+      test('only windowed Windows/Linux gets them', () {
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        for (final p in [TargetPlatform.windows, TargetPlatform.linux]) {
+          debugDefaultTargetPlatformOverride = p;
+          expect(showWindowControls(fullScreen: false), isTrue, reason: '$p windowed');
+          expect(showWindowControls(fullScreen: true), isFalse, reason: '$p fullscreen');
+        }
+        for (final p in [TargetPlatform.macOS, TargetPlatform.android, TargetPlatform.iOS]) {
+          debugDefaultTargetPlatformOverride = p;
+          expect(showWindowControls(fullScreen: false), isFalse, reason: '$p');
+        }
+        debugDefaultTargetPlatformOverride = null;
+      });
+
+      testWidgets('shown in the top bar when windowed on Linux, with tooltips', (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        final app = await pumpAppShell(tester, layout: AxLayout.desktop);
+        await _settle(tester);
+        expect(find.byKey(const ValueKey('window-close')), findsNothing, reason: 'fullscreen by default');
+
+        await tester.runAsync(() async {
+          app.fullScreen = false;
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        });
+        await _settle(tester);
+        expect(find.byTooltip('Minimize'), findsOneWidget);
+        expect(find.byTooltip('Maximize'), findsOneWidget);
+        expect(find.byTooltip('Close'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        debugDefaultTargetPlatformOverride = null;
+      });
+
+      testWidgets('hidden on macOS even when windowed', (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        final app = await pumpAppShell(tester, layout: AxLayout.desktop);
+        await tester.runAsync(() async {
+          app.fullScreen = false;
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        });
+        await _settle(tester);
+        expect(find.byKey(const ValueKey('window-close')), findsNothing);
+        expect(find.byTooltip('Minimize'), findsNothing);
+        debugDefaultTargetPlatformOverride = null;
+      });
     });
   });
 
