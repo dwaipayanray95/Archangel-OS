@@ -701,7 +701,7 @@ class _RunAppPageState extends State<RunAppPage> {
                   child: Text(title, style: ax.typo.title.copyWith(color: c.text)),
                 ),
               ),
-              if (help != null) help,
+              ?help,
             ],
           ),
           SizedBox(height: ax.space.sm),

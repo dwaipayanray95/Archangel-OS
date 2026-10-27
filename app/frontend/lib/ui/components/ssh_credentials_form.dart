@@ -343,7 +343,7 @@ class _SshCredentialsFormState extends State<SshCredentialsForm> {
             decoration: InputDecoration(labelText: label, hintText: hint, alignLabelWithHint: maxLines > 1),
           ),
         ),
-        if (help != null) help,
+        ?help,
       ],
     );
   }

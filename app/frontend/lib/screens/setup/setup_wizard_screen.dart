@@ -527,7 +527,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
             decoration: InputDecoration(labelText: label, hintText: hint),
           ),
         ),
-        if (help != null) help,
+        ?help,
       ],
     );
   }

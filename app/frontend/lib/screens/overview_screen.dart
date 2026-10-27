@@ -171,7 +171,7 @@ class _HealthHero extends StatelessWidget {
     final tail = attention == 0
         ? 'Nothing needs you right now.'
         : (attention == 1 ? 'One thing could use a look.' : '$attention things could use a look.');
-    final detail = health.level == HealthLevel.healthy ? [if (apps != null) apps, tail].join(' ') : health.detail;
+    final detail = health.level == HealthLevel.healthy ? [?apps, tail].join(' ') : health.detail;
     return AxCard(
       semanticsLabel: 'Server health: ${health.headline}. $detail',
       padding: EdgeInsets.all(ax.space.lg + 4),
@@ -325,7 +325,7 @@ class _MetricCard extends StatelessWidget {
               Expanded(
                 child: Text(label, style: ax.typo.caption.copyWith(color: c.textMuted, fontSize: 12.5)),
               ),
-              if (help != null) help!,
+              ?help,
             ],
           ),
           SizedBox(height: ax.space.sm),
@@ -428,7 +428,7 @@ class _CardTitle extends StatelessWidget {
               child: Text(text, style: ax.typo.title.copyWith(color: ax.colors.text)),
             ),
           ),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

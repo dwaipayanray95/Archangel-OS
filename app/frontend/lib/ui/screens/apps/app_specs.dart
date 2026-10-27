@@ -76,10 +76,7 @@ String? buildPortSpec(PortMapping m) {
   return m.visibility == PortVisibility.public ? '0.0.0.0:$spec' : spec;
 }
 
-List<String> buildPortSpecs(Iterable<PortMapping> rows) => [
-  for (final r in rows)
-    if (buildPortSpec(r) case final s?) s,
-];
+List<String> buildPortSpecs(Iterable<PortMapping> rows) => [for (final r in rows) ?buildPortSpec(r)];
 
 /// Folder row: a path on the server and where the app sees it.
 class FolderMapping {
