@@ -24,22 +24,26 @@ enum AxUiScale {
   static AxUiScale fromName(String? name) => AxUiScale.values.firstWhere((s) => s.name == name, orElse: () => AxUiScale.default80);
 }
 
-/// The app's destinations, in navigation order. On phones the last three
-/// live behind the "More" tab.
-enum AxSection { home, apps, files, terminal, activity, services, settings }
+/// The app's destinations, in navigation order. On phones everything after
+/// Terminal lives behind the "More" tab.
+///
+/// Sections are saved by name (never by index), and the phone bottom bar
+/// uses the first four positions, so new destinations go after `terminal`.
+enum AxSection { home, apps, files, terminal, browser, activity, services, settings }
 
 const axSectionLabels = <AxSection, String>{
   AxSection.home: 'Home',
   AxSection.apps: 'Apps',
   AxSection.files: 'Files',
   AxSection.terminal: 'Terminal',
+  AxSection.browser: 'Browser',
   AxSection.activity: 'Activity',
   AxSection.services: 'Services',
   AxSection.settings: 'Settings',
 };
 
 /// Destinations shown under "More" on phones.
-const axMoreSections = <AxSection>[AxSection.activity, AxSection.services, AxSection.settings];
+const axMoreSections = <AxSection>[AxSection.browser, AxSection.activity, AxSection.services, AxSection.settings];
 
 /// How the app is laid out on wide screens. Phones always use [simple].
 ///

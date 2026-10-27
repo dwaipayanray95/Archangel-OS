@@ -5,6 +5,7 @@
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
   file_selector_windows
+  flutter_inappwebview_windows
   hotkey_manager_windows
   screen_retriever_windows
   url_launcher_windows

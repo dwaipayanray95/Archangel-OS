@@ -149,7 +149,7 @@ void main() {
   });
 
   group('wide layout (sidebar)', () {
-    testWidgets('extended sidebar at >= 1000 with all seven destinations and the wordmark', (tester) async {
+    testWidgets('extended sidebar at >= 1000 with every destination and the wordmark', (tester) async {
       await pumpAppShell(tester);
       final side = tester.widget<AxSidebar>(find.byType(AxSidebar));
       expect(side.extended, isTrue);

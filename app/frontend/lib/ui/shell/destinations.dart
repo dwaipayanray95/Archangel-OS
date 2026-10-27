@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_state.dart';
+import '../../screens/browser_screen.dart';
 import '../../screens/containers_screen.dart';
 import '../../screens/devops_screen.dart';
 import '../../screens/files_screen.dart';
@@ -14,6 +15,7 @@ const axSectionIcons = <AxSection, IconData>{
   AxSection.apps: Icons.apps_rounded,
   AxSection.files: Icons.folder_outlined,
   AxSection.terminal: Icons.terminal_rounded,
+  AxSection.browser: Icons.public_outlined,
   AxSection.activity: Icons.show_chart_rounded,
   AxSection.services: Icons.layers_outlined,
   AxSection.settings: Icons.settings_outlined,
@@ -24,6 +26,7 @@ const axSectionSelectedIcons = <AxSection, IconData>{
   AxSection.apps: Icons.apps_rounded,
   AxSection.files: Icons.folder_rounded,
   AxSection.terminal: Icons.terminal_rounded,
+  AxSection.browser: Icons.public,
   AxSection.activity: Icons.show_chart_rounded,
   AxSection.services: Icons.layers_rounded,
   AxSection.settings: Icons.settings_rounded,
@@ -36,6 +39,7 @@ Widget buildDestination(AxSection section) => switch (section) {
   AxSection.apps => const ContainersScreen(),
   AxSection.files => const FilesScreen(),
   AxSection.terminal => const TerminalScreen(),
+  AxSection.browser => const BrowserScreen(),
   AxSection.activity => const MonitoringScreen(),
   AxSection.services => const DevopsScreen(),
   AxSection.settings => const SettingsScreen(),

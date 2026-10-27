@@ -2047,6 +2047,7 @@ class _LauncherState extends State<_Launcher> {
     AxSection.apps: 'Run and manage apps',
     AxSection.files: 'Browse and download',
     AxSection.terminal: 'Command line',
+    AxSection.browser: 'Open web pages',
     AxSection.activity: 'Live charts',
     AxSection.services: 'Background helpers',
     AxSection.settings: 'Servers, devices, updates',

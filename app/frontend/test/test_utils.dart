@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:archangel/data/app_state.dart';
 import 'package:archangel/services/admin_mode_service.dart';
 import 'package:archangel/services/archangeld_connection.dart';
+import 'package:archangel/services/browser_service.dart';
 import 'package:archangel/services/containers_service.dart';
 import 'package:archangel/services/devices_service.dart';
 import 'package:archangel/services/devops_service.dart';
@@ -33,6 +34,8 @@ Future<AppState> pumpAppShell(
   Future<void> Function(ServerRegistry registry)? seedRegistry,
   AxLayout layout = AxLayout.simple,
   DesktopPrefs? desktopPrefs,
+  ArchangeldConnection? backend,
+  BrowserService? browser,
 }) async {
   final registry = ServerRegistry();
   final appState = AppState();
@@ -57,9 +60,10 @@ Future<AppState> pumpAppShell(
         ChangeNotifierProvider<ServerRegistry>.value(value: registry),
         ChangeNotifierProvider<DesktopPrefs>.value(value: desktopPrefs ?? DesktopPrefs()),
         ChangeNotifierProvider(create: (_) => WireGuardController()),
-        ChangeNotifierProvider(create: (_) => ArchangeldConnection()),
+        ChangeNotifierProvider<ArchangeldConnection>.value(value: backend ?? ArchangeldConnection()),
         ChangeNotifierProvider(create: (_) => MonitoringService()),
         ChangeNotifierProvider(create: (_) => FilesService()),
+        ChangeNotifierProvider<BrowserService>.value(value: browser ?? BrowserService()),
         ChangeNotifierProvider(create: (_) => ContainersService()),
         ChangeNotifierProvider(create: (_) => DevopsService()),
         ChangeNotifierProvider(create: (_) => DevicesService()),

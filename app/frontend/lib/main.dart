@@ -5,6 +5,7 @@ import 'data/app_state.dart';
 import 'screens/setup/setup_landing_screen.dart';
 import 'services/admin_mode_service.dart';
 import 'services/archangeld_connection.dart';
+import 'services/browser_service.dart';
 import 'services/containers_service.dart';
 import 'services/devices_service.dart';
 import 'services/devops_service.dart';
@@ -17,6 +18,8 @@ import 'services/server_registry.dart';
 import 'services/window_service.dart';
 import 'ui/boot/boot_splash.dart';
 import 'ui/components/ax_scaled_canvas.dart';
+import 'ui/screens/browser/in_app_web_controller.dart';
+import 'ui/screens/browser/web_view_host.dart';
 import 'ui/shell/archangel_shell.dart';
 import 'ui/shell/desktop_prefs.dart';
 import 'ui/theme.dart';
@@ -27,6 +30,8 @@ void main() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   await WindowService.init(fullScreen: true);
   await HotkeyService.init();
+  // The Browser screen only knows the AxWebController seam; this is the one place the real web view is wired in.
+  AxWebControllers.factory = InAppWebController.create;
   runApp(const ArchangelApp());
 }
 
@@ -51,6 +56,7 @@ class ArchangelApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()..load()),
         ChangeNotifierProvider(create: (_) => MonitoringService()),
         ChangeNotifierProvider(create: (_) => FilesService()),
+        ChangeNotifierProvider(create: (_) => BrowserService()..load()),
         ChangeNotifierProvider(create: (_) => ContainersService()),
         ChangeNotifierProvider(create: (_) => DevopsService()),
         ChangeNotifierProvider(create: (_) => DevicesService()),

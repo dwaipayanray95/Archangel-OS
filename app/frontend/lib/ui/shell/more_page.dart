@@ -9,6 +9,7 @@ import 'destinations.dart';
 import 'server_switcher.dart';
 
 const _moreBlurbs = <AxSection, String>{
+  AxSection.browser: 'Open web pages in tabs. Pages open on this device.',
   AxSection.activity: 'How busy your server is: processor, memory, disk and network.',
   AxSection.services: 'Background programs, scheduled jobs, web addresses and scripts.',
   AxSection.settings: 'Servers, devices, security, appearance and updates.',
