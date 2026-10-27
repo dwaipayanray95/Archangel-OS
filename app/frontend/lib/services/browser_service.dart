@@ -18,6 +18,15 @@ const Duration kBrowserReloadWindow = Duration(seconds: 60);
 /// History writes wait this long so scrolling a busy site does not thrash the file.
 const Duration kBrowserWriteDelay = Duration(seconds: 2);
 
+/// The form of [url] used to tell saved pages apart, so `https://x.com` and
+/// `https://x.com/` are one bookmark - a web view often reports the second
+/// where the person typed the first.
+String canonicalPageUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.host.isEmpty) return url;
+  return uri.replace(host: uri.host.toLowerCase(), path: uri.path == '/' ? '' : uri.path).toString();
+}
+
 /// One page the person visited. [id] and [updatedAt] are part of the stored
 /// shape now so a syncing store (phase 2) can use them without a migration.
 @immutable
@@ -296,7 +305,10 @@ class BrowserService extends ChangeNotifier {
 
   // ---- bookmarks ----
 
-  bool isBookmarked(String url) => _bookmarks.any((b) => b.url == url);
+  bool isBookmarked(String url) {
+    final key = canonicalPageUrl(url);
+    return _bookmarks.any((b) => canonicalPageUrl(b.url) == key);
+  }
 
   void addBookmark(String url, {String? title}) {
     final uri = Uri.tryParse(url);
@@ -317,9 +329,10 @@ class BrowserService extends ChangeNotifier {
 
   void removeBookmark(String url) {
     final before = _bookmarks.length;
+    final key = canonicalPageUrl(url);
     _bookmarks = [
       for (final b in _bookmarks)
-        if (b.url != url) b,
+        if (canonicalPageUrl(b.url) != key) b,
     ];
     if (_bookmarks.length != before) _changedBookmarks();
   }

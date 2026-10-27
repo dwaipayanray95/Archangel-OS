@@ -142,6 +142,21 @@ void main() {
       expect(svc.isBookmarked('https://example.com/'), isFalse);
       svc.dispose();
     });
+
+    test('a trailing slash is the same saved page', () {
+      final svc = make(MemoryBrowserStore());
+      svc.addBookmark('https://example.com', title: 'Example');
+      expect(svc.isBookmarked('https://example.com/'), isTrue);
+      expect(svc.isBookmarked('https://EXAMPLE.com'), isTrue);
+      svc.addBookmark('https://example.com/');
+      expect(svc.bookmarks, hasLength(1), reason: 'the web view reporting the slashed form must not add a second');
+      svc.removeBookmark('https://example.com/');
+      expect(svc.bookmarks, isEmpty);
+      // A real path is still its own page.
+      svc.addBookmark('https://example.com/news');
+      expect(svc.isBookmarked('https://example.com/'), isFalse);
+      svc.dispose();
+    });
   });
 
   group('LocalBrowserStore', () {

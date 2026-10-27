@@ -57,6 +57,9 @@ OmniboxTarget resolveOmniboxInput(String raw) {
     final looksLikeScheme = rest.startsWith('//') || _opaqueSchemes.contains(scheme) || !input.contains(RegExp(r'\s'));
     if (!hostAndPort && looksLikeScheme) {
       final uri = Uri.tryParse(input);
+      // A web address with nothing after the scheme ("https://") is being
+      // typed, not a kind of link we refuse: do nothing yet.
+      if (uri != null && (scheme == 'http' || scheme == 'https') && uri.host.isEmpty) return const OmniboxEmpty();
       if (uri == null || !isAllowedBrowserUri(uri)) return OmniboxBlocked(input);
       return OmniboxLoad(uri);
     }

@@ -64,6 +64,13 @@ void main() {
     });
   });
 
+  test('a half-typed address does nothing instead of looking refused', () {
+    expect(resolveOmniboxInput('https://'), isA<OmniboxEmpty>());
+    expect(resolveOmniboxInput('http://'), isA<OmniboxEmpty>());
+    // Still refused, because it is genuinely not a web page.
+    expect(resolveOmniboxInput('file://'), isA<OmniboxBlocked>());
+  });
+
   test('splitUrlForDisplay separates the host', () {
     final p = splitUrlForDisplay('https://example.com/a/b?c=1');
     expect(p.prefix, 'https://');

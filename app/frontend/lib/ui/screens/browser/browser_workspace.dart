@@ -76,7 +76,10 @@ class _BrowserWorkspaceState extends State<BrowserWorkspace> {
               final bookmarked = url != null && widget.service.isBookmarked(url.toString());
               final onBookmark = tab.canBookmark ? () => _toggleBookmark(tab) : null;
 
-              final Widget page = _PageArea(tabs: _tabs, wide: wide, mostVisited: widget.service.mostVisited());
+              // Only the new-tab view uses this, and working it out walks the
+              // whole history - so don't do it on every progress tick.
+              final mostVisited = tab.view == BrowserTabView.newTab ? widget.service.mostVisited() : const <BrowserVisit>[];
+              final Widget page = _PageArea(tabs: _tabs, wide: wide, mostVisited: mostVisited);
               final Widget browse = Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
