@@ -14,6 +14,7 @@ import 'package:archangel/services/devops_service.dart';
 import 'package:archangel/services/files_service.dart';
 import 'package:archangel/services/local_kv_store.dart';
 import 'package:archangel/services/monitoring_service.dart';
+import 'package:archangel/services/prefs_sync_service.dart';
 import 'package:archangel/services/update_check_service.dart';
 import 'package:archangel/services/wireguard_controller.dart';
 import 'package:archangel/services/server_registry.dart';
@@ -61,6 +62,8 @@ Future<AppState> pumpAppShell(
         ChangeNotifierProvider<DesktopPrefs>.value(value: desktopPrefs ?? DesktopPrefs()),
         ChangeNotifierProvider(create: (_) => WireGuardController()),
         ChangeNotifierProvider<ArchangeldConnection>.value(value: backend ?? ArchangeldConnection()),
+        // No transport and no timers: the shell never syncs in tests.
+        ChangeNotifierProvider(create: (_) => PrefsSyncService(debounce: null, pollInterval: null)),
         ChangeNotifierProvider(create: (_) => MonitoringService()),
         ChangeNotifierProvider(create: (_) => FilesService()),
         ChangeNotifierProvider<BrowserService>.value(value: browser ?? BrowserService()),

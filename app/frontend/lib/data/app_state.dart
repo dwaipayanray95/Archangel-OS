@@ -1,15 +1,16 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/local_kv_store.dart';
+import '../services/prefs_sync_service.dart';
 import '../services/window_service.dart';
 import '../ui/theme.dart';
 
-const _kThemeModeKey = 'appearance_theme_mode';
-const _kAccentKey = 'appearance_accent';
+const _kThemeModeKey = kPrefThemeMode;
+const _kAccentKey = kPrefAccent;
 const _kLayoutKey = 'appearance_layout';
-const _kUiScaleKey = 'appearance_ui_scale';
-const _kFullScreenKey = 'appearance_full_screen';
-const _kStartupSoundKey = 'appearance_startup_sound';
+const _kUiScaleKey = kPrefUiScale;
+const _kFullScreenKey = kPrefFullScreen;
+const _kStartupSoundKey = kPrefStartupSound;
 
 /// UI canvas scaling on desktop/wide displays.
 enum AxUiScale {
@@ -62,6 +63,15 @@ const kDefaultThemeMode = ThemeMode.system;
 /// Kept deliberately simple (ChangeNotifier) — this is a single-user app
 /// with no need for a heavier state management layer yet.
 class AppState extends ChangeNotifier {
+  /// With a [sync], appearance writes go through it (so the synced ones
+  /// reach the server) and the server's changes land back here. Without one
+  /// the values are only stored on this device, as before.
+  AppState({PrefsSyncService? sync}) : _sync = sync {
+    sync?.applier = _applySynced;
+  }
+
+  final PrefsSyncService? _sync;
+
   AxSection _section = AxSection.home;
   AxSection get section => _section;
   set section(AxSection s) {
@@ -190,7 +200,25 @@ class AppState extends ChangeNotifier {
   }
 
   void _save(String key, String value) {
-    LocalKvStore.instance.write(key, value).catchError((_) {});
+    final sync = _sync;
+    (sync != null ? sync.setLocal(key, value) : LocalKvStore.instance.write(key, value)).catchError((_) {});
+  }
+
+  /// Takes values the server changed (a null value means the default). Does
+  /// not save: the sync service already stored them.
+  void _applySynced(Map<String, String?> changes) {
+    for (final e in changes.entries) {
+      final v = e.value;
+      switch (e.key) {
+        case _kThemeModeKey:
+          _themeMode = v == null ? kDefaultThemeMode : ThemeMode.values.firstWhere((m) => m.name == v, orElse: () => kDefaultThemeMode);
+        case _kAccentKey:
+          _accentChoice = v == null ? AxAccent.halo : AxAccent.fromName(v);
+        case _kStartupSoundKey:
+          _startupSound = v == null ? _defaultStartupSound() : v == 'true';
+      }
+    }
+    notifyListeners();
   }
 
   bool _paletteOpen = false;

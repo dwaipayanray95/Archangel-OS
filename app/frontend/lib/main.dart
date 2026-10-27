@@ -11,6 +11,7 @@ import 'services/devices_service.dart';
 import 'services/devops_service.dart';
 import 'services/files_service.dart';
 import 'services/monitoring_service.dart';
+import 'services/prefs_sync_service.dart';
 import 'services/update_check_service.dart';
 import 'services/wireguard_controller.dart';
 import 'services/hotkey_service.dart';
@@ -19,6 +20,7 @@ import 'services/window_service.dart';
 import 'ui/boot/boot_splash.dart';
 import 'ui/components/ax_scaled_canvas.dart';
 import 'ui/screens/browser/in_app_web_controller.dart';
+import 'ui/prefs_sync_binder.dart';
 import 'ui/screens/browser/web_view_host.dart';
 import 'ui/shell/archangel_shell.dart';
 import 'ui/shell/desktop_prefs.dart';
@@ -49,11 +51,13 @@ class ArchangelApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AppState()..loadAppearance()),
         ChangeNotifierProvider(create: (_) => DesktopPrefs()..load()),
         ChangeNotifierProvider(create: (_) => ServerRegistry()..load()),
         ChangeNotifierProvider(create: (_) => WireGuardController()..bootstrap()),
         ChangeNotifierProvider(create: (_) => ArchangeldConnection()..load()),
+        // Settings that follow the person between devices. Local values render first; sync lands after (see docs/dev/prefs-sync.md).
+        ChangeNotifierProvider(create: (ctx) => PrefsSyncService(transport: HttpPrefsTransport(ctx.read<ArchangeldConnection>()))),
+        ChangeNotifierProvider(create: (ctx) => AppState(sync: ctx.read<PrefsSyncService>())..loadAppearance()),
         ChangeNotifierProvider(create: (_) => MonitoringService()),
         ChangeNotifierProvider(create: (_) => FilesService()),
         ChangeNotifierProvider(create: (_) => BrowserService()..load()),
@@ -63,21 +67,23 @@ class ArchangelApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AdminModeService()),
         ChangeNotifierProvider(create: (_) => UpdateCheckService()..loadCache()),
       ],
-      child: Consumer<AppState>(
-        builder: (context, app, _) => MaterialApp(
-          title: 'Archangel OS',
-          debugShowCheckedModeBanner: false,
-          theme: buildTheme(Brightness.light, app.accentChoice),
-          darkTheme: buildTheme(Brightness.dark, app.accentChoice),
-          themeMode: app.themeMode,
-          scrollBehavior: _NoOverscrollBehavior(),
-          // The start-up animation plays over everything while the app
-          // bootstraps underneath, scaled for elegant desktop viewing.
-          builder: (context, child) => AxScaledCanvas(
-            scaleFactor: app.uiScaleFactor,
-            child: BootGate(child: child ?? const SizedBox.shrink()),
+      child: PrefsSyncBinder(
+        child: Consumer<AppState>(
+          builder: (context, app, _) => MaterialApp(
+            title: 'Archangel OS',
+            debugShowCheckedModeBanner: false,
+            theme: buildTheme(Brightness.light, app.accentChoice),
+            darkTheme: buildTheme(Brightness.dark, app.accentChoice),
+            themeMode: app.themeMode,
+            scrollBehavior: _NoOverscrollBehavior(),
+            // The start-up animation plays over everything while the app
+            // bootstraps underneath, scaled for elegant desktop viewing.
+            builder: (context, child) => AxScaledCanvas(
+              scaleFactor: app.uiScaleFactor,
+              child: BootGate(child: child ?? const SizedBox.shrink()),
+            ),
+            home: const _RootRouter(),
           ),
-          home: const _RootRouter(),
         ),
       ),
     );

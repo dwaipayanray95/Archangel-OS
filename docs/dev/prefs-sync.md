@@ -171,6 +171,10 @@ appearance from my server" switch before applying anything visual.
   "Settings sync" line in Settings showing state and last sync. **No server
   endpoint exists yet**, so this ships behind a fake transport in tests and
   local-only at runtime.
+  `forgetServerCopy()` (the `DELETE`) is built and tested, but no button is
+  wired up yet: a destructive action against an endpoint that does not exist
+  would fail quietly, which is worse than not offering it. Surface it, behind a
+  `ConfirmDialog`, in the same change that lands the server side.
 - **2b** — wallpaper (as a server storage path, with a picker) and session
   restore (`cloud` open-screens list, `deviceClass` dock/layout).
 - **2c** — the browser's bookmarks and history move from `LocalBrowserStore` to

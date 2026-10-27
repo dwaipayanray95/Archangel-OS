@@ -26,6 +26,7 @@ import '../../ui.dart';
 import '../home/home_logic.dart';
 import 'diagnostics_report.dart';
 import 'settings_parts.dart';
+import 'settings_sync_card.dart';
 
 /// The saved SSH key and the secure connection to the server, plus repairs.
 class SecuritySection extends StatefulWidget {
@@ -465,6 +466,7 @@ class AppearanceSection extends StatelessWidget {
             ),
           ],
         ),
+        const SettingsSyncCard(),
       ],
     );
   }
